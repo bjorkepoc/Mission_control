@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """RQ worker entrypoint for Docker containers."""
 
 from __future__ import annotations
@@ -39,7 +39,13 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    sys.exit(args.func(args))
+    try:
+        sys.exit(args.func(args))
+    except Exception:
+        # Log unexpected errors before exiting
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
