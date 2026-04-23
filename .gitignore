@@ -1,0 +1,4 @@
+http.log
+data/calendar-sync.log
+data/.tasks-snapshot.json
+data/.webhook-debug.log
