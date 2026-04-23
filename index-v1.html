@@ -3,54 +3,2262 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mission Control</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="style.css">
-    <style></style>
+    <title>Mission Control - MoltBot</title>
+    <style>
+        :root {
+            --bg-primary: #0d0d0d;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #262626;
+            --bg-modal: #1f1f1f;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --border: #333333;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .nav-tab {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .nav-tab.active {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn-github {
+            background: #24292e;
+            color: white;
+        }
+
+        .btn-github:hover {
+            background: #1b1f23;
+        }
+
+        .btn-danger {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .btn-small {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+        }
+
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .live-indicator::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .live-indicator.live {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-green);
+        }
+
+        .live-indicator.stale {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-yellow);
+        }
+
+        /* User Profile */
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.375rem 0.75rem;
+            background: var(--bg-card);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+        }
+
+        .user-name {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .user-logout {
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .user-logout:hover {
+            color: var(--accent-red);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Chat */
+        .chat-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            gap: 1rem;
+        }
+
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .chat-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .chat-header p {
+            color: var(--text-secondary);
+            margin-top: 0.35rem;
+        }
+
+        .chat-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .chat-status {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .chat-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .chat-transcript {
+            min-height: 420px;
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0));
+        }
+
+        .chat-message {
+            max-width: 78%;
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            line-height: 1.45;
+            border: 1px solid var(--border);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .chat-message.user {
+            align-self: flex-end;
+            background: rgba(59, 130, 246, 0.18);
+            border-color: rgba(59, 130, 246, 0.35);
+        }
+
+        .chat-message.assistant {
+            align-self: flex-start;
+            background: var(--bg-card);
+        }
+
+        .chat-message.system {
+            align-self: center;
+            max-width: 100%;
+            background: rgba(245, 158, 11, 0.12);
+            border-color: rgba(245, 158, 11, 0.25);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .chat-meta {
+            display: block;
+            margin-bottom: 0.4rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .chat-composer {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 0.75rem;
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+            background: var(--bg-card);
+        }
+
+        .chat-input {
+            width: 100%;
+            min-height: 96px;
+            resize: vertical;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 0.9rem 1rem;
+            font: inherit;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .chat-composer-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            align-items: stretch;
+        }
+
+        .chat-empty {
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 3rem 1rem;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            gap: 2rem;
+            padding: 1rem 2rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stat {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .stat-highlight {
+            color: var(--accent-green);
+        }
+
+        /* Unsaved Changes Banner */
+        .unsaved-banner {
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 2rem;
+            background: var(--accent-yellow);
+            color: #000;
+        }
+
+        .unsaved-banner.visible {
+            display: flex;
+        }
+
+        .unsaved-text {
+            font-weight: 500;
+        }
+
+        /* Version Update Banner */
+        .version-banner {
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 2rem;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+            animation: versionPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes versionPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.85; }
+        }
+
+        .version-banner.visible {
+            display: flex;
+        }
+
+        .version-banner-text {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+
+        .version-banner-text .update-icon {
+            font-size: 1.1rem;
+        }
+
+        .version-banner .btn-refresh {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.375rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .version-banner .btn-refresh:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.02);
+        }
+
+        .version-banner .btn-dismiss {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            padding: 0.25rem;
+            margin-left: 0.5rem;
+            font-size: 1.1rem;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .version-banner .btn-dismiss:hover {
+            color: white;
+        }
+
+        /* Filters */
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem 2rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 0.375rem 0.75rem;
+            border-radius: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .filter-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        /* Main Layout */
+        .main {
+            display: flex;
+            height: calc(100vh - 180px);
+        }
+
+        /* Kanban Board */
+        .kanban {
+            flex: 1;
+            display: flex;
+            gap: 1rem;
+            padding: 1rem 2rem;
+            overflow-x: auto;
+            align-items: stretch;
+        }
+
+        .column {
+            min-width: 300px;
+            max-width: 350px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .column-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .column-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .column-dot.recurring { background: #06b6d4; } /* Cyan/Teal for recurring */
+        .column-dot.permanent { background: var(--accent-purple); }
+        .column-dot.scheduled { background: #f97316; } /* Orange for scheduled */
+        .column-dot.templates { background: #8B5CF6; } /* Purple for templates */
+        .column-dot.backlog { background: var(--accent-yellow); }
+        .column-dot.in-progress { background: var(--accent-blue); }
+        .column-dot.review { background: var(--accent-green); }
+        .column-dot.done { background: #6b7280; }
+
+        .column-title {
+            font-weight: 500;
+        }
+
+        .column-count {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .column-add {
+            margin-left: auto;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.25rem;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .column-add:hover {
+            background: var(--bg-card);
+            color: var(--accent-blue);
+        }
+
+        .column-add.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .archive-all-btn {
+            margin-left: auto;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .archive-all-btn:hover {
+            background: var(--accent-purple);
+            border-color: var(--accent-purple);
+            color: white;
+        }
+
+        .task-card.archived {
+            opacity: 0.6;
+            border-left: 3px solid var(--accent-purple);
+        }
+
+        .task-card.archived .task-title::before {
+            content: '📦 ';
+        }
+
+        .archived-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: rgba(139, 92, 246, 0.2);
+            color: var(--accent-purple);
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 500;
+        }
+
+        .column-tasks {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            flex: 1;
+            padding-bottom: 1rem;
+            align-items: stretch; /* Cards take full width but not full height */
+        }
+
+        /* Task Card */
+        .task-card {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: pointer;
+            border: 1px solid transparent;
+            /* No automatic animation - FLIP handles movement */
+            transition: opacity 0.3s, filter 0.3s;
+            /* Prevent stretching */
+            display: block;
+            height: auto;
+        }
+        
+        .task-card.search-dimmed {
+            opacity: 0.25;
+            filter: grayscale(0.5);
+            pointer-events: none;
+        }
+
+        /* Cron Cards */
+        .cron-card {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 0.875rem;
+            border-left: 3px solid #06b6d4;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        
+        .cron-card:hover {
+            transform: translateY(-2px);
+            border-color: #22d3ee;
+        }
+        
+        .cron-card[draggable="true"] {
+            cursor: grab;
+        }
+        
+        .cron-card.dragging {
+            opacity: 0.4;
+            cursor: grabbing;
+        }
+        
+        /* Template Cards */
+        .template-card {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 0.875rem;
+            border-left: 3px solid #8B5CF6;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        
+        .template-card:hover {
+            transform: translateY(-2px);
+            border-color: #a78bfa;
+        }
+        
+        .template-card .template-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .template-card .template-description {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .template-card .template-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .template-card .execution-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: rgba(139, 92, 246, 0.15);
+            color: #a78bfa;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .template-card .template-actions {
+            display: flex;
+            gap: 0.25rem;
+            margin-top: 0.5rem;
+        }
+        
+        .template-card .template-action-btn {
+            flex: 1;
+            padding: 0.25rem 0.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(139, 92, 246, 0.15);
+            color: #a78bfa;
+        }
+        
+        .template-card .template-action-btn:hover {
+            background: rgba(139, 92, 246, 0.3);
+        }
+        
+        .template-card .template-action-btn.run {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+        }
+        
+        .template-card .template-action-btn.run:hover {
+            background: rgba(16, 185, 129, 0.3);
+        }
+        
+        /* Scheduled Task Cards */
+        .scheduled-card {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 0.875rem;
+            border-left: 3px solid #f97316;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        
+        .scheduled-card:hover {
+            transform: translateY(-2px);
+            border-color: #fb923c;
+        }
+        
+        .scheduled-card .scheduled-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .scheduled-card .scheduled-time {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .scheduled-card .countdown {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: rgba(249, 115, 22, 0.15);
+            color: #fb923c;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .scheduled-card .countdown.overdue {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+            animation: pulse 1s infinite;
+        }
+        
+        .cron-card .cron-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .cron-card .cron-schedule {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .cron-card .cron-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .cron-card .cron-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .cron-card .cron-status-dot.ok { background: var(--accent-green); }
+        .cron-card .cron-status-dot.error { background: var(--accent-red); }
+        .cron-card .cron-status-dot.disabled { background: var(--text-secondary); }
+        .cron-card .cron-status-dot.pending { background: var(--accent-yellow, #f59e0b); animation: pulse 2s infinite; }
+        .cron-card .cron-status-dot.running { 
+            background: var(--accent-blue);
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        
+        .cron-card .cron-next {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+        
+        /* Search Input */
+        .search-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .search-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .search-input {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.5rem 2rem 0.5rem 2.25rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            width: 200px;
+            transition: all 0.2s;
+        }
+        
+        .search-input:focus,
+        .search-input.expanded {
+            outline: none;
+            border-color: var(--accent-blue);
+            width: 280px;
+        }
+        
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            pointer-events: none;
+        }
+        
+        .search-clear {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.25rem;
+            display: none;
+            font-size: 1rem;
+            line-height: 1;
+        }
+        
+        .search-clear:hover {
+            color: var(--text-primary);
+        }
+        
+        .search-input:not(:placeholder-shown) ~ .search-clear {
+            display: block;
+        }
+        
+        .search-info {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .archive-search-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .archive-search-toggle:hover {
+            background: var(--bg-card);
+        }
+
+        .archive-search-toggle input {
+            cursor: pointer;
+        }
+
+        .archive-search-toggle input:checked + span {
+            color: var(--accent-purple);
+        }
+
+        .task-card.priority-changed {
+            animation: priorityPulse 0.5s ease-out;
+        }
+
+        /* Old dragging styles moved to Drag & Drop section below */
+
+        @keyframes priorityPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); }
+            100% { transform: scale(1); }
+        }
+
+        .task-card:hover {
+            border-color: var(--border);
+            transform: translateY(-2px);
+        }
+
+        .task-card.priority-high {
+            border-left: 3px solid var(--accent-red);
+        }
+
+        .task-card.priority-medium {
+            border-left: 3px solid var(--accent-yellow);
+        }
+
+        .task-title {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .task-title-text {
+            flex: 1;
+        }
+
+        .task-description {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: 0.75rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            max-height: 2.8em; /* Fallback: ~2 lines at 0.875rem */
+            line-height: 1.4;
+            white-space: pre-line; /* Respect newlines but wrap */
+        }
+
+        .task-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .task-comment-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .task-comment-indicator svg {
+            opacity: 0.7;
+        }
+        
+        /* Processing indicator (agent working on task) */
+        .task-processing {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            margin: 8px 0;
+            background: linear-gradient(90deg, rgba(99, 102, 241, 0.15), rgba(59, 130, 246, 0.15));
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--accent-blue);
+            animation: processingPulse 2s ease-in-out infinite;
+        }
+        
+        /* Pulsing border effect on processing task cards */
+        .task-card.processing-active {
+            border-color: var(--accent-blue) !important;
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+            animation: processingBorderPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes processingBorderPulse {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+            }
+            50% { 
+                box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+            }
+        }
+        
+        /* Timeout warning (30+ minutes) */
+        .task-processing.timeout-warning {
+            background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), rgba(239, 68, 68, 0.15));
+            color: var(--accent-yellow);
+        }
+        
+        .task-card.processing-timeout {
+            border-color: var(--accent-red) !important;
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            animation: timeoutBorderPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes timeoutBorderPulse {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3);
+            }
+            50% { 
+                box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+            }
+        }
+        
+        .processing-time {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+        
+        @keyframes processingPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .processing-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .task-tags {
+            display: flex;
+            gap: 0.375rem;
+            flex-wrap: wrap;
+        }
+
+        .task-tag {
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            background: var(--bg-secondary);
+            /* Prevent other class rules from affecting tag size */
+            min-height: auto !important;
+            height: auto !important;
+            display: inline-block;
+        }
+
+        .task-tag.linkedin { background: #0077b520; color: #0077b5; }
+        .task-tag.project-a { background: #10b98120; color: #10b981; }
+        .task-tag.project-b { background: #8b5cf620; color: #8b5cf6; }
+        .task-tag.system { background: #6b728020; color: #9ca3af; }
+
+        .tag-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            font-size: 0.8rem;
+        }
+        .tag-chip .tag-remove {
+            cursor: pointer;
+            opacity: 0.6;
+            font-size: 0.9rem;
+        }
+        .tag-chip .tag-remove:hover {
+            opacity: 1;
+            color: #ef4444;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .btn-icon:hover {
+            background: var(--bg-secondary);
+        }
+
+        .project-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .project-item .project-icon {
+            font-size: 1.2rem;
+        }
+        .project-item .project-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+        .project-item .project-name {
+            flex: 1;
+            font-weight: 500;
+        }
+        .project-item .project-id {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+        .project-item .project-actions {
+            display: flex;
+            gap: 4px;
+        }
+        .project-item .project-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            opacity: 0.6;
+        }
+        .project-item .project-actions button:hover {
+            opacity: 1;
+            background: var(--bg-primary);
+        }
+
+        .emoji-btn {
+            width: 36px;
+            height: 36px;
+            font-size: 1.2rem;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .emoji-btn:hover {
+            background: var(--bg-primary);
+            transform: scale(1.1);
+        }
+        .emoji-btn.selected {
+            border-color: var(--accent);
+            background: var(--accent);
+        }
+
+        .view {
+            display: none;
+        }
+        .view.active {
+            display: block;
+        }
+
+        .docs-container h2 {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+        .docs-container code {
+            background: var(--bg-secondary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .docs-container details {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        .docs-container details summary {
+            outline: none;
+        }
+
+        .task-date {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+        }
+
+        .task-subtasks {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .subtask-progress {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-secondary);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent-green);
+            transition: width 0.3s;
+        }
+
+        /* Subtasks in Modal */
+        .subtasks-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .subtask-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .subtask-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .subtask-item .subtask-title {
+            flex: 1;
+            font-size: 0.875rem;
+        }
+
+        .subtask-item .subtask-title.done {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+        }
+
+        .subtask-item .subtask-delete {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 1rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .subtask-item:hover .subtask-delete {
+            opacity: 1;
+        }
+
+        .subtask-item .subtask-delete:hover {
+            color: var(--accent-red);
+        }
+
+        .subtask-add, .comment-add {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-start;
+        }
+
+        .subtask-add input, .comment-add textarea {
+            flex: 1;
+        }
+
+        /* Comments in Modal */
+        .comments-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .comment-item {
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+
+        .comment-author {
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .comment-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .comment-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Task Actions (Review buttons) */
+        .task-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .task-action-btn {
+            flex: 1;
+            padding: 0.375rem 0.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .task-action-btn.done {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-green);
+        }
+
+        .task-action-btn.done:hover {
+            background: rgba(16, 185, 129, 0.4);
+        }
+
+        .task-action-btn.backlog {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-yellow);
+        }
+
+        .task-action-btn.backlog:hover {
+            background: rgba(245, 158, 11, 0.4);
+        }
+
+        .task-action-btn.archive {
+            background: rgba(139, 92, 246, 0.2);
+            color: var(--accent-purple);
+        }
+
+        .task-action-btn.archive:hover {
+            background: rgba(139, 92, 246, 0.4);
+        }
+
+        .task-action-btn.unarchive {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--accent-blue);
+        }
+
+        .task-action-btn.unarchive:hover {
+            background: rgba(59, 130, 246, 0.4);
+        }
+
+        /* Drag & Drop - Trello-style smooth animations */
+        .task-card[draggable="true"] {
+            cursor: grab;
+            transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1),
+                        opacity 0.2s ease,
+                        margin 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+        }
+
+        .task-card.dragging {
+            opacity: 0.4;
+            cursor: grabbing;
+            transform: scale(0.95) rotate(2deg);
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .column-tasks.drag-over {
+            background: rgba(59, 130, 246, 0.05);
+            border-radius: 8px;
+        }
+
+        /* Smooth gap opening for drop target */
+        .task-card.make-space-above {
+            margin-top: 60px;
+        }
+
+        .task-card.make-space-below {
+            margin-bottom: 60px;
+        }
+
+        /* Visual drop indicator line */
+        .drop-indicator {
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-blue));
+            border-radius: 2px;
+            margin: 2px 0;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            pointer-events: none;
+        }
+
+        .drop-indicator.visible {
+            opacity: 1;
+        }
+
+        /* Empty column drop zone */
+        .column-tasks.drag-over:empty::after {
+            content: 'Drop here';
+            display: block;
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--accent-blue);
+            font-size: 0.875rem;
+            border: 2px dashed var(--accent-blue);
+            border-radius: 8px;
+            opacity: 0.7;
+        }
+
+        /* Prevent janky transitions during render */
+        .column-tasks.no-transition .task-card {
+            transition: none !important;
+            animation: none !important;
+        }
+
+        /* Activity Feed */
+        .activity {
+            width: 320px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            padding: 1rem;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .activity.collapsed {
+            width: 0;
+            padding: 0;
+            border-left: none;
+            overflow: hidden;
+        }
+
+        .activity-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            margin-left: auto;
+        }
+
+        .activity-toggle:hover {
+            background: var(--border);
+            color: var(--text-primary);
+        }
+
+        /* Reopen button when collapsed */
+        .activity-reopen {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 80px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            z-index: 100;
+        }
+
+        .activity-reopen:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .activity.collapsed ~ .activity-reopen,
+        body:has(.activity.collapsed) .activity-reopen {
+            display: flex;
+        }
+
+        .activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .activity-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-top: 0.375rem;
+            flex-shrink: 0;
+        }
+
+        .activity-dot.created { background: var(--accent-green); }
+        .activity-dot.moved { background: var(--accent-blue); }
+        .activity-dot.completed { background: var(--accent-purple); }
+        .activity-dot.deleted { background: var(--accent-red); }
+        .activity-dot.archive { background: var(--accent-purple); }
+        .activity-dot.unarchive { background: var(--accent-blue); }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-actor {
+            font-weight: 500;
+        }
+
+        .activity-action {
+            color: var(--text-secondary);
+        }
+
+        .activity-task {
+            color: var(--accent-blue);
+        }
+
+        .activity-time {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 2rem;
+            font-size: 0.875rem;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.visible {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-modal);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .form-hint {
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .form-hint a {
+            color: var(--accent-blue);
+        }
+
+        /* Steps */
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .step {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .step-description {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Validation States */
+        .validation-loading {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .validation-loading.visible {
+            display: flex;
+        }
+
+        .validation-success {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--accent-green);
+        }
+
+        .validation-success.visible {
+            display: flex;
+        }
+
+        .validation-error {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--accent-red);
+        }
+
+        .validation-error.visible {
+            display: flex;
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success {
+            border-color: var(--accent-green);
+        }
+
+        .toast.error {
+            border-color: var(--accent-red);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .header-left {
+                flex-direction: column;
+                gap: 1rem;
+                width: 100%;
+            }
+
+            .stats-bar {
+                flex-wrap: wrap;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .main {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .kanban {
+                padding: 1rem;
+                flex-direction: column;
+            }
+
+            .column {
+                min-width: 100%;
+                max-width: 100%;
+            }
+
+            .activity {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid var(--border);
+            }
+        }
+
+        /* === LOGIN SCREEN === */
+        .login-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #1a1a2e 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .login-container {
+            text-align: center;
+            max-width: 480px;
+            width: 90%;
+        }
+
+        .login-logo {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .login-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .login-subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+
+        .login-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: left;
+        }
+
+        .login-card h2 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
+        }
+
+        .login-card > p {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        .login-steps {
+            margin-bottom: 1.5rem;
+        }
+
+        .login-step {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            align-items: flex-start;
+        }
+
+        .login-step-num {
+            background: var(--accent);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .login-step strong {
+            display: block;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .login-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .login-link:hover {
+            text-decoration: underline;
+        }
+
+        .login-hint {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .login-form {
+            margin-top: 1.5rem;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            box-sizing: border-box;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 0.875rem 1.5rem;
+            background: #238636;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: background 0.2s;
+        }
+
+        .login-btn:hover {
+            background: #2ea043;
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .login-error {
+            display: none;
+            color: var(--accent-red);
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .login-loading {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .login-security {
+            margin-top: 1.5rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        #dashboard {
+            min-height: 100vh;
+        }
+
+        /* === PEOPLE / COLLABORATORS === */
+        .people-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .people-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .people-header h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+        }
+
+        .people-stats {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .people-stat {
+            background: var(--bg-card);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .people-stat strong {
+            color: var(--text-primary);
+        }
+
+        .collaborators-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .collaborator-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+        }
+
+        .collaborator-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+
+        .collaborator-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--border);
+        }
+
+        .collaborator-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .collaborator-name {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .collaborator-username {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .collaborator-username a {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+
+        .collaborator-username a:hover {
+            color: var(--accent-blue);
+        }
+
+        .collaborator-role {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .role-admin {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+        }
+
+        .role-maintain {
+            background: rgba(139, 92, 246, 0.15);
+            color: #a78bfa;
+        }
+
+        .role-write {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+        }
+
+        .role-triage {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+        }
+
+        .role-read {
+            background: rgba(107, 114, 128, 0.15);
+            color: #9ca3af;
+        }
+
+        .people-loading {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .people-loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        .people-empty {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .people-empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
     <!-- Login Required Screen (shown when not authenticated) -->
     <div id="login-screen" class="login-screen">
         <div class="login-container">
-            <div class="login-logo">
-                <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="26" cy="26" r="22" stroke="#00C8FF" stroke-width="1" opacity="0.2"/>
-                    <circle cx="26" cy="26" r="14" stroke="#00C8FF" stroke-width="1" opacity="0.45"/>
-                    <circle cx="26" cy="26" r="6"  stroke="#00C8FF" stroke-width="1.5" opacity="0.85"/>
-                    <line x1="26" y1="4"  x2="26" y2="13" stroke="#00C8FF" stroke-width="1" opacity="0.45"/>
-                    <line x1="26" y1="39" x2="26" y2="48" stroke="#00C8FF" stroke-width="1" opacity="0.45"/>
-                    <line x1="4"  y1="26" x2="13" y2="26" stroke="#00C8FF" stroke-width="1" opacity="0.45"/>
-                    <line x1="39" y1="26" x2="48" y2="26" stroke="#00C8FF" stroke-width="1" opacity="0.45"/>
-                    <circle cx="26" cy="26" r="2.5" fill="#00C8FF"/>
-                </svg>
-            </div>
+            <div class="login-logo">🎯</div>
             <h1 class="login-title">Mission Control</h1>
-            <p class="login-subtitle">Authorization Required</p>
+            <p class="login-subtitle">Task & Project Management Dashboard</p>
 
             <div class="login-card">
+                <h2>🔐 Login Required</h2>
+                <p>Connect your GitHub account to access the dashboard.</p>
+
                 <div class="login-steps">
                     <div class="login-step">
-                        <span class="login-step-num">01</span>
+                        <span class="login-step-num">1</span>
                         <div>
-                            <strong>Generate Personal Access Token</strong>
+                            <strong>Create a Personal Access Token</strong>
                             <a href="https://github.com/settings/tokens/new?scopes=repo&description=Mission%20Control%20Dashboard" target="_blank" class="login-link">
-                                github.com/settings/tokens →
+                                Create token on GitHub →
                             </a>
                         </div>
                     </div>
                     <div class="login-step">
-                        <span class="login-step-num">02</span>
+                        <span class="login-step-num">2</span>
                         <div>
                             <strong>Select "repo" scope</strong>
-                            <span class="login-hint">Read/write repository access required</span>
+                            <span class="login-hint">Allows read/write access to repositories</span>
                         </div>
                     </div>
                     <div class="login-step">
-                        <span class="login-step-num">03</span>
+                        <span class="login-step-num">3</span>
                         <div>
-                            <strong>Paste token below</strong>
-                            <span class="login-hint">Format: ghp_xxxxxxxxxxxxxxxxxxxx</span>
+                            <strong>Paste your token below</strong>
+                            <span class="login-hint">Starts with "ghp_"</span>
                         </div>
                     </div>
                 </div>
@@ -58,19 +2266,19 @@
                 <div class="login-form">
                     <input type="password" id="login-token-input" class="login-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
                     <button id="login-btn" class="login-btn" onclick="handleLogin()">
-                        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+                        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
                             <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
                         </svg>
-                        Initialize Access
+                        Connect with GitHub
                     </button>
                     <div id="login-error" class="login-error"></div>
                     <div id="login-loading" class="login-loading">
                         <div class="spinner"></div>
-                        <span>Authenticating...</span>
+                        <span>Validating...</span>
                     </div>
                 </div>
 
-                <p class="login-security">Token stored locally in browser. Never transmitted to third parties.</p>
+                <p class="login-security">🔒 Your token is stored locally and never sent anywhere except GitHub.</p>
             </div>
         </div>
     </div>
@@ -81,22 +2289,14 @@
     <header class="header">
         <div class="header-left">
             <div class="logo">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="10" cy="10" r="8.5" stroke="#00C8FF" stroke-width="1" opacity="0.4"/>
-                    <circle cx="10" cy="10" r="4.5" stroke="#00C8FF" stroke-width="1.2" opacity="0.8"/>
-                    <line x1="10" y1="1.5" x2="10" y2="5"   stroke="#00C8FF" stroke-width="1.2"/>
-                    <line x1="10" y1="15" x2="10" y2="18.5" stroke="#00C8FF" stroke-width="1.2"/>
-                    <line x1="1.5" y1="10" x2="5"  y2="10"  stroke="#00C8FF" stroke-width="1.2"/>
-                    <line x1="15"  y1="10" x2="18.5" y2="10" stroke="#00C8FF" stroke-width="1.2"/>
-                    <circle cx="10" cy="10" r="1.8" fill="#00C8FF"/>
-                </svg>
+                <span>🎯</span>
                 <span>Mission Control</span>
             </div>
             <nav class="nav-tabs">
                 <div class="nav-tab active" data-view="tasks" onclick="switchView('tasks')">Tasks</div>
                 <div class="nav-tab" data-view="docs" onclick="switchView('docs')">Docs</div>
-                <div class="nav-tab" data-view="people" onclick="switchView('people')">Team</div>
-                <div class="nav-tab" data-view="chat" onclick="switchView('chat')">Jarvis</div>
+                <div class="nav-tab" data-view="people" onclick="switchView('people')">People</div>
+                <div class="nav-tab" data-view="chat" onclick="switchView('chat')">Chat</div>
             </nav>
             
             <!-- Search -->
@@ -117,33 +2317,28 @@
                 <span class="search-info" id="search-info"></span>
                 <label class="archive-search-toggle" title="Include archived tasks in search">
                     <input type="checkbox" id="search-include-archived" onchange="toggleArchiveSearch(this.checked)">
-                    <span>Archive</span>
+                    <span>📦 Archive</span>
                 </label>
             </div>
         </div>
         <div class="header-right">
-            <span class="live-indicator live" id="live-indicator">Online</span>
-            <button class="btn btn-secondary" onclick="pollForUpdates(); window.location.reload()">Refresh</button>
+            <span class="live-indicator live" id="live-indicator">Live</span>
+            <button class="btn btn-secondary" onclick="pollForUpdates(); window.location.reload()">↻ Refresh</button>
 
             <!-- Not Logged In -->
             <button class="btn btn-github" id="btn-connect" onclick="showAuthModal()">
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
                 </svg>
-                Authorize
+                Connect GitHub
             </button>
 
             <!-- Logged In (hidden by default) -->
             <div class="user-profile" id="user-profile" style="display: none;">
                 <img class="user-avatar" id="user-avatar" src="" alt="Avatar">
                 <span class="user-name" id="user-name"></span>
-                <button class="btn-icon" onclick="showSettingsModal()" title="Settings">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"></path>
-                    </svg>
-                </button>
-                <span class="user-logout" onclick="logout()">Exit</span>
+                <button class="btn-icon" onclick="showSettingsModal()" title="Settings">⚙️</button>
+                <span class="user-logout" onclick="logout()">Logout</span>
             </div>
         </div>
     </header>
@@ -151,17 +2346,18 @@
     <!-- Version Update Banner -->
     <div class="version-banner" id="version-banner">
         <div class="version-banner-text">
-            New version available
+            <span class="update-icon">🔄</span>
+            Neue Version verfügbar!
         </div>
         <div>
-            <button class="btn-refresh" onclick="reloadPage()">Reload</button>
+            <button class="btn-refresh" onclick="reloadPage()">↻ Aktualisieren</button>
             <button class="btn-dismiss" onclick="dismissVersionBanner()">✕</button>
         </div>
     </div>
 
     <!-- Unsaved Changes Banner -->
     <div class="unsaved-banner" id="unsaved-banner">
-        <span class="unsaved-text">Unsaved changes</span>
+        <span class="unsaved-text">⚠️ You have unsaved changes</span>
         <div>
             <button class="btn btn-secondary btn-small" onclick="discardChanges()">Discard</button>
             <button class="btn btn-primary btn-small" onclick="showCommitModal()">Save & Commit</button>
@@ -208,7 +2404,7 @@
             <div class="column column-scheduled">
                 <div class="column-header">
                     <div class="column-dot scheduled"></div>
-                    <span class="column-title">Scheduled</span>
+                    <span class="column-title">📅 Scheduled</span>
                     <span class="column-count" id="count-scheduled">0</span>
                     <span class="column-add" onclick="openScheduledTaskModal()" title="Schedule a task">+</span>
                 </div>
@@ -218,7 +2414,7 @@
             <div class="column column-templates">
                 <div class="column-header">
                     <div class="column-dot templates"></div>
-                    <span class="column-title">Templates</span>
+                    <span class="column-title">📑 Templates</span>
                     <span class="column-count" id="count-templates">0</span>
                     <span class="column-add" onclick="openNewTemplate()" title="Add new template">+</span>
                 </div>
@@ -271,7 +2467,7 @@
                     <span class="column-title">Done</span>
                     <span class="column-count" id="count-done">0</span>
                     <button class="archive-all-btn" onclick="showArchiveView()" title="View archived tasks" style="background: transparent;">📂 View</button>
-                    <button class="archive-all-btn" onclick="archiveAllDone()" title="Archive all done tasks">Archive All</button>
+                    <button class="archive-all-btn" onclick="archiveAllDone()" title="Archive all done tasks">📦 Archive All</button>
                 </div>
                 <div class="column-tasks" id="tasks-done" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'done')"></div>
             </div>
@@ -296,17 +2492,17 @@
     <!-- DOCS VIEW -->
     <div id="view-docs" class="view" style="display: none;">
         <div class="docs-container" style="max-width: 900px; margin: 0 auto; padding: 2rem;">
-            <h1 style="margin-bottom: 1.5rem;">Mission Control — Documentation</h1>
+            <h1 style="margin-bottom: 1.5rem;">📚 Mission Control Documentation</h1>
 
-            <div class="docs-section" style="margin-bottom: 2rem;">
-                <h2>Demo Mode</h2>
+            <div class="docs-section" style="margin-bottom: 2rem; background: var(--bg-secondary); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--accent);">
+                <h2 style="color: var(--accent); margin-bottom: 0.5rem;">📌 Demo Mode</h2>
                 <p style="color: var(--text-secondary); line-height: 1.6;">
                     You're currently viewing <strong>sample data</strong>. To manage your own tasks, click <strong>"Connect GitHub"</strong> in the top right corner to link your repository.
                 </p>
             </div>
 
             <div class="docs-section" style="margin-bottom: 2rem;">
-                <h2>Getting Started</h2>
+                <h2 style="color: var(--accent); margin-bottom: 1rem;">🚀 Getting Started</h2>
 
                 <h3 style="margin: 1rem 0 0.5rem;">Installation</h3>
                 <p style="color: var(--text-secondary); line-height: 1.6;">
@@ -335,11 +2531,11 @@
                     Mission Control uses a Kanban-style board with 5 columns:
                 </p>
                 <ul style="color: var(--text-secondary); line-height: 1.8; margin-left: 1.5rem;">
-                    <li><strong>Permanent</strong> — Repeating tasks (daily, weekly checks)</li>
-                    <li><strong>Backlog</strong> — Tasks waiting to be started</li>
-                    <li><strong>In Progress</strong> — Currently being worked on</li>
-                    <li><strong>Review</strong> — Done, awaiting approval</li>
-                    <li><strong>Done</strong> — Completed tasks</li>
+                    <li><strong>🔄 Permanent</strong> - Repeating tasks (daily, weekly checks)</li>
+                    <li><strong>📋 Backlog</strong> - Tasks waiting to be started</li>
+                    <li><strong>🚀 In Progress</strong> - Currently being worked on</li>
+                    <li><strong>👀 Review</strong> - Done, awaiting approval</li>
+                    <li><strong>✅ Done</strong> - Completed tasks</li>
                 </ul>
             </div>
 
@@ -374,12 +2570,12 @@
 
                 <h3 style="margin: 1.5rem 0 0.5rem;">Projects & Tags</h3>
                 <p style="color: var(--text-secondary); line-height: 1.6;">
-                    Organize tasks by project. Use the Settings panel to add new projects. Filter tasks using the project buttons.
+                    Organize tasks by project. Use the ⚙️ Settings to add new projects. Filter tasks using the project buttons.
                 </p>
             </div>
 
             <div class="docs-section" style="margin-bottom: 2rem;">
-                <h2>MoltBot Integration</h2>
+                <h2 style="color: var(--accent); margin-bottom: 1rem;">🤖 MoltBot Integration</h2>
                 <p style="color: var(--text-secondary); line-height: 1.6;">
                     Mission Control is connected to MoltBot via webhooks. When you make changes:
                 </p>
@@ -389,13 +2585,13 @@
                     <li><strong>MoltBot completes work</strong> → Task moves to "Review" automatically</li>
                 </ul>
 
-                <div style="background: var(--bg-panel); padding: 1rem; margin-top: 1rem; border-left: 3px solid var(--border-active);">
-                    <strong>Note:</strong> Write clear task descriptions and subtasks. The more detail you provide, the better MoltBot can execute the task.
+                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                    <strong>💡 Pro Tip:</strong> Write clear task descriptions and subtasks. The more detail you provide, the better MoltBot can execute the task.
                 </div>
             </div>
 
             <div class="docs-section" style="margin-bottom: 2rem;">
-                <h2>Keyboard Shortcuts</h2>
+                <h2 style="color: var(--accent); margin-bottom: 1rem;">⌨️ Keyboard Shortcuts</h2>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr style="border-bottom: 1px solid var(--border-color);">
                         <td style="padding: 0.5rem; color: var(--text-secondary);"><code>Cmd/Ctrl + Shift + R</code></td>
@@ -413,7 +2609,7 @@
             </div>
 
             <div class="docs-section">
-                <h2>FAQ</h2>
+                <h2 style="color: var(--accent); margin-bottom: 1rem;">❓ FAQ</h2>
 
                 <details style="margin-bottom: 1rem;">
                     <summary style="cursor: pointer; font-weight: 500;">Why don't I see my changes?</summary>
@@ -425,7 +2621,7 @@
                 <details style="margin-bottom: 1rem;">
                     <summary style="cursor: pointer; font-weight: 500;">How do I create a new project?</summary>
                     <p style="color: var(--text-secondary); padding: 0.5rem 0 0 1rem;">
-                        Click the Settings button (when logged in) → Add a new project with ID, name, icon, and color.
+                        Click the ⚙️ Settings button (when logged in) → Add a new project with ID, name, icon, and color.
                     </p>
                 </details>
 
@@ -443,7 +2639,7 @@
     <div id="view-people" class="view" style="display: none;">
         <div class="people-container">
             <div class="people-header">
-                <h1>Team</h1>
+                <h1>👥 Team</h1>
                 <div class="people-stats" id="people-stats">
                     <!-- Stats filled by JS -->
                 </div>
@@ -461,40 +2657,29 @@
     <div id="view-chat" class="view" style="display: none;">
         <div class="chat-container">
             <div class="chat-header">
-                <div class="chat-header-left">
-                    <div class="chat-pulse"></div>
-                    <div>
-                        <h1>Jarvis</h1>
-                        <p>Neural link active — openclaw gateway</p>
-                    </div>
+                <div>
+                    <h1>Chat</h1>
+                    <p>Connected to openclaw gateway. Velg modell og send melding.</p>
                 </div>
                 <div class="chat-actions">
-                    <!-- Hidden select for JS compatibility -->
-                    <select id="chat-model-select" style="display:none" onchange="onChatModelChange(this.value)">
+                    <select id="chat-model-select" class="btn btn-secondary" style="cursor:pointer;padding:0.5rem 0.75rem;" onchange="onChatModelChange(this.value)">
                         <option value="openai-codex/gpt-5.4">Codex (gpt-5.4)</option>
                         <option value="anthropic/claude-opus-4-7">Claude (Opus 4.7)</option>
                     </select>
-                    <!-- Visible model toggle -->
-                    <div class="model-toggle">
-                        <button class="model-btn active" onclick="document.getElementById('chat-model-select').value='openai-codex/gpt-5.4'; onChatModelChange('openai-codex/gpt-5.4'); document.querySelectorAll('.model-btn').forEach(b=>b.classList.remove('active')); this.classList.add('active')">Codex</button>
-                        <button class="model-btn" onclick="document.getElementById('chat-model-select').value='anthropic/claude-opus-4-7'; onChatModelChange('anthropic/claude-opus-4-7'); document.querySelectorAll('.model-btn').forEach(b=>b.classList.remove('active')); this.classList.add('active')">Claude</button>
-                    </div>
                     <span class="chat-status" id="chat-status">Idle</span>
-                    <button class="btn btn-secondary" id="chat-voice-toggle" onclick="toggleChatVoiceMode()">Mic Off</button>
-                    <button class="btn btn-secondary" onclick="refreshChatTranscript(true)">Sync</button>
+                    <button class="btn btn-secondary" id="chat-voice-toggle" onclick="toggleChatVoiceMode()">🎤 Speak Off</button>
+                    <button class="btn btn-secondary" onclick="refreshChatTranscript(true)">↻ Refresh</button>
                 </div>
             </div>
 
             <div class="chat-panel">
                 <div class="chat-transcript" id="chat-transcript">
-                    <div class="chat-empty">
-                        <span class="chat-empty-text">Awaiting input . . .</span>
-                    </div>
+                    <div class="chat-empty">No messages yet. Send a message to start the conversation.</div>
                 </div>
                 <div class="chat-composer">
-                    <textarea id="chat-input" class="chat-input" placeholder="Transmit message to Jarvis..." onkeydown="handleChatKeydown(event)"></textarea>
+                    <textarea id="chat-input" class="chat-input" placeholder="Message Perry from Mission Control..." onkeydown="handleChatKeydown(event)"></textarea>
                     <div class="chat-composer-actions">
-                        <button class="btn btn-primary" id="chat-send-btn" onclick="sendChatMessage()">Transmit</button>
+                        <button class="btn btn-primary" id="chat-send-btn" onclick="sendChatMessage()">Send</button>
                         <button class="btn btn-secondary" onclick="clearChatDraft()">Clear</button>
                     </div>
                 </div>
@@ -506,7 +2691,7 @@
     <div class="modal-overlay" id="auth-modal" onclick="if(event.target===this)hideAuthModal()">
         <div class="modal">
             <div class="modal-header">
-                <h2 class="modal-title">Connect to GitHub</h2>
+                <h2 class="modal-title">🔐 Connect to GitHub</h2>
                 <button class="modal-close" onclick="hideAuthModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -546,7 +2731,7 @@
                     <label class="form-label">GitHub Personal Access Token</label>
                     <input type="password" class="form-input" id="token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
                     <div class="form-hint">
-                        Token stored locally. Never transmitted to third parties.
+                        🔒 Your token is stored locally and never sent anywhere except GitHub.
                     </div>
                     <div class="validation-loading" id="validation-loading">
                         <div class="spinner"></div>
@@ -573,7 +2758,7 @@
     <div class="modal-overlay" id="settings-modal" onclick="if(event.target===this)hideSettingsModal()">
         <div class="modal" style="max-width: 500px;">
             <div class="modal-header">
-                <h2 class="modal-title">Settings</h2>
+                <h2 class="modal-title">⚙️ Settings</h2>
                 <button class="modal-close" onclick="hideSettingsModal()">&times;</button>
             </div>
             <div class="modal-body">
