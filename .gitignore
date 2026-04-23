@@ -1,4 +1,32 @@
+# Local runtime artifacts (legacy static Mission Control)
 http.log
 data/calendar-sync.log
 data/.tasks-snapshot.json
 data/.webhook-debug.log
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Node / Next
+node_modules/
+.next/
+*.tsbuildinfo
+
+# Env
+.env
+.env.local
+
+# IDE
+.idea/
+.runlogs/
+
+# Worktrees
+.worktrees/
+
+# Accidental literal "~" directories (e.g. when a configured path contains "~" but isn't expanded)
+backend/~/
+backend/coverage.*
+backend/.coverage
+frontend/coverage
+backend/app/services/openclaw/.device-keys
