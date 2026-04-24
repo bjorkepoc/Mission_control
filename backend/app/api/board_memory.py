@@ -42,6 +42,19 @@ if TYPE_CHECKING:
 router = APIRouter(prefix="/boards/{board_id}/memory", tags=["board-memory"])
 MAX_SNIPPET_LENGTH = 800
 STREAM_POLL_SECONDS = 2
+CLI_BRIDGE_CHAT_TAGS = frozenset(
+    {
+        "codex-cli-request",
+        "codex-cli-result",
+        "codex-cli-error",
+        "codex55-request",
+        "codex55-result",
+        "codex55-error",
+        "codex53-request",
+        "codex53-result",
+        "codex53-error",
+    },
+)
 IS_CHAT_QUERY = Query(default=None)
 SINCE_QUERY = Query(default=None)
 BOARD_READ_DEP = Depends(get_board_for_actor_read)
@@ -148,6 +161,11 @@ def _actor_display_name(actor: ActorContext) -> str:
     if actor.user:
         return actor.user.preferred_name or actor.user.name or "User"
     return "User"
+
+
+def _should_notify_chat_targets(memory: BoardMemory) -> bool:
+    tags = {tag for tag in memory.tags or [] if isinstance(tag, str)}
+    return tags.isdisjoint(CLI_BRIDGE_CHAT_TAGS)
 
 
 async def _notify_chat_targets(
@@ -296,7 +314,7 @@ async def create_board_memory(
     session.add(memory)
     await session.commit()
     await session.refresh(memory)
-    if is_chat:
+    if is_chat and _should_notify_chat_targets(memory):
         await _notify_chat_targets(
             session=session,
             board=board,

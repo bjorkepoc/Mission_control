@@ -159,6 +159,8 @@ type Approval = ApprovalRead & { status: string };
 
 type BoardChatMessage = BoardMemoryRead;
 
+type BoardChatTarget = "openclaw" | "codex55";
+
 type LiveFeedEventType =
   | "task.comment"
   | "task.created"
@@ -861,7 +863,9 @@ export default function BoardDetailPage() {
   const openedTaskIdFromUrlRef = useRef<string | null>(null);
   const openedPanelFromUrlRef = useRef<string | null>(null);
   const [comments, setComments] = useState<TaskComment[]>([]);
-  const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
+  const [highlightedCommentId, setHighlightedCommentId] = useState<
+    string | null
+  >(null);
   const [liveFeed, setLiveFeed] = useState<LiveFeedItem[]>([]);
   const liveFeedRef = useRef<LiveFeedItem[]>([]);
   const liveFeedFlashTimersRef = useRef<Record<string, number>>({});
@@ -893,6 +897,7 @@ export default function BoardDetailPage() {
   );
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<BoardChatMessage[]>([]);
+  const [chatTarget, setChatTarget] = useState<BoardChatTarget>("openclaw");
   const [isChatSending, setIsChatSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const chatMessagesRef = useRef<BoardChatMessage[]>([]);
@@ -2037,7 +2042,10 @@ export default function BoardDetailPage() {
   };
 
   const postBoardChatMessage = useCallback(
-    async (content: string): Promise<{ ok: boolean; error: string | null }> => {
+    async (
+      content: string,
+      options?: { tags?: string[]; source?: string },
+    ): Promise<{ ok: boolean; error: string | null }> => {
       if (!isSignedIn || !boardId) {
         return { ok: false, error: "Sign in to send messages." };
       }
@@ -2049,8 +2057,8 @@ export default function BoardDetailPage() {
           boardId,
           {
             content: trimmed,
-            tags: ["chat"],
-            source: currentUserDisplayName,
+            tags: options?.tags ?? ["chat"],
+            source: options?.source ?? currentUserDisplayName,
           },
         );
         if (result.status !== 200) {
@@ -2087,7 +2095,10 @@ export default function BoardDetailPage() {
       setIsChatSending(true);
       setChatError(null);
       try {
-        const result = await postBoardChatMessage(trimmed);
+        const result = await postBoardChatMessage(trimmed, {
+          tags:
+            chatTarget === "codex55" ? ["chat", "codex55-request"] : ["chat"],
+        });
         if (!result.ok) {
           if (result.error) {
             setChatError(result.error);
@@ -2100,7 +2111,7 @@ export default function BoardDetailPage() {
         setIsChatSending(false);
       }
     },
-    [postBoardChatMessage, pushToast],
+    [chatTarget, postBoardChatMessage, pushToast],
   );
 
   const openAgentsControlDialog = (action: "pause" | "resume") => {
@@ -2407,9 +2418,12 @@ export default function BoardDetailPage() {
         currentTaskIdFromUrl !== fullTask.id ||
         currentCommentIdFromUrl !== targetCommentId
       ) {
-        router.replace(buildUrlWithTaskAndComment(fullTask.id, targetCommentId), {
-          scroll: false,
-        });
+        router.replace(
+          buildUrlWithTaskAndComment(fullTask.id, targetCommentId),
+          {
+            scroll: false,
+          },
+        );
       }
       selectedTaskIdRef.current = fullTask.id;
       setSelectedTask(fullTask);
@@ -4004,7 +4018,7 @@ export default function BoardDetailPage() {
                 Board chat
               </p>
               <p className="mt-1 text-sm font-medium text-slate-900">
-                Talk to the lead agent. Tag others with @name.
+                Talk to OpenClaw, or route a prompt to Codex 5.5 CLI.
               </p>
             </div>
             <button
@@ -4017,6 +4031,42 @@ export default function BoardDetailPage() {
             </button>
           </div>
           <div className="flex flex-1 flex-col overflow-hidden px-6 py-4">
+            <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Route messages to
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setChatTarget("openclaw")}
+                  className={cn(
+                    "rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                    chatTarget === "openclaw"
+                      ? "border-sky-500 bg-sky-50 text-sky-700"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+                  )}
+                >
+                  OpenClaw
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChatTarget("codex55")}
+                  className={cn(
+                    "rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                    chatTarget === "codex55"
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+                  )}
+                >
+                  Codex 5.5 CLI
+                </button>
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                {chatTarget === "codex55"
+                  ? "Runs via Codex CLI on the VPS in a dedicated workspace, then posts the result back here."
+                  : "Uses the configured OpenClaw gateway and board agent sessions."}
+              </p>
+            </div>
             <div className="flex-1 space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4">
               {chatError ? (
                 <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -4045,7 +4095,9 @@ export default function BoardDetailPage() {
               mentionSuggestions={boardChatMentionSuggestions}
               placeholder={
                 canWrite
-                  ? "Message the board lead. Tag agents with @name."
+                  ? chatTarget === "codex55"
+                    ? "Ask Codex 5.5 CLI to work in the dedicated VPS workspace."
+                    : "Message the board lead. Tag agents with @name."
                   : "Read-only access. Chat is disabled."
               }
             />
