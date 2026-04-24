@@ -471,7 +471,7 @@ export function BoardOnboardingChat({
                     "—"}
                 </p>
                 <p className="text-slate-700">
-                  <span className="font-medium text-slate-900">Emoji:</span>{" "}
+                  <span className="font-medium text-slate-900">Avatar:</span>{" "}
                   {draft.lead_agent.identity_profile?.emoji || "—"}
                 </p>
               </>

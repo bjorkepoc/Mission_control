@@ -204,7 +204,7 @@ export default function NewAgentPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-900">
-                  Emoji
+                  Avatar
                 </label>
                 <Select
                   value={identityProfile.emoji}
@@ -217,7 +217,7 @@ export default function NewAgentPage() {
                   disabled={isLoading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select emoji" />
+                    <SelectValue placeholder="Select avatar" />
                   </SelectTrigger>
                   <SelectContent>
                     {AGENT_EMOJI_OPTIONS.map((option) => (

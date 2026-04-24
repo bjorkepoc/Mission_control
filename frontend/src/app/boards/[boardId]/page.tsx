@@ -2886,7 +2886,7 @@ export default function BoardDetailPage() {
   };
 
   const agentAvatarLabel = (agent: Agent) => {
-    if (agent.is_board_lead) return "⚙️";
+    if (agent.is_board_lead) return "LD";
     let emojiValue: string | null = null;
     if (agent.identity_profile && typeof agent.identity_profile === "object") {
       const rawEmoji = (agent.identity_profile as Record<string, unknown>)

@@ -351,7 +351,7 @@ export default function EditAgentPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-900">
-                  Emoji
+                  Avatar
                 </label>
                 <Select
                   value={resolvedIdentityProfile.emoji}
@@ -364,7 +364,7 @@ export default function EditAgentPage() {
                   disabled={isLoading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select emoji" />
+                    <SelectValue placeholder="Select avatar" />
                   </SelectTrigger>
                   <SelectContent>
                     {AGENT_EMOJI_OPTIONS.map((option) => (
