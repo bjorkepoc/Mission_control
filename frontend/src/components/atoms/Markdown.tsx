@@ -192,6 +192,18 @@ const MARKDOWN_TABLE_COMPONENTS: Components = {
 const MARKDOWN_COMPONENTS_BASIC: Components = {
   ...MARKDOWN_TABLE_COMPONENTS,
   ...MARKDOWN_CODE_COMPONENTS,
+  img: ({ node: _node, className, alt, ...props }) => (
+    // Board chat can carry screenshots as Markdown/data URLs; keep them readable.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      className={cn(
+        "my-3 max-h-[420px] max-w-full rounded-xl border border-slate-700 object-contain",
+        className,
+      )}
+      alt={alt ?? "attached image"}
+      {...props}
+    />
+  ),
   a: ({ node: _node, className, children, ...props }) => (
     <a
       className={cn(

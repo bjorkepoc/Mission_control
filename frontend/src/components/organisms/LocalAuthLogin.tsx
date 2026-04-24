@@ -10,8 +10,11 @@ import { Input } from "@/components/ui/input";
 import { getApiBaseUrl } from "@/lib/api-base";
 
 const LOCAL_AUTH_TOKEN_MIN_LENGTH = 50;
+const LOCAL_AUTH_PASSWORD_MIN_LENGTH = 8;
 
-async function validateLocalToken(token: string): Promise<string | null> {
+async function validateLocalCredential(
+  credential: string,
+): Promise<string | null> {
   let baseUrl: string;
   try {
     baseUrl = getApiBaseUrl();
@@ -24,20 +27,20 @@ async function validateLocalToken(token: string): Promise<string | null> {
     response = await fetch(`${baseUrl}/api/v1/users/me`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${credential}`,
       },
     });
   } catch {
-    return "Unable to reach backend to validate token.";
+    return "Unable to reach backend to validate credentials.";
   }
 
   if (response.ok) {
     return null;
   }
   if (response.status === 401 || response.status === 403) {
-    return "Token is invalid.";
+    return "Access token or password is invalid.";
   }
-  return `Unable to validate token (HTTP ${response.status}).`;
+  return `Unable to validate credentials (HTTP ${response.status}).`;
 }
 
 type LocalAuthLoginProps = {
@@ -47,26 +50,30 @@ type LocalAuthLoginProps = {
 const defaultOnAuthenticated = () => window.location.reload();
 
 export function LocalAuthLogin({ onAuthenticated }: LocalAuthLoginProps) {
-  const [token, setToken] = useState("");
+  const [credential, setCredential] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const cleaned = token.trim();
+    const cleaned = credential.trim();
     if (!cleaned) {
-      setError("Bearer token is required.");
+      setError("Access token or password is required.");
       return;
     }
-    if (cleaned.length < LOCAL_AUTH_TOKEN_MIN_LENGTH) {
+    if (
+      cleaned.length < LOCAL_AUTH_PASSWORD_MIN_LENGTH ||
+      (cleaned.length < LOCAL_AUTH_TOKEN_MIN_LENGTH &&
+        cleaned.length < LOCAL_AUTH_PASSWORD_MIN_LENGTH)
+    ) {
       setError(
-        `Bearer token must be at least ${LOCAL_AUTH_TOKEN_MIN_LENGTH} characters.`,
+        `Password must be at least ${LOCAL_AUTH_PASSWORD_MIN_LENGTH} characters, or paste the full access token.`,
       );
       return;
     }
 
     setIsValidating(true);
-    const validationError = await validateLocalToken(cleaned);
+    const validationError = await validateLocalCredential(cleaned);
     setIsValidating(false);
     if (validationError) {
       setError(validationError);
@@ -100,7 +107,7 @@ export function LocalAuthLogin({ onAuthenticated }: LocalAuthLoginProps) {
               Local Authentication
             </h1>
             <p className="text-sm text-muted">
-              Enter your access token to unlock Mission Control.
+              Enter your password or access token to unlock Mission Control.
             </p>
           </div>
         </CardHeader>
@@ -108,17 +115,17 @@ export function LocalAuthLogin({ onAuthenticated }: LocalAuthLoginProps) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label
-                htmlFor="local-auth-token"
+                htmlFor="local-auth-credential"
                 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted"
               >
-                Access token
+                Password or access token
               </label>
               <Input
-                id="local-auth-token"
+                id="local-auth-credential"
                 type="password"
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-                placeholder="Paste token"
+                value={credential}
+                onChange={(event) => setCredential(event.target.value)}
+                placeholder="Enter password or paste token"
                 autoFocus
                 disabled={isValidating}
                 className="font-mono"
@@ -130,7 +137,8 @@ export function LocalAuthLogin({ onAuthenticated }: LocalAuthLoginProps) {
               </p>
             ) : (
               <p className="text-xs text-muted">
-                Token must be at least {LOCAL_AUTH_TOKEN_MIN_LENGTH} characters.
+                Password login is enabled on this VPS. The full token still
+                works as a fallback.
               </p>
             )}
             <Button

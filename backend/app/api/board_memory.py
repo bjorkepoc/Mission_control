@@ -26,6 +26,7 @@ from app.db.session import async_session_maker, get_session
 from app.models.agents import Agent
 from app.models.board_memory import BoardMemory
 from app.schemas.board_memory import BoardMemoryCreate, BoardMemoryRead
+from app.schemas.common import OkResponse
 from app.schemas.pagination import DefaultLimitOffsetPage
 from app.services.mentions import extract_mentions, matches_agent_mention
 from app.services.openclaw.gateway_dispatch import GatewayDispatchService
@@ -53,6 +54,11 @@ CLI_BRIDGE_CHAT_TAGS = frozenset(
         "codex53-request",
         "codex53-result",
         "codex53-error",
+        "claude-cli-error",
+        "claude-cli-result",
+        "claude-cli-request",
+        "cli-bridge-error",
+        "cli-bridge-result",
     },
 )
 IS_CHAT_QUERY = Query(default=None)
@@ -287,6 +293,33 @@ async def stream_board_memory(
             await asyncio.sleep(STREAM_POLL_SECONDS)
 
     return EventSourceResponse(event_generator(), ping=15)
+
+
+@router.delete("/chat", response_model=OkResponse)
+async def delete_board_chat_memory(
+    *,
+    cli_only: bool = Query(default=False),
+    board: Board = BOARD_WRITE_DEP,
+    session: AsyncSession = SESSION_DEP,
+    _actor: ActorContext = ACTOR_DEP,
+) -> OkResponse:
+    """Delete board-chat history for the selected board.
+
+    ``cli_only`` is kept for safer maintenance scripts, while the console UI uses
+    the default to clear the full visible chat history for that board.
+    """
+    memories = await (
+        BoardMemory.objects.filter_by(board_id=board.id)
+        .filter(col(BoardMemory.is_chat) == True)  # noqa: E712
+        .all(session)
+    )
+    for memory in memories:
+        tags = {tag for tag in memory.tags or [] if isinstance(tag, str)}
+        if cli_only and tags.isdisjoint(CLI_BRIDGE_CHAT_TAGS):
+            continue
+        await session.delete(memory)
+    await session.commit()
+    return OkResponse()
 
 
 @router.post("", response_model=BoardMemoryRead)

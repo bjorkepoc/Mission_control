@@ -1,9 +1,29 @@
-﻿"use client";
+"use client";
 
 export const dynamic = "force-dynamic";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Cpu, RefreshCcw, Send, ShieldCheck, Terminal } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+} from "react";
+import {
+  Bot,
+  Cpu,
+  HelpCircle,
+  Image as ImageIcon,
+  Mic,
+  RefreshCcw,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Terminal,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import { SignedIn, SignedOut, useAuth } from "@/auth/clerk";
 import {
@@ -12,6 +32,7 @@ import {
 } from "@/api/generated/board-memory/board-memory";
 import { listBoardsApiV1BoardsGet } from "@/api/generated/boards/boards";
 import type { BoardMemoryRead, BoardRead } from "@/api/generated/model";
+import { customFetch } from "@/api/mutator";
 import { Markdown } from "@/components/atoms/Markdown";
 import { SignedOutPanel } from "@/components/auth/SignedOutPanel";
 import { DashboardSidebar } from "@/components/organisms/DashboardSidebar";
@@ -20,85 +41,55 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-type CodexCliModel = "gpt-5.5" | "gpt-5.3-codex";
-type CliMessageKind = "request" | "result" | "error";
+import {
+  RUNTIME_OPTIONS,
+  isConsoleAuthoredSource,
+  parseRuntimeCommand,
+  resolveMessageKind,
+  resolveMessageRuntime,
+  runtimeOption,
+  sortMessages,
+  tagsForRuntime,
+  type RuntimeId,
+} from "./cliChatUtils";
 
-const MODEL_OPTIONS: Array<{
-  id: CodexCliModel;
-  label: string;
-  helper: string;
-}> = [
-  {
-    id: "gpt-5.5",
-    label: "ChatGPT 5.5",
-    helper: "Sterkest for store oppgaver, arkitektur og bred resonnering.",
-  },
-  {
-    id: "gpt-5.3-codex",
-    label: "Codex 5.3",
-    helper: "Kodetung CLI-modell som er rask og målrettet i repoer.",
-  },
-];
-
-const REQUEST_TAG_BY_MODEL: Record<CodexCliModel, string> = {
-  "gpt-5.5": "codex55-request",
-  "gpt-5.3-codex": "codex53-request",
-};
-const CLI_RELEVANT_TAGS = new Set([
-  "codex-cli-request",
-  "codex-cli-result",
-  "codex-cli-error",
-  "codex55-request",
-  "codex55-result",
-  "codex55-error",
-  "codex53-request",
-  "codex53-result",
-  "codex53-error",
-]);
-
-const modelLabel = (model: CodexCliModel) =>
-  MODEL_OPTIONS.find((option) => option.id === model)?.label ?? model;
-
-const tagsFor = (message: BoardMemoryRead) => new Set(message.tags ?? []);
-
-const isCliMessage = (message: BoardMemoryRead) =>
-  (message.tags ?? []).some((tag) => CLI_RELEVANT_TAGS.has(tag));
-
-const resolveMessageModel = (message: BoardMemoryRead): CodexCliModel => {
-  const tags = tagsFor(message);
-  for (const tag of tags) {
-    if (tag === "model:gpt-5.3-codex") return "gpt-5.3-codex";
-    if (tag === "model:gpt-5.5") return "gpt-5.5";
-  }
-  if (tags.has("codex53-request") || tags.has("codex53-result")) {
-    return "gpt-5.3-codex";
-  }
-  return "gpt-5.5";
+type ImageAttachment = {
+  id: string;
+  name: string;
+  dataUrl: string;
 };
 
-const resolveMessageKind = (message: BoardMemoryRead): CliMessageKind => {
-  const tags = tagsFor(message);
-  if (
-    tags.has("codex-cli-error") ||
-    tags.has("codex55-error") ||
-    tags.has("codex53-error")
-  ) {
-    return "error";
-  }
-  if (
-    tags.has("codex-cli-result") ||
-    tags.has("codex55-result") ||
-    tags.has("codex53-result")
-  ) {
-    return "result";
-  }
-  return "request";
+type SpeechRecognitionAlternativeLike = { transcript?: string };
+type SpeechRecognitionResultLike = {
+  readonly 0?: SpeechRecognitionAlternativeLike;
+  readonly isFinal?: boolean;
 };
+type SpeechRecognitionEventLike = Event & {
+  results: ArrayLike<SpeechRecognitionResultLike>;
+};
+type SpeechRecognitionInstance = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+type SpeechWindow = Window &
+  typeof globalThis & {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
+
+const MAX_PASTED_IMAGE_BYTES = 2_500_000;
 
 const formatTime = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("nb-NO", {
+  return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
@@ -106,46 +97,54 @@ const formatTime = (value: string) => {
   }).format(date);
 };
 
-const sortMessages = (messages: BoardMemoryRead[]) =>
-  [...messages].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-  );
+const appendText = (current: string, next: string) => {
+  if (!current.trim()) return next.trimStart();
+  return `${current.trimEnd()} ${next.trimStart()}`;
+};
 
 function CliMessageCard({ message }: { message: BoardMemoryRead }) {
-  const model = resolveMessageModel(message);
+  const runtime = resolveMessageRuntime(message);
+  const option = runtimeOption(runtime);
   const kind = resolveMessageKind(message);
-  const isRequest = kind === "request";
+  const authoredByConsole = isConsoleAuthoredSource(message.source);
+  const isRequest =
+    kind === "request" || (runtime === "openclaw" && authoredByConsole);
+  const label = isRequest ? "You" : message.source || option.shortLabel;
 
   return (
     <article
       className={cn(
         "rounded-2xl border p-4 shadow-sm",
         isRequest
-          ? "ml-auto max-w-[86%] border-cyan-200 bg-cyan-50/80"
+          ? "ml-auto max-w-[86%] border-cyan-400/40 bg-cyan-950/70 text-cyan-50"
           : kind === "error"
-            ? "mr-auto max-w-[92%] border-rose-200 bg-rose-50/80"
-            : "mr-auto max-w-[92%] border-emerald-200 bg-emerald-50/80",
+            ? "mr-auto max-w-[92%] border-rose-400/40 bg-rose-950/70 text-rose-50"
+            : runtime === "openclaw"
+              ? "mr-auto max-w-[92%] border-sky-400/35 bg-slate-900 text-slate-100"
+              : "mr-auto max-w-[92%] border-emerald-400/35 bg-emerald-950/70 text-emerald-50",
       )}
     >
-      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
         <span
           className={cn(
-            "rounded-full px-2 py-1 font-semibold",
+            "rounded-full px-2.5 py-1 font-semibold",
             isRequest
-              ? "bg-cyan-100 text-cyan-800"
+              ? "bg-cyan-300 text-cyan-950"
               : kind === "error"
-                ? "bg-rose-100 text-rose-800"
-                : "bg-emerald-100 text-emerald-800",
+                ? "bg-rose-200 text-rose-950"
+                : runtime === "openclaw"
+                  ? "bg-sky-200 text-sky-950"
+                  : "bg-emerald-200 text-emerald-950",
           )}
         >
-          {isRequest ? "Du" : modelLabel(model)}
+          {label}
         </span>
-        <span className="rounded-full bg-white/80 px-2 py-1 font-medium text-slate-600">
-          {model}
+        <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 font-medium text-slate-100">
+          {option.shortLabel}
         </span>
-        <span className="text-slate-500">{formatTime(message.created_at)}</span>
+        <span className="text-slate-300">{formatTime(message.created_at)}</span>
       </div>
-      <div className="prose prose-slate max-w-none text-sm prose-pre:my-2">
+      <div className="prose prose-invert max-w-none text-sm prose-pre:my-2 prose-code:text-cyan-100 prose-a:text-cyan-200">
         <Markdown content={message.content} variant="comment" />
       </div>
     </article>
@@ -156,15 +155,24 @@ function CliChatContent() {
   const { isSignedIn } = useAuth();
   const [boards, setBoards] = useState<BoardRead[]>([]);
   const [selectedBoardId, setSelectedBoardId] = useState("");
-  const [model, setModel] = useState<CodexCliModel>("gpt-5.5");
+  const [runtime, setRuntime] = useState<RuntimeId>("openclaw");
   const [prompt, setPrompt] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [images, setImages] = useState<ImageAttachment[]>([]);
   const [messages, setMessages] = useState<BoardMemoryRead[]>([]);
   const [isLoadingBoards, setIsLoadingBoards] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [listeningLanguage, setListeningLanguage] = useState<
+    "nb-NO" | "en-US" | null
+  >(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
+  const selectedRuntime = runtimeOption(runtime);
   const selectedBoard = useMemo(
     () => boards.find((board) => board.id === selectedBoardId) ?? null,
     [boards, selectedBoardId],
@@ -176,18 +184,19 @@ function CliChatContent() {
     setError(null);
     try {
       const result = await listBoardsApiV1BoardsGet({ limit: 100 });
-      if (result.status !== 200) throw new Error("Kunne ikke hente boards.");
+      if (result.status !== 200) throw new Error("Unable to load boards.");
       const nextBoards = result.data.items;
       setBoards(nextBoards);
       setSelectedBoardId((current) => {
-        if (current && nextBoards.some((board) => board.id === current)) return current;
+        if (current && nextBoards.some((board) => board.id === current))
+          return current;
         const preferred = nextBoards.find(
           (board) => board.name === "Mission Control Codex Console",
         );
         return preferred?.id ?? nextBoards[0]?.id ?? "";
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Kunne ikke hente boards.");
+      setError(err instanceof Error ? err.message : "Unable to load boards.");
     } finally {
       setIsLoadingBoards(false);
     }
@@ -199,13 +208,16 @@ function CliChatContent() {
     try {
       const result = await listBoardMemoryApiV1BoardsBoardIdMemoryGet(
         selectedBoardId,
-        { is_chat: true, limit: 200 },
+        { is_chat: true, limit: 250 },
         { cache: "no-store" },
       );
-      if (result.status !== 200) throw new Error("Kunne ikke hente CLI-chat.");
-      setMessages(sortMessages(result.data.items.filter(isCliMessage)));
+      if (result.status !== 200)
+        throw new Error("Unable to load runtime chat.");
+      setMessages(sortMessages(result.data.items));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Kunne ikke hente CLI-chat.");
+      setError(
+        err instanceof Error ? err.message : "Unable to load runtime chat.",
+      );
     } finally {
       setIsLoadingMessages(false);
     }
@@ -231,88 +243,261 @@ function CliChatContent() {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, isSending]);
 
-  const sendPrompt = useCallback(async () => {
-    if (!selectedBoardId || isSending) return;
-    const trimmed = prompt.trim();
-    if (!trimmed) return;
-    setIsSending(true);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.altKey) return;
+      if (event.key === "1") {
+        event.preventDefault();
+        startSpeech("nb-NO");
+      }
+      if (event.key === "2") {
+        event.preventDefault();
+        startSpeech("en-US");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
+  const clearChat = useCallback(async () => {
+    if (!selectedBoardId || isClearing) return;
+    const confirmed = window.confirm(
+      "Clear the visible chat history for this board?",
+    );
+    if (!confirmed) return;
+    setIsClearing(true);
     setError(null);
     try {
-      const tags = [
-        "chat",
-        "codex-cli-request",
-        REQUEST_TAG_BY_MODEL[model],
-        `model:${model}`,
-      ];
+      await customFetch(`/api/v1/boards/${selectedBoardId}/memory/chat`, {
+        method: "DELETE",
+      });
+      setMessages([]);
+      setNotice("Chat history cleared for this board.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to clear chat history.",
+      );
+    } finally {
+      setIsClearing(false);
+    }
+  }, [isClearing, selectedBoardId]);
+
+  const handleLocalCommand = useCallback(
+    (value: string): boolean => {
+      const trimmed = value.trim();
+      if (!trimmed.startsWith("/")) return false;
+      const [command, ...args] = trimmed.slice(1).split(/\s+/);
+      const normalized = command.toLowerCase();
+      if (normalized === "help") {
+        setNotice(
+          "Commands: /help, /clear, /model openclaw, /model 5.5, /model 5.3, /model claude. Other slash commands are sent to the selected runtime.",
+        );
+        return true;
+      }
+      if (normalized === "clear") {
+        void clearChat();
+        return true;
+      }
+      if (normalized === "model" || normalized === "runtime") {
+        const nextRuntime = parseRuntimeCommand(args.join(" "));
+        if (!nextRuntime) {
+          setNotice("Unknown runtime. Try: openclaw, 5.5, 5.3, or claude.");
+          return true;
+        }
+        setRuntime(nextRuntime);
+        setNotice(`Runtime switched to ${runtimeOption(nextRuntime).label}.`);
+        return true;
+      }
+      return false;
+    },
+    [clearChat],
+  );
+
+  const buildContent = useCallback(() => {
+    const parts = [prompt.trim()];
+    const cleanedImageUrl = imageUrl.trim();
+    if (cleanedImageUrl) {
+      parts.push(`![linked image](${cleanedImageUrl})`);
+    }
+    for (const image of images) {
+      parts.push(`![${image.name}](${image.dataUrl})`);
+    }
+    return parts.filter(Boolean).join("\n\n");
+  }, [imageUrl, images, prompt]);
+
+  const sendPrompt = useCallback(async () => {
+    if (!selectedBoardId || isSending) return;
+    const content = buildContent();
+    if (!content.trim()) return;
+    if (
+      handleLocalCommand(content) &&
+      !imageUrl.trim() &&
+      images.length === 0
+    ) {
+      setPrompt("");
+      return;
+    }
+
+    setIsSending(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const tags = tagsForRuntime(
+        runtime,
+        Boolean(imageUrl.trim()) || images.length > 0,
+      );
       const result = await createBoardMemoryApiV1BoardsBoardIdMemoryPost(
         selectedBoardId,
         {
-          content: trimmed,
+          content,
           tags,
-          source: `CLI Chat (${model})`,
+          source:
+            runtime === "openclaw"
+              ? "Runtime Console"
+              : `Runtime Console (${selectedRuntime.shortLabel})`,
         },
       );
-      if (result.status !== 200) throw new Error("Kunne ikke sende til Codex CLI.");
+      if (result.status !== 200) throw new Error("Unable to send message.");
       setPrompt("");
+      setImageUrl("");
+      setImages([]);
       setMessages((current) => sortMessages([...current, result.data]));
       window.setTimeout(() => void loadMessages(), 1000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Kunne ikke sende til Codex CLI.");
+      setError(err instanceof Error ? err.message : "Unable to send message.");
     } finally {
       setIsSending(false);
     }
-  }, [isSending, loadMessages, model, prompt, selectedBoardId]);
+  }, [
+    buildContent,
+    handleLocalCommand,
+    imageUrl,
+    images.length,
+    isSending,
+    loadMessages,
+    runtime,
+    selectedBoardId,
+    selectedRuntime.shortLabel,
+  ]);
+
+  const handlePaste = useCallback(
+    (event: ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = Array.from(event.clipboardData.items ?? []);
+      const imageItems = items.filter((item) => item.type.startsWith("image/"));
+      if (!imageItems.length) return;
+      event.preventDefault();
+      for (const item of imageItems) {
+        const file = item.getAsFile();
+        if (!file) continue;
+        if (file.size > MAX_PASTED_IMAGE_BYTES) {
+          setError(
+            "Pasted image is too large. Use an image link for files over 2.5 MB.",
+          );
+          continue;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const value = typeof reader.result === "string" ? reader.result : "";
+          if (!value) return;
+          setImages((current) => [
+            ...current,
+            {
+              id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              name: file.name || "pasted-image.png",
+              dataUrl: value,
+            },
+          ]);
+          setNotice(
+            "Image pasted. Codex CLI receives pasted images as --image attachments; OpenClaw receives them as Markdown in board chat.",
+          );
+        };
+        reader.readAsDataURL(file);
+      }
+    },
+    [],
+  );
+
+  const startSpeech = useCallback((language: "nb-NO" | "en-US") => {
+    if (typeof window === "undefined") return;
+    const speechWindow = window as SpeechWindow;
+    const Recognition =
+      speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+    if (!Recognition) {
+      setError(
+        "Speech-to-text is not available in this browser. Chrome usually supports it.",
+      );
+      return;
+    }
+    recognitionRef.current?.stop();
+    const recognition = new Recognition();
+    recognition.lang = language;
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      let transcript = "";
+      for (let index = 0; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        transcript += result?.[0]?.transcript ?? "";
+      }
+      if (transcript.trim()) {
+        setPrompt((current) => appendText(current, transcript));
+      }
+    };
+    recognition.onerror = () => {
+      setError("Speech-to-text stopped before it produced text.");
+      setListeningLanguage(null);
+    };
+    recognition.onend = () => setListeningLanguage(null);
+    recognitionRef.current = recognition;
+    setListeningLanguage(language);
+    recognition.start();
+  }, []);
 
   return (
-    <main className="min-w-0 bg-slate-950/5 p-4 md:p-6">
-      <div className="mx-auto flex max-w-7xl flex-col gap-5">
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 text-white shadow-sm">
-          <div className="grid gap-6 p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
-            <div>
-              <div className="mb-4 flex items-center gap-3">
-                <span className="rounded-2xl bg-cyan-400/15 p-3 text-cyan-200">
-                  <Terminal className="h-6 w-6" />
-                </span>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200">
-                    VPS CLI console
-                  </p>
-                  <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-                    Snakk med Codex CLI på EllaVPS
-                  </h1>
-                </div>
+    <main className="h-[calc(100vh-64px)] min-w-0 overflow-hidden bg-[#061017] p-3 text-slate-100 md:p-5">
+      <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
+        <section className="shrink-0 rounded-2xl border border-cyan-400/20 bg-slate-950/80 px-4 py-3 shadow-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <span className="rounded-xl bg-cyan-400/15 p-2 text-cyan-200">
+                <Terminal className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-200">
+                  VPS runtime console
+                </p>
+                <h1 className="text-xl font-semibold tracking-tight text-white md:text-2xl">
+                  EllaVPS Command Deck
+                </h1>
               </div>
-              <p className="max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
-                Denne siden skriver board-chat meldinger som bridge-servicen plukker opp på VPS-en,
-                kjører via eksisterende Codex CLI/OAuth, og poster ekte output tilbake her.
-              </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
-              <div className="flex items-center gap-2 font-semibold text-emerald-200">
-                <ShieldCheck className="h-4 w-4" />
-                Host-side, ikke Docker
-              </div>
-              <p className="mt-2 leading-6 text-slate-300">
-                OAuth-filene blir liggende i <code className="rounded bg-black/30 px-1">~/.codex</code>,
-                og kjøringer starter i et dedikert workspace på VPS-en.
-              </p>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+              <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-emerald-100">
+                <ShieldCheck className="mr-1 inline h-3.5 w-3.5" /> Host-side
+                CLI auth
+              </span>
+              <span className="rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-cyan-100">
+                Polling only reads local chat state
+              </span>
             </div>
           </div>
         </section>
 
-        <section className="grid gap-5 lg:grid-cols-[340px_1fr]">
-          <aside className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <aside className="min-h-0 overflow-y-auto rounded-2xl border border-slate-700 bg-slate-950/80 p-4 shadow-sm">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Board
               </label>
               <select
                 value={selectedBoardId}
                 onChange={(event) => setSelectedBoardId(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
                 disabled={isLoadingBoards || boards.length === 0}
               >
-                {boards.length === 0 ? <option value="">Ingen boards funnet</option> : null}
+                {boards.length === 0 ? (
+                  <option value="">No boards found</option>
+                ) : null}
                 {boards.map((board) => (
                   <option key={board.id} value={board.id}>
                     {board.name}
@@ -321,28 +506,32 @@ function CliChatContent() {
               </select>
             </div>
 
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Modell
+            <div className="mt-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Runtime
               </p>
               <div className="mt-2 space-y-2">
-                {MODEL_OPTIONS.map((option) => (
+                {RUNTIME_OPTIONS.map((option) => (
                   <button
                     key={option.id}
                     type="button"
-                    onClick={() => setModel(option.id)}
+                    onClick={() => setRuntime(option.id)}
                     className={cn(
                       "w-full rounded-2xl border p-3 text-left transition",
-                      model === option.id
-                        ? "border-cyan-500 bg-cyan-50 text-cyan-950 shadow-sm"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
+                      runtime === option.id
+                        ? "border-cyan-300 bg-cyan-300 text-slate-950 shadow-sm"
+                        : "border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-400/60",
                     )}
                   >
                     <span className="flex items-center gap-2 font-semibold">
-                      <Cpu className="h-4 w-4" />
+                      {option.provider === "openclaw" ? (
+                        <Bot className="h-4 w-4" />
+                      ) : (
+                        <Cpu className="h-4 w-4" />
+                      )}
                       {option.label}
                     </span>
-                    <span className="mt-1 block text-xs leading-5 text-slate-500">
+                    <span className="mt-1 block text-xs leading-5 opacity-80">
                       {option.helper}
                     </span>
                   </button>
@@ -350,42 +539,79 @@ function CliChatContent() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
-              <p className="font-semibold text-slate-900">Valgt rute</p>
+            <div className="mt-5 rounded-2xl border border-slate-700 bg-black/30 p-3 text-xs leading-5 text-slate-300">
+              <p className="font-semibold text-slate-100">Active route</p>
               <p className="mt-1">
-                {selectedBoard?.name ?? "Ingen board valgt"}{" -> "}Codex CLI{" -> "}{model}
+                {selectedBoard?.name ?? "No board selected"} -&gt;{" "}
+                {selectedRuntime.label}
+              </p>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-900/80 p-3 text-xs leading-5 text-slate-300">
+              <div className="flex items-center gap-2 font-semibold text-slate-100">
+                <HelpCircle className="h-4 w-4" /> Commands
+              </div>
+              <p className="mt-2">
+                Local: /help, /clear, /model openclaw, /model 5.5, /model 5.3,
+                /model claude.
+              </p>
+              <p className="mt-2">
+                Other slash commands are sent to the selected runtime, including
+                OpenClaw control commands.
               </p>
             </div>
           </aside>
 
-          <section className="flex min-h-[680px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 md:px-5">
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-sm">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
               <div>
-                <p className="text-sm font-semibold text-slate-900">CLI Chat</p>
-                <p className="text-xs text-slate-500">
-                  Poller hvert 3. sekund. Resultater kommer fra systemd bridge på VPS-en.
+                <p className="text-sm font-semibold text-white">Runtime Chat</p>
+                <p className="text-xs text-slate-400">
+                  Polls every 3 seconds. Model usage starts only when you send a
+                  new message.
                 </p>
               </div>
-              <Button variant="outline" onClick={() => void loadMessages()} disabled={!selectedBoardId}>
-                <RefreshCcw className="mr-2 h-4 w-4" />
-                Oppdater
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void loadMessages()}
+                  disabled={!selectedBoardId}
+                >
+                  <RefreshCcw className="h-4 w-4" /> Refresh
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void clearChat()}
+                  disabled={!selectedBoardId || isClearing}
+                >
+                  <Trash2 className="h-4 w-4" />{" "}
+                  {isClearing ? "Clearing" : "Clear"}
+                </Button>
+              </div>
             </div>
 
-            <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50 p-4 md:p-5">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#03080d] p-4">
               {error ? (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                <div className="rounded-2xl border border-rose-500/40 bg-rose-950/70 px-4 py-3 text-sm text-rose-100">
                   {error}
                 </div>
               ) : null}
+              {notice ? (
+                <div className="rounded-2xl border border-cyan-500/40 bg-cyan-950/70 px-4 py-3 text-sm text-cyan-100">
+                  {notice}
+                </div>
+              ) : null}
               {isLoadingMessages && messages.length === 0 ? (
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-                  Henter CLI-chat...
+                <div className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-300">
+                  Loading runtime chat...
                 </div>
               ) : null}
               {!isLoadingMessages && messages.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">
-                  Ingen CLI-meldinger ennå. Send en prompt under, så skal bridge-servicen kjøre den på VPS-en.
+                <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900 px-4 py-8 text-center text-sm text-slate-300">
+                  No messages yet. Pick OpenClaw, Codex, or Claude and send the
+                  first command.
                 </div>
               ) : null}
               {messages.map((message) => (
@@ -394,26 +620,102 @@ function CliChatContent() {
               <div ref={endRef} />
             </div>
 
-            <div className="border-t border-slate-200 bg-white p-4 md:p-5">
+            <div className="shrink-0 border-t border-slate-800 bg-slate-950 p-4">
+              <div className="mb-3 grid gap-2 md:grid-cols-[1fr_auto]">
+                <input
+                  value={imageUrl}
+                  onChange={(event) => setImageUrl(event.target.value)}
+                  placeholder="Optional image URL, or paste a screenshot into the prompt box"
+                  className="h-10 rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    type="button"
+                    onClick={() => startSpeech("nb-NO")}
+                  >
+                    <Mic className="h-4 w-4" /> 1 Norsk
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    type="button"
+                    onClick={() => startSpeech("en-US")}
+                  >
+                    <Mic className="h-4 w-4" /> 2 English
+                  </Button>
+                </div>
+              </div>
+
+              {listeningLanguage ? (
+                <p className="mb-2 text-xs text-cyan-200">
+                  Listening in{" "}
+                  {listeningLanguage === "nb-NO" ? "Norwegian" : "English"}...
+                </p>
+              ) : null}
+
+              {images.length > 0 ? (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {images.map((image) => (
+                    <span
+                      key={image.id}
+                      className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100"
+                    >
+                      <ImageIcon className="h-3.5 w-3.5" /> {image.name}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setImages((current) =>
+                            current.filter((item) => item.id !== image.id),
+                          )
+                        }
+                        aria-label={`Remove ${image.name}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
               <Textarea
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
+                onPaste={handlePaste}
                 onKeyDown={(event) => {
                   if (event.key !== "Enter" || event.shiftKey) return;
                   event.preventDefault();
                   void sendPrompt();
                 }}
-                placeholder={`Skriv som i terminalen til ${model}. Shift+Enter gir linjeskift.`}
-                className="min-h-[130px]"
+                placeholder={`Message ${selectedRuntime.label}. Shift+Enter inserts a newline.`}
+                className="min-h-[110px] border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500"
                 disabled={!selectedBoardId || isSending}
               />
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-slate-500">
-                  Kjøring skjer i dedikert workspace. Vi kan åpne bredere filtilgang senere hvis du vil.
+                <p className="text-xs text-slate-400">
+                  OpenClaw routes to board chat and gateway agents. Codex/Claude
+                  routes run host-side CLI commands in the dedicated VPS
+                  workspace.
                 </p>
-                <Button onClick={() => void sendPrompt()} disabled={!selectedBoardId || !prompt.trim() || isSending}>
-                  <Send className="mr-2 h-4 w-4" />
-                  {isSending ? "Sender..." : `Send til ${modelLabel(model)}`}
+                <Button
+                  onClick={() => void sendPrompt()}
+                  disabled={
+                    !selectedBoardId ||
+                    (!prompt.trim() &&
+                      !imageUrl.trim() &&
+                      images.length === 0) ||
+                    isSending
+                  }
+                >
+                  {selectedRuntime.provider === "openclaw" ? (
+                    <Sparkles className="h-4 w-4" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  {isSending
+                    ? "Sending..."
+                    : `Send to ${selectedRuntime.shortLabel}`}
                 </Button>
               </div>
             </div>
@@ -433,7 +735,7 @@ export default function CodexCliChatPage() {
       </SignedIn>
       <SignedOut>
         <SignedOutPanel
-          message="Sign in to use the Codex CLI bridge."
+          message="Sign in to use the VPS runtime console."
           forceRedirectUrl="/cli-chat"
           signUpForceRedirectUrl="/cli-chat"
         />

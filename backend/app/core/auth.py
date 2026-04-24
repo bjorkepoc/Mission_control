@@ -17,6 +17,7 @@ Notes:
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from hmac import compare_digest
 from typing import TYPE_CHECKING, Literal
@@ -427,6 +428,18 @@ async def _get_or_create_local_user(session: AsyncSession) -> User:
     return user
 
 
+def _matches_local_password(token: str) -> bool:
+    expected_hash = settings.local_auth_password_sha256.strip().lower()
+    if not expected_hash:
+        return False
+    if expected_hash.startswith("sha256:"):
+        expected_hash = expected_hash.removeprefix("sha256:")
+    if len(expected_hash) != 64:
+        return False
+    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    return compare_digest(digest, expected_hash)
+
+
 async def _resolve_local_auth_context(
     *,
     request: Request,
@@ -439,7 +452,9 @@ async def _resolve_local_auth_context(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         return None
     expected = settings.local_auth_token.strip()
-    if not expected or not compare_digest(token, expected):
+    token_matches = bool(expected and compare_digest(token, expected))
+    password_matches = _matches_local_password(token)
+    if not token_matches and not password_matches:
         if required:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         return None

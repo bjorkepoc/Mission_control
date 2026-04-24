@@ -32,66 +32,83 @@ describe("LocalAuthLogin", () => {
     vi.restoreAllMocks();
   });
 
-  it("requires a non-empty token", async () => {
+  it("requires a non-empty credential", async () => {
     const user = userEvent.setup();
     render(<LocalAuthLogin />);
 
-    await user.click(screen.getByRole("button", { name: "Continue" }));
-
-    expect(screen.getByText("Bearer token is required.")).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(setLocalAuthTokenMock).not.toHaveBeenCalled();
-  });
-
-  it("requires token length of at least 50 characters", async () => {
-    const user = userEvent.setup();
-    render(<LocalAuthLogin />);
-
-    await user.type(screen.getByPlaceholderText("Paste token"), "x".repeat(49));
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(
-      screen.getByText("Bearer token must be at least 50 characters."),
+      screen.getByText("Access token or password is required."),
     ).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(setLocalAuthTokenMock).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid token values", async () => {
+  it("requires password length of at least 8 characters", async () => {
+    const user = userEvent.setup();
+    render(<LocalAuthLogin />);
+
+    await user.type(
+      screen.getByPlaceholderText("Enter password or paste token"),
+      "x".repeat(7),
+    );
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(
+      screen.getByText(
+        "Password must be at least 8 characters, or paste the full access token.",
+      ),
+    ).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(setLocalAuthTokenMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid credential values", async () => {
     const onAuthenticatedMock = vi.fn();
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }));
     const user = userEvent.setup();
     render(<LocalAuthLogin onAuthenticated={onAuthenticatedMock} />);
 
-    await user.type(screen.getByPlaceholderText("Paste token"), "x".repeat(50));
+    await user.type(
+      screen.getByPlaceholderText("Enter password or paste token"),
+      "bad-password",
+    );
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     await waitFor(() =>
-      expect(screen.getByText("Token is invalid.")).toBeInTheDocument(),
+      expect(
+        screen.getByText("Access token or password is invalid."),
+      ).toBeInTheDocument(),
     );
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:8000/api/v1/users/me",
       expect.objectContaining({
         method: "GET",
-        headers: { Authorization: `Bearer ${"x".repeat(50)}` },
+        headers: { Authorization: `Bearer ${"bad-password"}` },
       }),
     );
     expect(setLocalAuthTokenMock).not.toHaveBeenCalled();
     expect(onAuthenticatedMock).not.toHaveBeenCalled();
   });
 
-  it("saves token only after successful backend validation", async () => {
+  it("saves credential only after successful backend validation", async () => {
     const onAuthenticatedMock = vi.fn();
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
     const user = userEvent.setup();
     render(<LocalAuthLogin onAuthenticated={onAuthenticatedMock} />);
 
-    const token = `  ${"g".repeat(50)} `;
-    await user.type(screen.getByPlaceholderText("Paste token"), token);
+    const credential = "  correct-horse-battery ";
+    await user.type(
+      screen.getByPlaceholderText("Enter password or paste token"),
+      credential,
+    );
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     await waitFor(() =>
-      expect(setLocalAuthTokenMock).toHaveBeenCalledWith("g".repeat(50)),
+      expect(setLocalAuthTokenMock).toHaveBeenCalledWith(
+        "correct-horse-battery",
+      ),
     );
     expect(onAuthenticatedMock).toHaveBeenCalledTimes(1);
   });
@@ -102,12 +119,15 @@ describe("LocalAuthLogin", () => {
     const user = userEvent.setup();
     render(<LocalAuthLogin onAuthenticated={onAuthenticatedMock} />);
 
-    await user.type(screen.getByPlaceholderText("Paste token"), "t".repeat(50));
+    await user.type(
+      screen.getByPlaceholderText("Enter password or paste token"),
+      "correct-horse-battery",
+    );
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     await waitFor(() =>
       expect(
-        screen.getByText("Unable to reach backend to validate token."),
+        screen.getByText("Unable to reach backend to validate credentials."),
       ).toBeInTheDocument(),
     );
     expect(setLocalAuthTokenMock).not.toHaveBeenCalled();

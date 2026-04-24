@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from types import SimpleNamespace
 from typing import Any
 
@@ -119,6 +120,34 @@ async def test_get_auth_context_local_mode_requires_valid_bearer_token(
 
     ctx = await auth.get_auth_context(  # type: ignore[arg-type]
         request=SimpleNamespace(headers={"Authorization": "Bearer expected-token"}),
+        credentials=None,
+        session=_FakeSession(),  # type: ignore[arg-type]
+    )
+
+    assert ctx.actor_type == "user"
+    assert ctx.user is not None
+    assert ctx.user.clerk_user_id == "local-auth-user"
+
+
+@pytest.mark.asyncio
+async def test_get_auth_context_local_mode_accepts_configured_password_hash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(auth.settings, "auth_mode", AuthMode.LOCAL)
+    monkeypatch.setattr(auth.settings, "local_auth_token", "expected-token")
+    monkeypatch.setattr(
+        auth.settings,
+        "local_auth_password_sha256",
+        "sha256:" + hashlib.sha256(b"correct-password").hexdigest(),
+    )
+
+    async def _fake_local_user(_session: Any) -> User:
+        return User(clerk_user_id="local-auth-user", email="local@localhost", name="Local User")
+
+    monkeypatch.setattr(auth, "_get_or_create_local_user", _fake_local_user)
+
+    ctx = await auth.get_auth_context(  # type: ignore[arg-type]
+        request=SimpleNamespace(headers={"Authorization": "Bearer correct-password"}),
         credentials=None,
         session=_FakeSession(),  # type: ignore[arg-type]
     )

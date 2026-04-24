@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     # Auth mode: "clerk" for Clerk JWT auth, "local" for shared bearer token auth.
     auth_mode: AuthMode
     local_auth_token: str = ""
+    local_auth_password_sha256: str = ""
 
     # Clerk auth (auth only; roles stored in DB)
     clerk_secret_key: str = ""
