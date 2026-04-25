@@ -20,20 +20,22 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("jarvis");
-
-  useEffect(() => {
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") {
+      return "jarvis";
+    }
     const stored = localStorage.getItem("mc-theme") as Theme | null;
     const valid: Theme[] = ["jarvis", "dark", "light"];
-    const initial = stored && valid.includes(stored) ? stored : "jarvis";
-    setThemeState(initial);
-    document.documentElement.setAttribute("data-theme", initial);
-  }, []);
+    return stored && valid.includes(stored) ? stored : "jarvis";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("mc-theme", theme);
+  }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem("mc-theme", newTheme);
-    document.documentElement.setAttribute("data-theme", newTheme);
   };
 
   return (

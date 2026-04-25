@@ -85,6 +85,7 @@ type SpeechWindow = Window &
   };
 
 const MAX_PASTED_IMAGE_BYTES = 2_500_000;
+const BOARD_CHAT_PAGE_LIMIT = 200;
 
 const formatTime = (value: string) => {
   const date = new Date(value);
@@ -114,37 +115,37 @@ function CliMessageCard({ message }: { message: BoardMemoryRead }) {
   return (
     <article
       className={cn(
-        "rounded-2xl border p-4 shadow-sm",
+        "mc-message-card rounded-2xl border p-4",
         isRequest
-          ? "ml-auto max-w-[86%] border-cyan-400/40 bg-cyan-950/70 text-cyan-50"
+          ? "mc-message-card--request ml-auto max-w-[86%]"
           : kind === "error"
-            ? "mr-auto max-w-[92%] border-rose-400/40 bg-rose-950/70 text-rose-50"
+            ? "mc-message-card--error mr-auto max-w-[92%]"
             : runtime === "openclaw"
-              ? "mr-auto max-w-[92%] border-sky-400/35 bg-slate-900 text-slate-100"
-              : "mr-auto max-w-[92%] border-emerald-400/35 bg-emerald-950/70 text-emerald-50",
+              ? "mc-message-card--openclaw mr-auto max-w-[92%]"
+              : "mc-message-card--runtime mr-auto max-w-[92%]",
       )}
     >
       <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
         <span
           className={cn(
-            "rounded-full px-2.5 py-1 font-semibold",
+            "mc-message-label rounded-full px-2.5 py-1 font-semibold",
             isRequest
-              ? "bg-cyan-300 text-cyan-950"
+              ? "mc-message-label--request"
               : kind === "error"
-                ? "bg-rose-200 text-rose-950"
+                ? "mc-message-label--error"
                 : runtime === "openclaw"
-                  ? "bg-sky-200 text-sky-950"
-                  : "bg-emerald-200 text-emerald-950",
+                  ? ""
+                  : "mc-message-label--runtime",
           )}
         >
           {label}
         </span>
-        <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 font-medium text-slate-100">
+        <span className="mc-runtime-pill rounded-full border px-2.5 py-1 font-medium">
           {option.shortLabel}
         </span>
-        <span className="text-slate-300">{formatTime(message.created_at)}</span>
+        <span className="mc-muted-text">{formatTime(message.created_at)}</span>
       </div>
-      <div className="prose prose-invert max-w-none text-sm prose-pre:my-2 prose-code:text-cyan-100 prose-a:text-cyan-200">
+      <div className="mc-markdown prose max-w-none text-sm prose-pre:my-2">
         <Markdown content={message.content} variant="comment" />
       </div>
     </article>
@@ -208,7 +209,7 @@ function CliChatContent() {
     try {
       const result = await listBoardMemoryApiV1BoardsBoardIdMemoryGet(
         selectedBoardId,
-        { is_chat: true, limit: 250 },
+        { is_chat: true, limit: BOARD_CHAT_PAGE_LIMIT },
         { cache: "no-store" },
       );
       if (result.status !== 200)
@@ -454,29 +455,29 @@ function CliChatContent() {
   }, []);
 
   return (
-    <main className="h-[calc(100vh-64px)] min-w-0 overflow-hidden bg-[#061017] p-3 text-slate-100 md:p-5">
+    <main className="mc-page-surface h-[calc(100vh-64px)] min-w-0 overflow-hidden p-3 md:p-5">
       <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
-        <section className="shrink-0 rounded-2xl border border-cyan-400/20 bg-slate-950/80 px-4 py-3 shadow-sm">
+        <section className="mc-panel-surface shrink-0 rounded-2xl border px-4 py-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
-              <span className="rounded-xl bg-cyan-400/15 p-2 text-cyan-200">
+              <span className="mc-icon-tile rounded-xl p-2">
                 <Terminal className="h-5 w-5" />
               </span>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-200">
+                <p className="mc-eyebrow text-[10px] font-semibold uppercase tracking-[0.28em]">
                   VPS runtime console
                 </p>
-                <h1 className="text-xl font-semibold tracking-tight text-white md:text-2xl">
+                <h1 className="mc-title-text text-xl font-semibold tracking-tight md:text-2xl">
                   EllaVPS Command Deck
                 </h1>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-              <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-emerald-100">
+            <div className="mc-muted-text flex flex-wrap items-center gap-2 text-xs">
+              <span className="mc-status-pill mc-status-pill--success rounded-full border px-3 py-1">
                 <ShieldCheck className="mr-1 inline h-3.5 w-3.5" /> Host-side
                 CLI auth
               </span>
-              <span className="rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-cyan-100">
+              <span className="mc-status-pill rounded-full border px-3 py-1">
                 Polling only reads local chat state
               </span>
             </div>
@@ -484,15 +485,15 @@ function CliChatContent() {
         </section>
 
         <section className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <aside className="min-h-0 overflow-y-auto rounded-2xl border border-slate-700 bg-slate-950/80 p-4 shadow-sm">
+          <aside className="mc-panel-surface min-h-0 overflow-y-auto rounded-2xl border p-4">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <label className="mc-muted-text text-xs font-semibold uppercase tracking-wider">
                 Board
               </label>
               <select
                 value={selectedBoardId}
                 onChange={(event) => setSelectedBoardId(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                className="mc-control mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none transition"
                 disabled={isLoadingBoards || boards.length === 0}
               >
                 {boards.length === 0 ? (
@@ -507,7 +508,7 @@ function CliChatContent() {
             </div>
 
             <div className="mt-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <p className="mc-muted-text text-xs font-semibold uppercase tracking-wider">
                 Runtime
               </p>
               <div className="mt-2 space-y-2">
@@ -517,10 +518,10 @@ function CliChatContent() {
                     type="button"
                     onClick={() => setRuntime(option.id)}
                     className={cn(
-                      "w-full rounded-2xl border p-3 text-left transition",
+                      "mc-runtime-option w-full rounded-2xl border p-3 text-left transition",
                       runtime === option.id
-                        ? "border-cyan-300 bg-cyan-300 text-slate-950 shadow-sm"
-                        : "border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-400/60",
+                        ? "mc-runtime-option--active"
+                        : "",
                     )}
                   >
                     <span className="flex items-center gap-2 font-semibold">
@@ -539,16 +540,16 @@ function CliChatContent() {
               </div>
             </div>
 
-            <div className="mt-5 rounded-2xl border border-slate-700 bg-black/30 p-3 text-xs leading-5 text-slate-300">
-              <p className="font-semibold text-slate-100">Active route</p>
+            <div className="mc-panel-muted-surface mc-muted-text mt-5 rounded-2xl border p-3 text-xs leading-5">
+              <p className="mc-title-text font-semibold">Active route</p>
               <p className="mt-1">
                 {selectedBoard?.name ?? "No board selected"} -&gt;{" "}
                 {selectedRuntime.label}
               </p>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-900/80 p-3 text-xs leading-5 text-slate-300">
-              <div className="flex items-center gap-2 font-semibold text-slate-100">
+            <div className="mc-panel-muted-surface mc-muted-text mt-4 rounded-2xl border p-3 text-xs leading-5">
+              <div className="mc-title-text flex items-center gap-2 font-semibold">
                 <HelpCircle className="h-4 w-4" /> Commands
               </div>
               <p className="mt-2">
@@ -562,11 +563,11 @@ function CliChatContent() {
             </div>
           </aside>
 
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-sm">
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
+          <section className="mc-panel-surface flex min-h-0 flex-col overflow-hidden rounded-2xl border">
+            <div className="mc-section-divider flex shrink-0 flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
               <div>
-                <p className="text-sm font-semibold text-white">Runtime Chat</p>
-                <p className="text-xs text-slate-400">
+                <p className="mc-title-text text-sm font-semibold">Runtime Chat</p>
+                <p className="mc-muted-text text-xs">
                   Polls every 3 seconds. Model usage starts only when you send a
                   new message.
                 </p>
@@ -592,24 +593,24 @@ function CliChatContent() {
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#03080d] p-4">
+            <div className="mc-chat-surface min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
               {error ? (
-                <div className="rounded-2xl border border-rose-500/40 bg-rose-950/70 px-4 py-3 text-sm text-rose-100">
+                <div className="mc-alert mc-alert--error rounded-2xl border px-4 py-3 text-sm">
                   {error}
                 </div>
               ) : null}
               {notice ? (
-                <div className="rounded-2xl border border-cyan-500/40 bg-cyan-950/70 px-4 py-3 text-sm text-cyan-100">
+                <div className="mc-alert mc-alert--info rounded-2xl border px-4 py-3 text-sm">
                   {notice}
                 </div>
               ) : null}
               {isLoadingMessages && messages.length === 0 ? (
-                <div className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-300">
+                <div className="mc-alert rounded-2xl border px-4 py-3 text-sm">
                   Loading runtime chat...
                 </div>
               ) : null}
               {!isLoadingMessages && messages.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900 px-4 py-8 text-center text-sm text-slate-300">
+                <div className="mc-empty-state rounded-2xl border border-dashed px-4 py-8 text-center text-sm">
                   No messages yet. Pick OpenClaw, Codex, or Claude and send the
                   first command.
                 </div>
@@ -620,13 +621,13 @@ function CliChatContent() {
               <div ref={endRef} />
             </div>
 
-            <div className="shrink-0 border-t border-slate-800 bg-slate-950 p-4">
+            <div className="mc-composer-surface shrink-0 border-t p-4">
               <div className="mb-3 grid gap-2 md:grid-cols-[1fr_auto]">
                 <input
                   value={imageUrl}
                   onChange={(event) => setImageUrl(event.target.value)}
                   placeholder="Optional image URL, or paste a screenshot into the prompt box"
-                  className="h-10 rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                  className="mc-control h-10 rounded-xl border px-3 text-sm outline-none transition"
                 />
                 <div className="flex gap-2">
                   <Button
@@ -649,7 +650,7 @@ function CliChatContent() {
               </div>
 
               {listeningLanguage ? (
-                <p className="mb-2 text-xs text-cyan-200">
+                <p className="mc-eyebrow mb-2 text-xs">
                   Listening in{" "}
                   {listeningLanguage === "nb-NO" ? "Norwegian" : "English"}...
                 </p>
@@ -660,7 +661,7 @@ function CliChatContent() {
                   {images.map((image) => (
                     <span
                       key={image.id}
-                      className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100"
+                      className="mc-attachment-pill inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs"
                     >
                       <ImageIcon className="h-3.5 w-3.5" /> {image.name}
                       <button
@@ -689,11 +690,11 @@ function CliChatContent() {
                   void sendPrompt();
                 }}
                 placeholder={`Message ${selectedRuntime.label}. Shift+Enter inserts a newline.`}
-                className="min-h-[110px] border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500"
+                className="mc-control min-h-[110px]"
                 disabled={!selectedBoardId || isSending}
               />
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-slate-400">
+                <p className="mc-muted-text text-xs">
                   OpenClaw routes to board chat and gateway agents. Codex/Claude
                   routes run host-side CLI commands in the dedicated VPS
                   workspace.

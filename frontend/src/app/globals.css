@@ -10,6 +10,10 @@
   --surface: #0a1622;
   --surface-muted: #0d1b2a;
   --surface-strong: #12263a;
+  --app-page-bg: #020810;
+  --app-panel-bg: rgba(6, 18, 32, 0.88);
+  --app-panel-muted-bg: rgba(3, 12, 21, 0.72);
+  --app-chat-bg: #03080d;
   --border: rgba(0, 200, 255, 0.16);
   --border-strong: rgba(0, 200, 255, 0.3);
   --text: #c8e8ff;
@@ -30,10 +34,14 @@
 /* ── Dark theme ─────────────────────────────────────────── */
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #111113;
-  --surface: #18181b;
-  --surface-muted: #202024;
-  --surface-strong: #2a2a30;
+  --bg: #000000;
+  --surface: #050505;
+  --surface-muted: #0a0a0a;
+  --surface-strong: #141414;
+  --app-page-bg: #000000;
+  --app-panel-bg: rgba(5, 5, 5, 0.96);
+  --app-panel-muted-bg: rgba(10, 10, 10, 0.94);
+  --app-chat-bg: #000000;
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.16);
   --text: #f4f4f5;
@@ -58,6 +66,10 @@
   --surface: #ffffff;
   --surface-muted: #f4f4f5;
   --surface-strong: #e4e4e7;
+  --app-page-bg: #fafafa;
+  --app-panel-bg: rgba(255, 255, 255, 0.98);
+  --app-panel-muted-bg: rgba(244, 244, 245, 0.96);
+  --app-chat-bg: #ffffff;
   --border: rgba(0, 0, 0, 0.08);
   --border-strong: rgba(0, 0, 0, 0.16);
   --text: #09090b;
@@ -85,6 +97,11 @@ body {
   color: var(--text);
 }
 
+html,
+body {
+  background-color: var(--bg);
+}
+
 [data-theme="dark"] body {
   background: var(--bg);
 }
@@ -109,6 +126,184 @@ body::before {
 [data-theme="dark"] body::before,
 [data-theme="light"] body::before {
   display: none;
+}
+
+@layer components {
+  .mc-page-surface {
+    background: var(--app-page-bg);
+    color: var(--text);
+  }
+
+  .mc-panel-surface {
+    background: var(--app-panel-bg);
+    border-color: var(--border);
+    box-shadow: var(--shadow-panel);
+  }
+
+  .mc-panel-muted-surface {
+    background: var(--app-panel-muted-bg);
+    border-color: var(--border);
+  }
+
+  .mc-chat-surface {
+    background: var(--app-chat-bg);
+  }
+
+  .mc-icon-tile {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+  }
+
+  .mc-eyebrow {
+    color: var(--accent-strong);
+  }
+
+  .mc-title-text {
+    color: var(--text);
+  }
+
+  .mc-muted-text {
+    color: var(--text-muted);
+  }
+
+  .mc-quiet-text {
+    color: var(--text-quiet);
+  }
+
+  .mc-status-pill,
+  .mc-attachment-pill,
+  .mc-runtime-pill {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+    color: var(--accent-strong);
+  }
+
+  .mc-status-pill--success {
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+    border-color: color-mix(in srgb, var(--success) 32%, var(--border));
+    color: var(--success);
+  }
+
+  .mc-control {
+    background: var(--surface-muted);
+    border-color: var(--border);
+    color: var(--text);
+  }
+
+  .mc-control::placeholder {
+    color: var(--text-quiet);
+  }
+
+  .mc-control:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 24%, transparent);
+  }
+
+  .mc-runtime-option {
+    background: var(--surface-muted);
+    border-color: var(--border);
+    color: var(--text);
+  }
+
+  .mc-runtime-option:hover {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  }
+
+  .mc-runtime-option--active {
+    background: var(--accent);
+    border-color: var(--accent-strong);
+    color: var(--bg);
+    box-shadow: var(--shadow-card);
+  }
+
+  .mc-section-divider {
+    border-color: var(--border);
+  }
+
+  .mc-composer-surface {
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  .mc-message-card {
+    background: var(--surface-muted);
+    border-color: var(--border);
+    color: var(--text);
+    box-shadow: var(--shadow-card);
+  }
+
+  .mc-message-card--request {
+    background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 46%, var(--border));
+  }
+
+  .mc-message-card--error {
+    background: color-mix(in srgb, var(--danger) 18%, var(--surface));
+    border-color: color-mix(in srgb, var(--danger) 46%, var(--border));
+  }
+
+  .mc-message-card--openclaw {
+    background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  }
+
+  .mc-message-card--runtime {
+    background: color-mix(in srgb, var(--success) 12%, var(--surface));
+    border-color: color-mix(in srgb, var(--success) 36%, var(--border));
+  }
+
+  .mc-message-label {
+    background: var(--surface-strong);
+    color: var(--text);
+  }
+
+  .mc-message-label--request {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  .mc-message-label--error {
+    background: var(--danger);
+    color: white;
+  }
+
+  .mc-message-label--runtime {
+    background: var(--success);
+    color: var(--bg);
+  }
+
+  .mc-alert {
+    background: var(--surface-muted);
+    border-color: var(--border);
+    color: var(--text);
+  }
+
+  .mc-alert--info {
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+    color: var(--text);
+  }
+
+  .mc-alert--error {
+    background: color-mix(in srgb, var(--danger) 16%, var(--surface));
+    border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+    color: var(--text);
+  }
+
+  .mc-empty-state {
+    background: var(--surface-muted);
+    border-color: var(--border);
+    color: var(--text-muted);
+  }
+
+  .mc-markdown {
+    color: var(--text);
+  }
+
+  .mc-markdown :where(a),
+  .mc-markdown :where(code) {
+    color: var(--accent-strong);
+  }
 }
 
 /* ── Tailwind overrides (use CSS vars so all themes apply) ── */
