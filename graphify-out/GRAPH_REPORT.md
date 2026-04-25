@@ -3224,11 +3224,11 @@ Nodes (1): Run the bridge forever.
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `get()` connect `Community 4` to `Community 0`, `Community 1`, `Community 2`, `Community 3`, `Community 5`, `Community 6`, `Community 7`, `Community 8`, `Community 9`, `Community 10`, `Community 11`, `Community 12`, `Community 14`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 20`, `Community 23`, `Community 24`?**
-  _High betweenness centrality (0.275) - this node is a cross-community bridge._
+  _High betweenness centrality (0.254) - this node is a cross-community bridge._
 - **Why does `customFetch()` connect `Community 2` to `Community 8`, `Community 4`, `Community 13`, `Community 6`?**
-  _High betweenness centrality (0.235) - this node is a cross-community bridge._
+  _High betweenness centrality (0.188) - this node is a cross-community bridge._
 - **Why does `Board` connect `Community 1` to `Community 0`, `Community 3`, `Community 4`, `Community 5`, `Community 7`, `Community 8`, `Community 9`, `Community 10`, `Community 12`, `Community 15`, `Community 17`, `Community 18`, `Community 20`, `Community 22`, `Community 29`?**
-  _High betweenness centrality (0.047) - this node is a cross-community bridge._
+  _High betweenness centrality (0.042) - this node is a cross-community bridge._
 - **Are the 366 inferred relationships involving `Board` (e.g. with `run()` and `_seed_payload()`) actually correct?**
   _`Board` has 366 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 324 inferred relationships involving `Agent` (e.g. with `run()` and `_agent()`) actually correct?**
