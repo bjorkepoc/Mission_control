@@ -12,11 +12,14 @@ import {
   ChevronDown,
   LayoutDashboard,
   LogOut,
+  Moon,
   Plus,
   Server,
   Settings,
   Store,
+  Sun,
   Trello,
+  Zap,
 } from "lucide-react";
 
 import {
@@ -24,6 +27,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useTheme, type Theme } from "@/components/providers/ThemeProvider";
 import { cn } from "@/lib/utils";
 
 type UserMenuProps = {
@@ -39,6 +43,7 @@ export function UserMenu({
 }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const { user } = useUser();
+  const { theme, setTheme } = useTheme();
   const localMode = isLocalAuthMode();
   if (!user && !localMode) return null;
 
@@ -174,6 +179,38 @@ export function UserMenu({
               {item.label}
             </Link>
           ))}
+
+          <div className="my-2 h-px bg-[color:var(--border)]" />
+
+          <div className="px-1 pb-1">
+            <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-[color:var(--text-quiet)]">
+              Appearance
+            </p>
+            <div className="grid grid-cols-3 gap-1">
+              {(
+                [
+                  { id: "jarvis" as Theme, label: "Jarvis", Icon: Zap },
+                  { id: "dark" as Theme, label: "Dark", Icon: Moon },
+                  { id: "light" as Theme, label: "Light", Icon: Sun },
+                ] as const
+              ).map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTheme(id)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-[11px] font-semibold transition",
+                    theme === id
+                      ? "bg-[color:var(--accent-soft)] text-[color:var(--accent-strong)] ring-1 ring-[color:var(--accent)]/30"
+                      : "text-[color:var(--text-quiet)] hover:bg-[color:var(--surface-muted)] hover:text-[color:var(--text)]",
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="my-2 h-px bg-[color:var(--border)]" />
 

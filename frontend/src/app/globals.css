@@ -2,7 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* ── Jarvis theme (default) ─────────────────────────────── */
+:root,
+[data-theme="jarvis"] {
   color-scheme: dark;
   --bg: #020810;
   --surface: #0a1622;
@@ -25,6 +27,55 @@
     0 0 0 1px rgba(0, 200, 255, 0.12), 0 12px 30px rgba(0, 8, 18, 0.5);
 }
 
+/* ── Dark theme ─────────────────────────────────────────── */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111113;
+  --surface: #18181b;
+  --surface-muted: #202024;
+  --surface-strong: #2a2a30;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --text-quiet: #71717a;
+  --accent: #6366f1;
+  --accent-strong: #818cf8;
+  --accent-soft: rgba(99, 102, 241, 0.15);
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --shadow-panel:
+    0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-card:
+    0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Light theme ────────────────────────────────────────── */
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-muted: #f4f4f5;
+  --surface-strong: #e4e4e7;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --text: #09090b;
+  --text-muted: #52525b;
+  --text-quiet: #a1a1aa;
+  --accent: #6366f1;
+  --accent-strong: #4f52d5;
+  --accent-soft: rgba(99, 102, 241, 0.1);
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --shadow-panel:
+    0 0 0 1px rgba(0, 0, 0, 0.07), 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-card:
+    0 0 0 1px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Body backgrounds ───────────────────────────────────── */
 body {
   @apply font-body;
   background:
@@ -34,6 +85,15 @@ body {
   color: var(--text);
 }
 
+[data-theme="dark"] body {
+  background: var(--bg);
+}
+
+[data-theme="light"] body {
+  background: var(--bg);
+}
+
+/* ── Grid overlay (Jarvis only) ─────────────────────────── */
 body::before {
   content: "";
   position: fixed;
@@ -46,6 +106,12 @@ body::before {
   z-index: -1;
 }
 
+[data-theme="dark"] body::before,
+[data-theme="light"] body::before {
+  display: none;
+}
+
+/* ── Tailwind overrides (use CSS vars so all themes apply) ── */
 * {
   border-color: var(--border);
 }
@@ -70,6 +136,16 @@ body::before {
 .bg-slate-900,
 .bg-slate-950 {
   background-color: #061220 !important;
+}
+
+[data-theme="dark"] .bg-slate-900,
+[data-theme="dark"] .bg-slate-950 {
+  background-color: #0a0a0e !important;
+}
+
+[data-theme="light"] .bg-slate-900,
+[data-theme="light"] .bg-slate-950 {
+  background-color: var(--surface-strong) !important;
 }
 
 .text-slate-950,
@@ -107,9 +183,25 @@ body::before {
   --tw-ring-color: rgba(0, 200, 255, 0.28) !important;
 }
 
+[data-theme="dark"] .ring-slate-200,
+[data-theme="dark"] .ring-slate-300,
+[data-theme="dark"] .ring-slate-400,
+[data-theme="light"] .ring-slate-200,
+[data-theme="light"] .ring-slate-300,
+[data-theme="light"] .ring-slate-400 {
+  --tw-ring-color: rgba(99, 102, 241, 0.35) !important;
+}
+
 .bg-blue-50,
 .bg-blue-100 {
   background-color: rgba(0, 200, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .bg-blue-50,
+[data-theme="dark"] .bg-blue-100,
+[data-theme="light"] .bg-blue-50,
+[data-theme="light"] .bg-blue-100 {
+  background-color: var(--accent-soft) !important;
 }
 
 .text-blue-800,
@@ -124,11 +216,37 @@ body::before {
   border-color: rgba(0, 200, 255, 0.35) !important;
 }
 
+[data-theme="dark"] .border-blue-200,
+[data-theme="dark"] .border-blue-300,
+[data-theme="dark"] .border-blue-500,
+[data-theme="light"] .border-blue-200,
+[data-theme="light"] .border-blue-300,
+[data-theme="light"] .border-blue-500 {
+  border-color: rgba(99, 102, 241, 0.35) !important;
+}
+
 .ring-blue-200,
 .ring-blue-500 {
   --tw-ring-color: rgba(0, 200, 255, 0.4) !important;
 }
 
+[data-theme="dark"] .ring-blue-200,
+[data-theme="dark"] .ring-blue-500,
+[data-theme="light"] .ring-blue-200,
+[data-theme="light"] .ring-blue-500 {
+  --tw-ring-color: rgba(99, 102, 241, 0.4) !important;
+}
+
+/* ── Scrollbar hidden ───────────────────────────────────── */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Animations ─────────────────────────────────────────── */
 @keyframes fade-in-up {
   from {
     opacity: 0;

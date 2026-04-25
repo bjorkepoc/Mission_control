@@ -702,7 +702,7 @@ export default function OrganizationPage() {
       </SignedOut>
       <SignedIn>
         <DashboardSidebar />
-        <main className="flex-1 overflow-y-auto bg-slate-50">
+        <main className="flex-1 overflow-y-auto scrollbar-none bg-slate-50">
           <div className="sticky top-0 z-30 border-b border-slate-200 bg-white">
             <div className="px-4 py-4 md:px-8 md:py-6">
               <div className="flex flex-wrap items-center justify-between gap-6">

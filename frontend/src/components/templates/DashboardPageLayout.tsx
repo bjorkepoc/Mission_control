@@ -66,7 +66,7 @@ export function DashboardPageLayout({
         <DashboardSidebar />
         <main
           ref={mainRef}
-          className={cn("flex-1 overflow-y-auto bg-slate-50", mainClassName)}
+          className={cn("flex-1 overflow-y-auto scrollbar-none bg-slate-50", mainClassName)}
         >
           <div
             className={cn(
