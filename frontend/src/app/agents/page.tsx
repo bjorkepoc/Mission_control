@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/auth/clerk";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { AgentsHouseHub } from "@/components/agents/AgentsHouseHub";
 import { AgentsTable } from "@/components/agents/AgentsTable";
 import { DashboardPageLayout } from "@/components/templates/DashboardPageLayout";
 import { Button } from "@/components/ui/button";
@@ -142,24 +143,28 @@ export default function AgentsPage() {
         adminOnlyMessage="Only organization owners and admins can access agents."
         stickyHeader
       >
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <AgentsTable
-            agents={agents}
-            boards={boards}
-            isLoading={agentsQuery.isLoading}
-            sorting={sorting}
-            onSortingChange={onSortingChange}
-            showActions
-            stickyHeader
-            onDelete={setDeleteTarget}
-            emptyState={{
-              title: "No agents yet",
-              description:
-                "Create your first agent to start executing tasks on this board.",
-              actionHref: "/agents/new",
-              actionLabel: "Create your first agent",
-            }}
-          />
+        <div className="space-y-6">
+          <AgentsHouseHub agents={agents} boards={boards} />
+
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <AgentsTable
+              agents={agents}
+              boards={boards}
+              isLoading={agentsQuery.isLoading}
+              sorting={sorting}
+              onSortingChange={onSortingChange}
+              showActions
+              stickyHeader
+              onDelete={setDeleteTarget}
+              emptyState={{
+                title: "No agents yet",
+                description:
+                  "Create your first agent to start executing tasks on this board.",
+                actionHref: "/agents/new",
+                actionLabel: "Create your first agent",
+              }}
+            />
+          </div>
         </div>
 
         {agentsQuery.error ? (
