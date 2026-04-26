@@ -71,6 +71,9 @@ export const CLI_RELEVANT_TAGS = new Set([
   "claude-cli-error",
 ]);
 
+export const CLI_CHAT_SESSION_TAG_PREFIX = "cli-chat:";
+export const CLI_CHAT_RETENTION_MS = 24 * 60 * 60 * 1000;
+
 export const REQUEST_TAG_BY_RUNTIME: Partial<Record<RuntimeId, string>> = {
   "gpt-5.5": "codex55-request",
   "gpt-5.3-codex": "codex53-request",
@@ -94,9 +97,11 @@ export function tagsFor(message: Pick<BoardMemoryRead, "tags">): Set<string> {
 export function tagsForRuntime(
   runtimeId: RuntimeId,
   hasImage = false,
+  chatSessionTag?: string,
 ): string[] {
   const option = runtimeOption(runtimeId);
   const tags = ["chat"];
+  if (chatSessionTag) tags.push(chatSessionTag);
   if (hasImage) tags.push("image");
   if (option.provider === "openclaw") return tags;
   if (option.provider === "codex") tags.push("codex-cli-request");
@@ -202,4 +207,85 @@ export function parseRuntimeCommand(value: string): RuntimeId | null {
   if (["claude", "claude-code", "sonnet"].includes(normalized))
     return "claude-sonnet";
   return null;
+}
+
+const normalizeChatSessionId = (value: string): string => {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || "main";
+};
+
+const parseIsoTime = (value: string | null | undefined): number | null => {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
+};
+
+export function chatSessionTagForRuntime(
+  runtimeId: RuntimeId,
+  sessionId = "main",
+): string {
+  return `${CLI_CHAT_SESSION_TAG_PREFIX}${runtimeId}:${normalizeChatSessionId(sessionId)}`;
+}
+
+export function sessionTagForMessage(
+  message: Pick<BoardMemoryRead, "tags">,
+): string | null {
+  return (
+    (message.tags ?? []).find(
+      (tag): tag is string =>
+        typeof tag === "string" && tag.startsWith(CLI_CHAT_SESSION_TAG_PREFIX),
+    ) ?? null
+  );
+}
+
+export function mergeMessages(
+  current: BoardMemoryRead[],
+  incoming: BoardMemoryRead[],
+): BoardMemoryRead[] {
+  const byId = new Map<string, BoardMemoryRead>();
+  for (const message of current) {
+    byId.set(message.id, message);
+  }
+  for (const message of incoming) {
+    byId.set(message.id, message);
+  }
+  return sortMessages(Array.from(byId.values()));
+}
+
+export function filterVisibleMessages(
+  messages: BoardMemoryRead[],
+  {
+    runtime,
+    sessionTag,
+    now = Date.now(),
+    retentionMs = CLI_CHAT_RETENTION_MS,
+    clearedBeforeIso,
+  }: {
+    runtime: RuntimeId;
+    sessionTag: string;
+    now?: number;
+    retentionMs?: number;
+    clearedBeforeIso?: string | null;
+  },
+): BoardMemoryRead[] {
+  const oldestVisibleTimestamp = now - retentionMs;
+  const clearedBefore = parseIsoTime(clearedBeforeIso);
+
+  return sortMessages(
+    messages.filter((message) => {
+      const createdAt = parseIsoTime(message.created_at);
+      if (createdAt !== null) {
+        if (createdAt < oldestVisibleTimestamp) return false;
+        if (clearedBefore !== null && createdAt <= clearedBefore) return false;
+      }
+
+      const taggedSession = sessionTagForMessage(message);
+      if (taggedSession) return taggedSession === sessionTag;
+      return resolveMessageRuntime(message) === runtime;
+    }),
+  );
 }

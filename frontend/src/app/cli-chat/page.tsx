@@ -29,10 +29,10 @@ import { SignedIn, SignedOut, useAuth } from "@/auth/clerk";
 import {
   createBoardMemoryApiV1BoardsBoardIdMemoryPost,
   listBoardMemoryApiV1BoardsBoardIdMemoryGet,
+  streamBoardMemoryApiV1BoardsBoardIdMemoryStreamGet,
 } from "@/api/generated/board-memory/board-memory";
 import { listBoardsApiV1BoardsGet } from "@/api/generated/boards/boards";
 import type { BoardMemoryRead, BoardRead } from "@/api/generated/model";
-import { customFetch } from "@/api/mutator";
 import { Markdown } from "@/components/atoms/Markdown";
 import { SignedOutPanel } from "@/components/auth/SignedOutPanel";
 import { DashboardSidebar } from "@/components/organisms/DashboardSidebar";
@@ -42,13 +42,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 import {
+  chatSessionTagForRuntime,
+  filterVisibleMessages,
+  mergeMessages,
   RUNTIME_OPTIONS,
   isConsoleAuthoredSource,
   parseRuntimeCommand,
   resolveMessageKind,
   resolveMessageRuntime,
   runtimeOption,
-  sortMessages,
   tagsForRuntime,
   type RuntimeId,
 } from "./cliChatUtils";
@@ -86,6 +88,10 @@ type SpeechWindow = Window &
 
 const MAX_PASTED_IMAGE_BYTES = 2_500_000;
 const BOARD_CHAT_PAGE_LIMIT = 200;
+const STREAM_FALLBACK_POLL_MS = 15_000;
+const CLEARED_SESSION_STORAGE_KEY_PREFIX = "mc-cli-chat-cleared:";
+
+type StreamStatus = "idle" | "connecting" | "live" | "fallback";
 
 const formatTime = (value: string) => {
   const date = new Date(value);
@@ -101,6 +107,73 @@ const formatTime = (value: string) => {
 const appendText = (current: string, next: string) => {
   if (!current.trim()) return next.trimStart();
   return `${current.trimEnd()} ${next.trimStart()}`;
+};
+
+const clearedSessionStorageKey = (boardId: string) =>
+  `${CLEARED_SESSION_STORAGE_KEY_PREFIX}${boardId}`;
+
+const parseStreamMemoryEvent = (raw: string): BoardMemoryRead | null => {
+  const lines = raw.split("\n");
+  let eventName = "message";
+  const dataLines: string[] = [];
+
+  for (const line of lines) {
+    if (!line || line.startsWith(":")) continue;
+    const separatorIndex = line.indexOf(":");
+    const key = separatorIndex >= 0 ? line.slice(0, separatorIndex) : line;
+    const value =
+      separatorIndex >= 0 ? line.slice(separatorIndex + 1).trimStart() : "";
+
+    if (key === "event") eventName = value;
+    if (key === "data") dataLines.push(value);
+  }
+
+  if (eventName !== "memory" || dataLines.length === 0) return null;
+  try {
+    const parsed = JSON.parse(dataLines.join("\n")) as {
+      memory?: BoardMemoryRead;
+    };
+    if (!parsed.memory || typeof parsed.memory.id !== "string") return null;
+    return parsed.memory;
+  } catch {
+    return null;
+  }
+};
+
+const consumeMemoryStream = async (
+  response: Response,
+  onMemory: (memory: BoardMemoryRead) => void,
+) => {
+  if (!response.body) {
+    throw new Error("Streaming response is missing body.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+
+    let splitIndex = buffer.indexOf("\n\n");
+    while (splitIndex >= 0) {
+      const rawEvent = buffer.slice(0, splitIndex).trim();
+      buffer = buffer.slice(splitIndex + 2);
+      if (rawEvent) {
+        const memory = parseStreamMemoryEvent(rawEvent);
+        if (memory) onMemory(memory);
+      }
+      splitIndex = buffer.indexOf("\n\n");
+    }
+  }
+
+  const trailing = buffer.trim();
+  if (trailing) {
+    const memory = parseStreamMemoryEvent(trailing);
+    if (memory) onMemory(memory);
+  }
 };
 
 function CliMessageCard({ message }: { message: BoardMemoryRead }) {
@@ -163,8 +236,15 @@ function CliChatContent() {
   const [messages, setMessages] = useState<BoardMemoryRead[]>([]);
   const [isLoadingBoards, setIsLoadingBoards] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [hasLoadedInitialMessages, setHasLoadedInitialMessages] =
+    useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [isClearing, setIsClearing] = useState(false);
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>("idle");
+  const [clearedSessions, setClearedSessions] = useState<Record<string, string>>(
+    {},
+  );
+  const [hasLoadedClearedSessions, setHasLoadedClearedSessions] =
+    useState(false);
   const [listeningLanguage, setListeningLanguage] = useState<
     "nb-NO" | "en-US" | null
   >(null);
@@ -172,12 +252,37 @@ function CliChatContent() {
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const latestSeenRef = useRef<string | null>(null);
 
   const selectedRuntime = runtimeOption(runtime);
+  const selectedSessionTag = useMemo(
+    () => chatSessionTagForRuntime(runtime),
+    [runtime],
+  );
   const selectedBoard = useMemo(
     () => boards.find((board) => board.id === selectedBoardId) ?? null,
     [boards, selectedBoardId],
   );
+  const selectedSessionClearBefore =
+    clearedSessions[selectedSessionTag] ?? null;
+
+  const visibleMessages = useMemo(
+    () =>
+      filterVisibleMessages(messages, {
+        runtime,
+        sessionTag: selectedSessionTag,
+        clearedBeforeIso: selectedSessionClearBefore,
+      }),
+    [messages, runtime, selectedSessionClearBefore, selectedSessionTag],
+  );
+  const streamStatusText = useMemo(() => {
+    if (streamStatus === "live") return "Live stream updates";
+    if (streamStatus === "connecting") return "Connecting live stream...";
+    if (streamStatus === "fallback") {
+      return "Fallback refresh every 15s";
+    }
+    return "Waiting for stream";
+  }, [streamStatus]);
 
   const loadBoards = useCallback(async () => {
     if (!isSignedIn) return;
@@ -214,12 +319,16 @@ function CliChatContent() {
       );
       if (result.status !== 200)
         throw new Error("Unable to load runtime chat.");
-      setMessages(sortMessages(result.data.items));
+      const nextMessages = mergeMessages([], result.data.items);
+      latestSeenRef.current =
+        nextMessages[nextMessages.length - 1]?.created_at ?? null;
+      setMessages(nextMessages);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to load runtime chat.",
       );
     } finally {
+      setHasLoadedInitialMessages(true);
       setIsLoadingMessages(false);
     }
   }, [isSignedIn, selectedBoardId]);
@@ -229,20 +338,134 @@ function CliChatContent() {
   }, [loadBoards]);
 
   useEffect(() => {
+    if (!selectedBoardId) {
+      setMessages([]);
+      latestSeenRef.current = null;
+      setHasLoadedInitialMessages(false);
+      setStreamStatus("idle");
+      return;
+    }
+    setMessages([]);
+    latestSeenRef.current = null;
+    setHasLoadedInitialMessages(false);
+    setStreamStatus("idle");
     void loadMessages();
-  }, [loadMessages]);
-
-  useEffect(() => {
-    if (!selectedBoardId) return;
-    const timer = window.setInterval(() => {
-      void loadMessages();
-    }, 3000);
-    return () => window.clearInterval(timer);
   }, [loadMessages, selectedBoardId]);
 
   useEffect(() => {
+    if (!selectedBoardId) {
+      setClearedSessions({});
+      setHasLoadedClearedSessions(false);
+      return;
+    }
+    setHasLoadedClearedSessions(false);
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem(
+      clearedSessionStorageKey(selectedBoardId),
+    );
+    if (!raw) {
+      setClearedSessions({});
+      setHasLoadedClearedSessions(true);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      setClearedSessions(
+        parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? parsed
+          : {},
+      );
+    } catch {
+      setClearedSessions({});
+    } finally {
+      setHasLoadedClearedSessions(true);
+    }
+  }, [selectedBoardId]);
+
+  useEffect(() => {
+    if (!selectedBoardId || !hasLoadedClearedSessions || typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(
+      clearedSessionStorageKey(selectedBoardId),
+      JSON.stringify(clearedSessions),
+    );
+  }, [clearedSessions, hasLoadedClearedSessions, selectedBoardId]);
+
+  useEffect(() => {
+    if (!isSignedIn || !selectedBoardId || !hasLoadedInitialMessages) return;
+
+    const controller = new AbortController();
+    let cancelled = false;
+
+    const startStream = async () => {
+      setStreamStatus("connecting");
+      try {
+        const result = await streamBoardMemoryApiV1BoardsBoardIdMemoryStreamGet(
+          selectedBoardId,
+          {
+            is_chat: true,
+            since: latestSeenRef.current ?? undefined,
+          },
+          {
+            cache: "no-store",
+            signal: controller.signal,
+            headers: { Accept: "text/event-stream" },
+          },
+        );
+        if (cancelled || controller.signal.aborted) return;
+        if (result.status !== 200) {
+          throw new Error("Unable to stream runtime chat.");
+        }
+        const response = result.data as Response;
+        if (!response.body) {
+          throw new Error("Streaming endpoint returned no body.");
+        }
+        setStreamStatus("live");
+        await consumeMemoryStream(response, (incoming) => {
+          if (cancelled || controller.signal.aborted) return;
+          setMessages((current) => {
+            const nextMessages = mergeMessages(current, [incoming]);
+            latestSeenRef.current =
+              nextMessages[nextMessages.length - 1]?.created_at ??
+              latestSeenRef.current;
+            return nextMessages;
+          });
+        });
+        if (!cancelled && !controller.signal.aborted) {
+          throw new Error("Runtime stream disconnected.");
+        }
+      } catch (err) {
+        if (cancelled || controller.signal.aborted) return;
+        setStreamStatus("fallback");
+        setNotice((current) =>
+          current ??
+          "Live stream unavailable. Using slower fallback refresh.",
+        );
+        setError(
+          err instanceof Error ? err.message : "Unable to stream runtime chat.",
+        );
+      }
+    };
+
+    void startStream();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [hasLoadedInitialMessages, isSignedIn, selectedBoardId]);
+
+  useEffect(() => {
+    if (streamStatus !== "fallback" || !selectedBoardId) return;
+    const timer = window.setInterval(() => {
+      void loadMessages();
+    }, STREAM_FALLBACK_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [loadMessages, selectedBoardId, streamStatus]);
+
+  useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length, isSending]);
+  }, [isSending, visibleMessages.length]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -260,28 +483,21 @@ function CliChatContent() {
     return () => window.removeEventListener("keydown", onKeyDown);
   });
 
-  const clearChat = useCallback(async () => {
-    if (!selectedBoardId || isClearing) return;
+  const clearChat = useCallback(() => {
+    if (!selectedBoardId) return;
     const confirmed = window.confirm(
-      "Clear the visible chat history for this board?",
+      "Hide chat history for the currently selected runtime/session?",
     );
     if (!confirmed) return;
-    setIsClearing(true);
+    setClearedSessions((current) => ({
+      ...current,
+      [selectedSessionTag]: new Date().toISOString(),
+    }));
+    setNotice(
+      `Cleared visible ${selectedRuntime.shortLabel} chat for this board (session-scoped).`,
+    );
     setError(null);
-    try {
-      await customFetch(`/api/v1/boards/${selectedBoardId}/memory/chat`, {
-        method: "DELETE",
-      });
-      setMessages([]);
-      setNotice("Chat history cleared for this board.");
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to clear chat history.",
-      );
-    } finally {
-      setIsClearing(false);
-    }
-  }, [isClearing, selectedBoardId]);
+  }, [selectedBoardId, selectedRuntime.shortLabel, selectedSessionTag]);
 
   const handleLocalCommand = useCallback(
     (value: string): boolean => {
@@ -291,12 +507,12 @@ function CliChatContent() {
       const normalized = command.toLowerCase();
       if (normalized === "help") {
         setNotice(
-          "Commands: /help, /clear, /model openclaw, /model 5.5, /model 5.3, /model claude. Other slash commands are sent to the selected runtime.",
+          "Commands: /help, /clear, /model openclaw, /model 5.5, /model 5.3, /model claude. /clear only affects the selected runtime chat. Other slash commands are sent to the selected runtime.",
         );
         return true;
       }
       if (normalized === "clear") {
-        void clearChat();
+        clearChat();
         return true;
       }
       if (normalized === "model" || normalized === "runtime") {
@@ -346,24 +562,26 @@ function CliChatContent() {
       const tags = tagsForRuntime(
         runtime,
         Boolean(imageUrl.trim()) || images.length > 0,
+        selectedSessionTag,
       );
       const result = await createBoardMemoryApiV1BoardsBoardIdMemoryPost(
         selectedBoardId,
         {
           content,
           tags,
-          source:
-            runtime === "openclaw"
-              ? "Runtime Console"
-              : `Runtime Console (${selectedRuntime.shortLabel})`,
+          source: `Runtime Console (${selectedRuntime.shortLabel})`,
         },
       );
       if (result.status !== 200) throw new Error("Unable to send message.");
       setPrompt("");
       setImageUrl("");
       setImages([]);
-      setMessages((current) => sortMessages([...current, result.data]));
-      window.setTimeout(() => void loadMessages(), 1000);
+      setMessages((current) => {
+        const nextMessages = mergeMessages(current, [result.data]);
+        latestSeenRef.current =
+          nextMessages[nextMessages.length - 1]?.created_at ?? latestSeenRef.current;
+        return nextMessages;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to send message.");
     } finally {
@@ -375,9 +593,9 @@ function CliChatContent() {
     imageUrl,
     images.length,
     isSending,
-    loadMessages,
     runtime,
     selectedBoardId,
+    selectedSessionTag,
     selectedRuntime.shortLabel,
   ]);
 
@@ -478,7 +696,7 @@ function CliChatContent() {
                 CLI auth
               </span>
               <span className="mc-status-pill rounded-full border px-3 py-1">
-                Polling only reads local chat state
+                {streamStatusText}
               </span>
             </div>
           </div>
@@ -546,6 +764,7 @@ function CliChatContent() {
                 {selectedBoard?.name ?? "No board selected"} -&gt;{" "}
                 {selectedRuntime.label}
               </p>
+              <p className="mt-1">Session tag: {selectedSessionTag}</p>
             </div>
 
             <div className="mc-panel-muted-surface mc-muted-text mt-4 rounded-2xl border p-3 text-xs leading-5">
@@ -557,8 +776,9 @@ function CliChatContent() {
                 /model claude.
               </p>
               <p className="mt-2">
-                Other slash commands are sent to the selected runtime, including
-                OpenClaw control commands.
+                /clear only hides the selected runtime chat. Other slash
+                commands are sent to the selected runtime, including OpenClaw
+                control commands.
               </p>
             </div>
           </aside>
@@ -568,8 +788,8 @@ function CliChatContent() {
               <div>
                 <p className="mc-title-text text-sm font-semibold">Runtime Chat</p>
                 <p className="mc-muted-text text-xs">
-                  Polls every 3 seconds. Model usage starts only when you send a
-                  new message.
+                  Stream-first updates. Model usage starts only when you press
+                  Send. Messages older than 24h are hidden.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -584,11 +804,10 @@ function CliChatContent() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => void clearChat()}
-                  disabled={!selectedBoardId || isClearing}
+                  onClick={clearChat}
+                  disabled={!selectedBoardId}
                 >
-                  <Trash2 className="h-4 w-4" />{" "}
-                  {isClearing ? "Clearing" : "Clear"}
+                  <Trash2 className="h-4 w-4" /> Clear session
                 </Button>
               </div>
             </div>
@@ -604,18 +823,18 @@ function CliChatContent() {
                   {notice}
                 </div>
               ) : null}
-              {isLoadingMessages && messages.length === 0 ? (
+              {isLoadingMessages && visibleMessages.length === 0 ? (
                 <div className="mc-alert rounded-2xl border px-4 py-3 text-sm">
                   Loading runtime chat...
                 </div>
               ) : null}
-              {!isLoadingMessages && messages.length === 0 ? (
+              {!isLoadingMessages && visibleMessages.length === 0 ? (
                 <div className="mc-empty-state rounded-2xl border border-dashed px-4 py-8 text-center text-sm">
                   No messages yet. Pick OpenClaw, Codex, or Claude and send the
                   first command.
                 </div>
               ) : null}
-              {messages.map((message) => (
+              {visibleMessages.map((message) => (
                 <CliMessageCard key={message.id} message={message} />
               ))}
               <div ref={endRef} />
@@ -684,12 +903,7 @@ function CliChatContent() {
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
                 onPaste={handlePaste}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter" || event.shiftKey) return;
-                  event.preventDefault();
-                  void sendPrompt();
-                }}
-                placeholder={`Message ${selectedRuntime.label}. Shift+Enter inserts a newline.`}
+                placeholder={`Message ${selectedRuntime.label}. Use Send to dispatch to this runtime chat. Shift+Enter inserts a newline.`}
                 className="mc-control min-h-[110px]"
                 disabled={!selectedBoardId || isSending}
               />
