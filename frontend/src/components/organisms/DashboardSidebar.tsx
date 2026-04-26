@@ -180,7 +180,7 @@ export function DashboardSidebar() {
           </div>
 
           <div>
-            {isAdmin ? (
+            {isSignedIn ? (
               <>
                 <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--text-quiet)]">
                   Skills
@@ -199,18 +199,20 @@ export function DashboardSidebar() {
                     <Store className="h-4 w-4" />
                     Marketplace
                   </Link>
-                  <Link
-                    href="/skills/packs"
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[color:var(--text)] transition",
-                      pathname.startsWith("/skills/packs")
-                        ? "bg-[color:var(--surface-strong)] text-[color:var(--accent-strong)] font-medium"
-                        : "hover:bg-[color:var(--surface-muted)] hover:text-[color:var(--accent-strong)]",
-                    )}
-                  >
-                    <Boxes className="h-4 w-4" />
-                    Packs
-                  </Link>
+                  {isAdmin ? (
+                    <Link
+                      href="/skills/packs"
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[color:var(--text)] transition",
+                        pathname.startsWith("/skills/packs")
+                          ? "bg-[color:var(--surface-strong)] text-[color:var(--accent-strong)] font-medium"
+                          : "hover:bg-[color:var(--surface-muted)] hover:text-[color:var(--accent-strong)]",
+                      )}
+                    >
+                      <Boxes className="h-4 w-4" />
+                      Packs
+                    </Link>
+                  ) : null}
                 </div>
               </>
             ) : null}
