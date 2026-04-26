@@ -22,8 +22,11 @@ import {
   ArrowUpRight,
   Bot,
   ChevronDown,
+  Cpu,
+  HardDrive,
   Info,
   LayoutGrid,
+  Server,
   Shield,
   Timer,
   Wrench,
@@ -33,7 +36,7 @@ import { DashboardSidebar } from "@/components/organisms/DashboardSidebar";
 import { DashboardShell } from "@/components/templates/DashboardShell";
 import { Markdown } from "@/components/atoms/Markdown";
 import { SignedOutPanel } from "@/components/auth/SignedOutPanel";
-import { ApiError } from "@/api/mutator";
+import { ApiError, customFetch } from "@/api/mutator";
 import {
   type dashboardMetricsApiV1MetricsDashboardGetResponse,
   useDashboardMetricsApiV1MetricsDashboardGet,
@@ -122,6 +125,40 @@ type DispatchState = {
   status: "idle" | "sending" | "sent" | "error";
   message?: string;
   sentAt?: string;
+};
+
+type DashboardSystemMemory = {
+  total_bytes: number;
+  used_bytes: number;
+  available_bytes: number;
+  used_pct: number;
+};
+
+type DashboardSystemMetrics = {
+  generated_at: string;
+  hostname: string;
+  cpu: {
+    cpu_count: number;
+    load_1m: number;
+    load_5m: number;
+    load_15m: number;
+    load_pct: number;
+  };
+  memory: DashboardSystemMemory;
+  swap: DashboardSystemMemory;
+  disk: {
+    path: string;
+    total_bytes: number;
+    used_bytes: number;
+    free_bytes: number;
+    used_pct: number;
+  };
+};
+
+type DashboardSystemMetricsResponse = {
+  data: DashboardSystemMetrics;
+  status: number;
+  headers: Headers;
 };
 
 type IssueDispatchTrigger = "manual" | "watchdog";
@@ -348,6 +385,23 @@ const formatCount = (value: number): string =>
 
 const formatPercent = (value: number): string =>
   Number.isFinite(value) ? `${value.toFixed(1)}%` : DASH;
+
+const formatBytes = (value: number | null | undefined): string => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return DASH;
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let scaled = numeric;
+  let unitIndex = 0;
+  while (scaled >= 1024 && unitIndex < units.length - 1) {
+    scaled /= 1024;
+    unitIndex += 1;
+  }
+  const precision = unitIndex <= 1 || scaled >= 10 ? 0 : 1;
+  return `${scaled.toFixed(precision)} ${units[unitIndex]}`;
+};
+
+const clampPercent = (value: number): number =>
+  Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
 
 const formatPerDay = (total: number, days: number): string => {
   if (!Number.isFinite(total) || !Number.isFinite(days) || days <= 0) return DASH;
@@ -631,6 +685,51 @@ function TopMetricCard({
   );
 }
 
+function HostResourceCard({
+  title,
+  value,
+  secondary,
+  percent,
+  icon,
+}: {
+  title: string;
+  value: string;
+  secondary: string;
+  percent: number;
+  icon: React.ReactNode;
+}) {
+  const normalized = clampPercent(percent);
+  const tone =
+    normalized >= 90
+      ? "bg-rose-500"
+      : normalized >= 75
+        ? "bg-amber-500"
+        : "bg-emerald-500";
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            {title}
+          </p>
+          <p className="mt-2 font-heading text-3xl font-bold text-slate-900">
+            {value}
+          </p>
+        </div>
+        <span className="rounded-lg bg-slate-100 p-2 text-slate-600">{icon}</span>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className={`h-full rounded-full ${tone}`}
+          style={{ width: `${normalized}%` }}
+        />
+      </div>
+      <p className="mt-2 text-xs text-slate-500">{secondary}</p>
+    </section>
+  );
+}
+
 function InfoBlock({
   title,
   badge,
@@ -756,6 +855,18 @@ export default function DashboardPage() {
     },
   );
 
+  const systemMetricsQuery = useQuery<DashboardSystemMetricsResponse, ApiError>({
+    queryKey: ["dashboard", "system-metrics"],
+    enabled: Boolean(isSignedIn),
+    refetchInterval: 10_000,
+    refetchOnMount: "always",
+    queryFn: ({ signal }) =>
+      customFetch<DashboardSystemMetricsResponse>("/api/v1/metrics/system", {
+        method: "GET",
+        signal,
+      }),
+  });
+
   const activityQuery = useListActivityApiV1ActivityGet<listActivityApiV1ActivityGetResponse, ApiError>(
     { limit: 200 },
     {
@@ -784,6 +895,8 @@ export default function DashboardPage() {
   );
 
   const metrics = metricsQuery.data?.status === 200 ? metricsQuery.data.data : null;
+  const systemMetrics =
+    systemMetricsQuery.data?.status === 200 ? systemMetricsQuery.data.data : null;
 
   const onlineAgents = useMemo(
     () => agents.filter((agent) => (agent.status ?? "").toLowerCase() === "online").length,
@@ -1085,6 +1198,10 @@ export default function DashboardPage() {
       ariaLabel: "Open gateways with issues",
     },
   ];
+
+  const systemGeneratedLabel = systemMetrics?.generated_at
+    ? formatRelativeTimestamp(systemMetrics.generated_at)
+    : null;
 
   const actionCenterIssues = useMemo<ActionCenterIssue[]>(() => {
     const issues: ActionCenterIssue[] = [];
@@ -1392,6 +1509,80 @@ export default function DashboardPage() {
                 accent="emerald"
               />
             </div>
+
+            <section className="mt-4 rounded-xl border border-slate-200 bg-slate-900 p-4 shadow-sm md:p-6">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="inline-flex items-center gap-2 text-lg font-semibold text-white">
+                    <Server className="h-4 w-4 text-sky-300" />
+                    Host Resources
+                  </h3>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    Live CPU, memory, swap, and disk telemetry for {systemMetrics?.hostname ?? "EllaVPS"}.
+                  </p>
+                </div>
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
+                  {systemMetricsQuery.isLoading
+                    ? "Loading telemetry"
+                    : systemGeneratedLabel
+                      ? `Updated ${systemGeneratedLabel}`
+                      : "Telemetry unavailable"}
+                </span>
+              </div>
+              {systemMetricsQuery.error ? (
+                <div className="mb-4 rounded-lg border border-amber-300/30 bg-amber-400/10 p-3 text-sm text-amber-100">
+                  Host telemetry failed: {systemMetricsQuery.error.message}
+                </div>
+              ) : null}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <HostResourceCard
+                  title="CPU Load"
+                  value={formatPercent(systemMetrics?.cpu.load_pct ?? NaN)}
+                  secondary={
+                    systemMetrics
+                      ? `${systemMetrics.cpu.load_1m.toFixed(2)} 1m load · ${formatCount(systemMetrics.cpu.cpu_count)} vCPU`
+                      : "Waiting for host telemetry"
+                  }
+                  percent={systemMetrics?.cpu.load_pct ?? 0}
+                  icon={<Cpu className="h-4 w-4" />}
+                />
+                <HostResourceCard
+                  title="RAM Load"
+                  value={formatPercent(systemMetrics?.memory.used_pct ?? NaN)}
+                  secondary={
+                    systemMetrics
+                      ? `${formatBytes(systemMetrics.memory.used_bytes)} used · ${formatBytes(systemMetrics.memory.available_bytes)} free`
+                      : "Waiting for host telemetry"
+                  }
+                  percent={systemMetrics?.memory.used_pct ?? 0}
+                  icon={<Server className="h-4 w-4" />}
+                />
+                <HostResourceCard
+                  title="Disk Capacity"
+                  value={formatPercent(systemMetrics?.disk.used_pct ?? NaN)}
+                  secondary={
+                    systemMetrics
+                      ? `${formatBytes(systemMetrics.disk.free_bytes)} free of ${formatBytes(systemMetrics.disk.total_bytes)} on ${systemMetrics.disk.path}`
+                      : "Waiting for host telemetry"
+                  }
+                  percent={systemMetrics?.disk.used_pct ?? 0}
+                  icon={<HardDrive className="h-4 w-4" />}
+                />
+                <HostResourceCard
+                  title="Swap Load"
+                  value={formatPercent(systemMetrics?.swap.used_pct ?? NaN)}
+                  secondary={
+                    systemMetrics
+                      ? systemMetrics.swap.total_bytes > 0
+                        ? `${formatBytes(systemMetrics.swap.used_bytes)} used · ${formatBytes(systemMetrics.swap.available_bytes)} free`
+                        : "No swap configured"
+                      : "Waiting for host telemetry"
+                  }
+                  percent={systemMetrics?.swap.used_pct ?? 0}
+                  icon={<Activity className="h-4 w-4" />}
+                />
+              </div>
+            </section>
 
             <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
               <InfoBlock

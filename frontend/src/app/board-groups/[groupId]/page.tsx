@@ -44,7 +44,16 @@ import { DashboardShell } from "@/components/templates/DashboardShell";
 import { BoardChatComposer } from "@/components/BoardChatComposer";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { createExponentialBackoff } from "@/lib/backoff";
+import {
+  chatMessagePreview,
+  isSameChatSource,
+  playChatNotificationSound,
+} from "@/lib/chatNotifications";
 import { apiDatetimeToMs } from "@/lib/datetime";
+import {
+  DEFAULT_HUMAN_LABEL,
+  resolveMemberDisplayName,
+} from "@/lib/display-name";
 import { formatTimestamp } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { usePageActive } from "@/hooks/usePageActive";
@@ -141,6 +150,11 @@ const SSE_RECONNECT_BACKOFF = {
 } as const;
 const HAS_ALL_MENTION_RE = /(^|\s)@all\b/i;
 
+type ChatToastMessage = {
+  id: number;
+  message: string;
+};
+
 type HeartbeatUnit = "s" | "m" | "h" | "d";
 
 const HEARTBEAT_PRESETS: Array<{
@@ -173,8 +187,15 @@ export default function BoardGroupDetailPage() {
   const [isChatSending, setIsChatSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [chatBroadcast, setChatBroadcast] = useState(true);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [chatToasts, setChatToasts] = useState<ChatToastMessage[]>([]);
   const chatMessagesRef = useRef<BoardGroupMemoryRead[]>([]);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const isChatOpenRef = useRef(false);
+  const chatToastIdRef = useRef(0);
+  const chatToastTimersRef = useRef<Record<number, number>>({});
+  const locallySentChatIdsRef = useRef<Set<string>>(new Set());
+  const notifiedChatIdsRef = useRef<Set<string>>(new Set());
 
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [notesMessages, setNotesMessages] = useState<BoardGroupMemoryRead[]>(
@@ -256,12 +277,58 @@ export default function BoardGroupDetailPage() {
 
   const member =
     membershipQuery.data?.status === 200 ? membershipQuery.data.data : null;
+  const currentUserDisplayName = useMemo(
+    () => resolveMemberDisplayName(member, DEFAULT_HUMAN_LABEL),
+    [member],
+  );
   const isAdmin = member?.role === "admin" || member?.role === "owner";
   const canWriteGroup = useMemo(
     () => canWriteGroupBoards(member, boardIdSet),
     [boardIdSet, member],
   );
   const canManageHeartbeat = Boolean(isAdmin && canWriteGroup);
+
+  const dismissChatToast = useCallback((id: number) => {
+    setChatToasts((prev) => prev.filter((toast) => toast.id !== id));
+    const timer = chatToastTimersRef.current[id];
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+      delete chatToastTimersRef.current[id];
+    }
+  }, []);
+
+  const pushChatToast = useCallback(
+    (message: string) => {
+      const trimmed = message.trim();
+      if (!trimmed) return;
+      const id = chatToastIdRef.current + 1;
+      chatToastIdRef.current = id;
+      setChatToasts((prev) => [...prev, { id, message: trimmed }]);
+      if (typeof window !== "undefined") {
+        chatToastTimersRef.current[id] = window.setTimeout(() => {
+          dismissChatToast(id);
+        }, 3500);
+      }
+    },
+    [dismissChatToast],
+  );
+
+  const notifyIncomingGroupChat = useCallback(
+    (message: BoardGroupMemoryRead) => {
+      if (notifiedChatIdsRef.current.has(message.id)) return;
+      notifiedChatIdsRef.current.add(message.id);
+      if (locallySentChatIdsRef.current.has(message.id)) return;
+      if (isSameChatSource(message.source, currentUserDisplayName)) return;
+
+      const source = message.source?.trim() || "Group chat";
+      pushChatToast(`${source}: ${chatMessagePreview(message.content)}`);
+      playChatNotificationSound("group");
+      if (!isChatOpenRef.current) {
+        setUnreadChatCount((count) => count + 1);
+      }
+    },
+    [currentUserDisplayName, pushChatToast],
+  );
 
   const chatHistoryQuery =
     useListBoardGroupMemoryApiV1BoardGroupsGroupIdMemoryGet<
@@ -272,7 +339,7 @@ export default function BoardGroupDetailPage() {
       { limit: 200, is_chat: true },
       {
         query: {
-          enabled: Boolean(isSignedIn && groupId && isChatOpen),
+          enabled: Boolean(isSignedIn && groupId),
           refetchOnMount: "always",
           retry: false,
         },
@@ -360,11 +427,34 @@ export default function BoardGroupDetailPage() {
   }, [chatMessages]);
 
   useEffect(() => {
-    if (!isChatOpen) return;
+    isChatOpenRef.current = isChatOpen;
+    if (isChatOpen) {
+      setUnreadChatCount(0);
+    }
+  }, [isChatOpen]);
+
+  useEffect(() => {
+    setUnreadChatCount(0);
+    locallySentChatIdsRef.current.clear();
+    notifiedChatIdsRef.current.clear();
+  }, [groupId]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined") {
+        Object.values(chatToastTimersRef.current).forEach((timerId) => {
+          window.clearTimeout(timerId);
+        });
+      }
+      chatToastTimersRef.current = {};
+    };
+  }, []);
+
+  useEffect(() => {
     if (chatHistoryQuery.data?.status !== 200) return;
     const items = chatHistoryQuery.data.data.items ?? [];
     setChatMessages((prev) => mergeChatMessages(prev, items));
-  }, [chatHistoryQuery.data, isChatOpen, mergeChatMessages]);
+  }, [chatHistoryQuery.data, mergeChatMessages]);
 
   useEffect(() => {
     if (!isChatOpen) return;
@@ -377,7 +467,8 @@ export default function BoardGroupDetailPage() {
   useEffect(() => {
     if (!isPageActive) return;
     if (!isSignedIn || !groupId) return;
-    if (!isChatOpen) return;
+    const chatHistoryData = chatHistoryQuery.data;
+    if (chatHistoryData?.status !== 200) return;
 
     let isCancelled = false;
     const abortController = new AbortController();
@@ -386,7 +477,11 @@ export default function BoardGroupDetailPage() {
 
     const connect = async () => {
       try {
-        const since = latestMemoryTimestamp(chatMessagesRef.current);
+        const initialChatItems = chatHistoryData.data.items ?? [];
+        const sourceItems = chatMessagesRef.current.length
+          ? chatMessagesRef.current
+          : initialChatItems;
+        const since = latestMemoryTimestamp(sourceItems);
         const params = { is_chat: true, ...(since ? { since } : {}) };
         const streamResult =
           await streamBoardGroupMemoryApiV1BoardGroupsGroupIdMemoryStreamGet(
@@ -440,10 +535,15 @@ export default function BoardGroupDetailPage() {
                   memory?: BoardGroupMemoryRead;
                 };
                 if (payload.memory?.is_chat) {
+                  const incoming = payload.memory;
+                  const exists = chatMessagesRef.current.some(
+                    (item) => item.id === incoming.id,
+                  );
+                  if (!exists) {
+                    notifyIncomingGroupChat(incoming);
+                  }
                   setChatMessages((prev) =>
-                    mergeChatMessages(prev, [
-                      payload.memory as BoardGroupMemoryRead,
-                    ]),
+                    mergeChatMessages(prev, [incoming as BoardGroupMemoryRead]),
                   );
                 }
               } catch {
@@ -473,12 +573,13 @@ export default function BoardGroupDetailPage() {
       }
     };
   }, [
+    chatHistoryQuery.data,
     groupId,
-    isChatOpen,
     isPageActive,
     isSignedIn,
     latestMemoryTimestamp,
     mergeChatMessages,
+    notifyIncomingGroupChat,
   ]);
 
   useEffect(() => {
@@ -631,6 +732,8 @@ export default function BoardGroupDetailPage() {
           throw new Error("Unable to send message.");
         }
         const created = result.data;
+        locallySentChatIdsRef.current.add(created.id);
+        notifiedChatIdsRef.current.add(created.id);
         if (created.is_chat) {
           setChatMessages((prev) => mergeChatMessages(prev, [created]));
         }
@@ -784,13 +887,25 @@ export default function BoardGroupDetailPage() {
                       setIsNotesOpen(false);
                       setNoteSendError(null);
                       setChatError(null);
+                      setUnreadChatCount(0);
                       setIsChatOpen(true);
                     }}
+                    className={cn(
+                      "relative",
+                      unreadChatCount > 0
+                        ? "border-sky-300 bg-sky-50 text-sky-700"
+                        : "",
+                    )}
                     disabled={!groupId}
                     title="Group chat"
                   >
                     <MessageSquare className="mr-2 h-4 w-4" />
                     Chat
+                    {unreadChatCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] animate-pulse items-center justify-center rounded-full bg-sky-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        {unreadChatCount > 9 ? "9+" : unreadChatCount}
+                      </span>
+                    ) : null}
                   </Button>
                   <Button
                     variant="outline"
@@ -1272,6 +1387,29 @@ export default function BoardGroupDetailPage() {
           </div>
         </div>
       </aside>
+
+      {chatToasts.length ? (
+        <div className="fixed bottom-6 right-6 z-[60] flex w-[320px] max-w-[90vw] flex-col gap-3">
+          {chatToasts.map((toast) => (
+            <div
+              key={toast.id}
+              className="rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm text-sky-700 shadow-lush"
+            >
+              <div className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-sky-500" />
+                <p className="flex-1 text-sm text-slate-700">{toast.message}</p>
+                <button
+                  type="button"
+                  className="text-xs text-slate-400 hover:text-slate-600"
+                  onClick={() => dismissChatToast(toast.id)}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </DashboardShell>
   );
 }

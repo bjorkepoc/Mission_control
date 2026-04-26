@@ -87,6 +87,7 @@ class Codex55BridgeConfig:
     codex_bin: str = "/home/clawd/.npm-global/bin/codex"
     claude_bin: str = "/home/clawd/.npm-global/bin/claude"
     model: str = DEFAULT_MODEL
+    codex_reasoning_effort: str | None = None
     claude_model: str = DEFAULT_CLAUDE_MODEL
     sandbox: str = "workspace-write"
     workspace: Path = Path("/home/clawd/.openclaw/workspace/codex55-bridge")
@@ -109,6 +110,7 @@ class Codex55BridgeConfig:
             codex_bin=os.getenv("CODEX55_CODEX_BIN", cls.codex_bin),
             claude_bin=os.getenv("CLAUDE_CODE_BIN", cls.claude_bin),
             model=os.getenv("CODEX55_MODEL", cls.model),
+            codex_reasoning_effort=os.getenv("CODEX55_REASONING_EFFORT") or None,
             claude_model=os.getenv("CLAUDE_CODE_MODEL", cls.claude_model),
             sandbox=os.getenv("CODEX55_SANDBOX", cls.sandbox),
             workspace=Path(os.getenv("CODEX55_WORKSPACE", str(cls.workspace))),
@@ -393,14 +395,22 @@ def build_codex_command(
     command = [
         config.codex_bin,
         "exec",
-        "--model",
-        selected_model,
-        "--sandbox",
-        selected_sandbox,
-        "--skip-git-repo-check",
-        "--output-last-message",
-        str(output_file),
     ]
+    if config.codex_reasoning_effort:
+        command.extend(
+            ["--config", f'model_reasoning_effort="{config.codex_reasoning_effort}"']
+        )
+    command.extend(
+        [
+            "--model",
+            selected_model,
+            "--sandbox",
+            selected_sandbox,
+            "--skip-git-repo-check",
+            "--output-last-message",
+            str(output_file),
+        ]
+    )
     for image_path in image_paths or []:
         command.extend(["--image", str(image_path)])
     command.append(prompt)

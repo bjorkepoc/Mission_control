@@ -108,6 +108,11 @@ import type {
 } from "@/api/generated/model";
 import { createExponentialBackoff } from "@/lib/backoff";
 import {
+  chatMessagePreview,
+  isSameChatSource,
+  playChatNotificationSound,
+} from "@/lib/chatNotifications";
+import {
   apiDatetimeToMs,
   localDateInputToUtcIso,
   parseApiDatetime,
@@ -545,7 +550,7 @@ const commentElementId = (id: string): string =>
 type ToastMessage = {
   id: number;
   message: string;
-  tone: "error" | "success";
+  tone: "error" | "success" | "info";
 };
 
 const formatActionError = (err: unknown, fallback: string) => {
@@ -902,8 +907,12 @@ export default function BoardDetailPage() {
   const [chatTarget, setChatTarget] = useState<BoardChatTarget>("openclaw");
   const [isChatSending, setIsChatSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const chatMessagesRef = useRef<BoardChatMessage[]>([]);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const isChatOpenRef = useRef(false);
+  const locallySentChatIdsRef = useRef<Set<string>>(new Set());
+  const notifiedChatIdsRef = useRef<Set<string>>(new Set());
   const [isAgentsControlDialogOpen, setIsAgentsControlDialogOpen] =
     useState(false);
   const [agentsControlAction, setAgentsControlAction] = useState<
@@ -979,6 +988,23 @@ export default function BoardDetailPage() {
       }
     },
     [dismissToast],
+  );
+
+  const notifyIncomingBoardChat = useCallback(
+    (message: BoardChatMessage) => {
+      if (notifiedChatIdsRef.current.has(message.id)) return;
+      notifiedChatIdsRef.current.add(message.id);
+      if (locallySentChatIdsRef.current.has(message.id)) return;
+      if (isSameChatSource(message.source, currentUserDisplayName)) return;
+
+      const source = resolveHumanActorName(message.source, "Board chat");
+      pushToast(`${source}: ${chatMessagePreview(message.content)}`, "info");
+      playChatNotificationSound("board");
+      if (!isChatOpenRef.current) {
+        setUnreadChatCount((count) => count + 1);
+      }
+    },
+    [currentUserDisplayName, pushToast],
   );
 
   useEffect(() => {
@@ -1338,6 +1364,19 @@ export default function BoardDetailPage() {
   }, [chatMessages]);
 
   useEffect(() => {
+    isChatOpenRef.current = isChatOpen;
+    if (isChatOpen) {
+      setUnreadChatCount(0);
+    }
+  }, [isChatOpen]);
+
+  useEffect(() => {
+    setUnreadChatCount(0);
+    locallySentChatIdsRef.current.clear();
+    notifiedChatIdsRef.current.clear();
+  }, [boardId]);
+
+  useEffect(() => {
     liveFeedRef.current = liveFeed;
   }, [liveFeed]);
 
@@ -1384,7 +1423,6 @@ export default function BoardDetailPage() {
   useEffect(() => {
     if (!isPageActive) return;
     if (!isSignedIn || !boardId || !board) return;
-    if (!isChatOpen && !isLiveFeedOpen) return;
     let isCancelled = false;
     const abortController = new AbortController();
     const backoff = createExponentialBackoff(SSE_RECONNECT_BACKOFF);
@@ -1444,13 +1482,18 @@ export default function BoardDetailPage() {
                   memory?: BoardChatMessage;
                 };
                 if (payload.memory?.tags?.includes("chat")) {
-                  pushLiveFeed(toLiveFeedFromBoardChat(payload.memory));
+                  const incoming = payload.memory;
+                  const exists = chatMessagesRef.current.some(
+                    (item) => item.id === incoming.id,
+                  );
+                  if (!exists) {
+                    notifyIncomingBoardChat(incoming);
+                  }
+                  pushLiveFeed(toLiveFeedFromBoardChat(incoming));
                   setChatMessages((prev) => {
-                    const exists = prev.some(
-                      (item) => item.id === payload.memory?.id,
-                    );
+                    const exists = prev.some((item) => item.id === incoming.id);
                     if (exists) return prev;
-                    const next = [...prev, payload.memory as BoardChatMessage];
+                    const next = [...prev, incoming as BoardChatMessage];
                     next.sort((a, b) => {
                       const aTime = apiDatetimeToMs(a.created_at) ?? 0;
                       const bTime = apiDatetimeToMs(b.created_at) ?? 0;
@@ -1493,10 +1536,9 @@ export default function BoardDetailPage() {
   }, [
     board,
     boardId,
-    isChatOpen,
-    isLiveFeedOpen,
     isPageActive,
     isSignedIn,
+    notifyIncomingBoardChat,
     pushLiveFeed,
   ]);
 
@@ -2067,6 +2109,8 @@ export default function BoardDetailPage() {
           throw new Error("Unable to send message.");
         }
         const created = result.data;
+        locallySentChatIdsRef.current.add(created.id);
+        notifiedChatIdsRef.current.add(created.id);
         if (created.tags?.includes("chat")) {
           pushLiveFeed(toLiveFeedFromBoardChat(created));
           setChatMessages((prev) => {
@@ -2584,6 +2628,7 @@ export default function BoardDetailPage() {
         scroll: false,
       });
     }
+    setUnreadChatCount(0);
     setIsChatOpen(true);
   };
 
@@ -3222,11 +3267,21 @@ export default function BoardDetailPage() {
                   <Button
                     variant="outline"
                     onClick={openBoardChat}
-                    className="h-9 w-9 p-0"
+                    className={cn(
+                      "relative h-9 w-9 p-0",
+                      unreadChatCount > 0
+                        ? "border-sky-300 bg-sky-50 text-sky-700"
+                        : "",
+                    )}
                     aria-label="Board chat"
                     title="Board chat"
                   >
                     <MessageSquare className="h-4 w-4" />
+                    {unreadChatCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] animate-pulse items-center justify-center rounded-full bg-sky-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        {unreadChatCount > 9 ? "9+" : unreadChatCount}
+                      </span>
+                    ) : null}
                   </Button>
                   <Button
                     variant="outline"
@@ -4751,14 +4806,20 @@ export default function BoardDetailPage() {
                 "rounded-xl border bg-white px-4 py-3 text-sm shadow-lush",
                 toast.tone === "error"
                   ? "border-rose-200 text-rose-700"
-                  : "border-emerald-200 text-emerald-700",
+                  : toast.tone === "info"
+                    ? "border-sky-200 text-sky-700"
+                    : "border-emerald-200 text-emerald-700",
               )}
             >
               <div className="flex items-start gap-3">
                 <span
                   className={cn(
                     "mt-1 h-2 w-2 rounded-full",
-                    toast.tone === "error" ? "bg-rose-500" : "bg-emerald-500",
+                    toast.tone === "error"
+                      ? "bg-rose-500"
+                      : toast.tone === "info"
+                        ? "bg-sky-500"
+                        : "bg-emerald-500",
                   )}
                 />
                 <p className="flex-1 text-sm text-slate-700">{toast.message}</p>

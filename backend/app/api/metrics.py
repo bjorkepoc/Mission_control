@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import os
+import shutil
+import socket
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -31,6 +35,10 @@ from app.schemas.metrics import (
     DashboardRangeSeries,
     DashboardSeriesPoint,
     DashboardSeriesSet,
+    DashboardSystemCpu,
+    DashboardSystemDisk,
+    DashboardSystemMemory,
+    DashboardSystemMetrics,
     DashboardWipPoint,
     DashboardWipRangeSeries,
     DashboardWipSeriesSet,
@@ -46,6 +54,8 @@ BOARD_ID_QUERY = Query(default=None)
 GROUP_ID_QUERY = Query(default=None)
 SESSION_DEP = Depends(get_session)
 ORG_MEMBER_DEP = Depends(require_org_member)
+MEMINFO_PATH = Path("/proc/meminfo")
+SYSTEM_DISK_PATH = os.getenv("MISSION_CONTROL_SYSTEM_METRICS_PATH", "/")
 
 
 @dataclass(frozen=True)
@@ -88,6 +98,87 @@ def _comparison_range(range_spec: RangeSpec) -> RangeSpec:
         end=range_spec.end - range_spec.duration,
         bucket=range_spec.bucket,
         duration=range_spec.duration,
+    )
+
+
+def _pct(used: int | float, total: int | float) -> float:
+    if total <= 0:
+        return 0.0
+    return max(0.0, (float(used) / float(total)) * 100.0)
+
+
+def _read_meminfo(path: Path = MEMINFO_PATH) -> dict[str, int]:
+    values: dict[str, int] = {}
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return values
+    for line in lines:
+        key, separator, raw_value = line.partition(":")
+        if not separator:
+            continue
+        parts = raw_value.strip().split()
+        if not parts:
+            continue
+        try:
+            value = int(parts[0])
+        except ValueError:
+            continue
+        multiplier = 1024 if len(parts) > 1 and parts[1].lower() == "kb" else 1
+        values[key] = value * multiplier
+    return values
+
+
+def _memory_snapshot(meminfo: dict[str, int]) -> DashboardSystemMemory:
+    total = int(meminfo.get("MemTotal", 0))
+    available = int(meminfo.get("MemAvailable", meminfo.get("MemFree", 0)))
+    available = max(0, min(total, available)) if total > 0 else 0
+    used = max(0, total - available)
+    return DashboardSystemMemory(
+        total_bytes=total,
+        used_bytes=used,
+        available_bytes=available,
+        used_pct=_pct(used, total),
+    )
+
+
+def _swap_snapshot(meminfo: dict[str, int]) -> DashboardSystemMemory:
+    total = int(meminfo.get("SwapTotal", 0))
+    free = int(meminfo.get("SwapFree", 0))
+    free = max(0, min(total, free)) if total > 0 else 0
+    used = max(0, total - free)
+    return DashboardSystemMemory(
+        total_bytes=total,
+        used_bytes=used,
+        available_bytes=free,
+        used_pct=_pct(used, total),
+    )
+
+
+def _cpu_snapshot() -> DashboardSystemCpu:
+    cpu_count = max(1, os.cpu_count() or 1)
+    try:
+        load_1m, load_5m, load_15m = os.getloadavg()
+    except OSError:
+        load_1m = load_5m = load_15m = 0.0
+    return DashboardSystemCpu(
+        cpu_count=cpu_count,
+        load_1m=float(load_1m),
+        load_5m=float(load_5m),
+        load_15m=float(load_15m),
+        load_pct=_pct(load_1m, cpu_count),
+    )
+
+
+def _disk_snapshot(path: str = SYSTEM_DISK_PATH) -> DashboardSystemDisk:
+    usage = shutil.disk_usage(path)
+    used = max(0, usage.total - usage.free)
+    return DashboardSystemDisk(
+        path=path,
+        total_bytes=int(usage.total),
+        used_bytes=int(used),
+        free_bytes=int(usage.free),
+        used_pct=_pct(used, usage.total),
     )
 
 
@@ -477,6 +568,22 @@ async def _resolve_dashboard_board_ids(
     if board_id is not None:
         return [board_id] if board_id in set(group_board_ids) else []
     return group_board_ids
+
+
+@router.get("/system", response_model=DashboardSystemMetrics)
+async def system_metrics(
+    _ctx: OrganizationContext = ORG_MEMBER_DEP,
+) -> DashboardSystemMetrics:
+    """Return live host CPU, memory, swap, and disk telemetry for the dashboard."""
+    meminfo = _read_meminfo()
+    return DashboardSystemMetrics(
+        generated_at=utcnow(),
+        hostname=socket.gethostname(),
+        cpu=_cpu_snapshot(),
+        memory=_memory_snapshot(meminfo),
+        swap=_swap_snapshot(meminfo),
+        disk=_disk_snapshot(),
+    )
 
 
 @router.get("/dashboard", response_model=DashboardMetrics)

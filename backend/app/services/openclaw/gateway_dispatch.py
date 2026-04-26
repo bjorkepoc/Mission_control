@@ -47,7 +47,12 @@ class GatewayDispatchService(OpenClawDBService):
         message: str,
         deliver: bool = False,
     ) -> None:
-        await ensure_session(session_key, config=config, label=agent_name)
+        try:
+            await ensure_session(session_key, config=config, label=agent_name)
+        except OpenClawGatewayError as exc:
+            if "label already in use" not in str(exc).lower():
+                raise
+            await ensure_session(session_key, config=config)
         await send_message(message, session_key=session_key, config=config, deliver=deliver)
 
     async def try_send_agent_message(

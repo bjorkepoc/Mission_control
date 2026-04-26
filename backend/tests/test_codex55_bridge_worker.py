@@ -144,6 +144,28 @@ def test_build_codex_command_accepts_request_model_override() -> None:
     assert command[:4] == ["/bin/codex", "exec", "--model", "gpt-5.3-codex"]
 
 
+def test_build_codex_command_accepts_reasoning_effort_override() -> None:
+    config = Codex55BridgeConfig(
+        base_url="http://127.0.0.1:8000",
+        board_id="board",
+        local_auth_token="token",
+        codex_bin="/bin/codex",
+        model="gpt-5.5",
+        codex_reasoning_effort="medium",
+        workspace=Path("/tmp/workspace"),
+    )
+
+    command = build_codex_command(config, Path("/tmp/out.txt"), "Print OK")
+
+    assert command[:4] == [
+        "/bin/codex",
+        "exec",
+        "--config",
+        'model_reasoning_effort="medium"',
+    ]
+    assert command[4:6] == ["--model", "gpt-5.5"]
+
+
 def test_build_codex_command_accepts_sandbox_override() -> None:
     config = Codex55BridgeConfig(
         base_url="http://127.0.0.1:8000",

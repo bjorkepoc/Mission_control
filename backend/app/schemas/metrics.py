@@ -92,6 +92,46 @@ class DashboardPendingApprovals(SQLModel):
     items: list[DashboardPendingApproval]
 
 
+class DashboardSystemCpu(SQLModel):
+    """Host CPU/load snapshot for the dashboard."""
+
+    cpu_count: int
+    load_1m: float
+    load_5m: float
+    load_15m: float
+    load_pct: float
+
+
+class DashboardSystemMemory(SQLModel):
+    """Host memory or swap snapshot for the dashboard."""
+
+    total_bytes: int
+    used_bytes: int
+    available_bytes: int
+    used_pct: float
+
+
+class DashboardSystemDisk(SQLModel):
+    """Host disk snapshot for the dashboard."""
+
+    path: str
+    total_bytes: int
+    used_bytes: int
+    free_bytes: int
+    used_pct: float
+
+
+class DashboardSystemMetrics(SQLModel):
+    """Live host resource telemetry for the dashboard front page."""
+
+    generated_at: datetime
+    hostname: str
+    cpu: DashboardSystemCpu
+    memory: DashboardSystemMemory
+    swap: DashboardSystemMemory
+    disk: DashboardSystemDisk
+
+
 class DashboardMetrics(SQLModel):
     """Complete dashboard metrics response payload."""
 
