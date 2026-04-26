@@ -48,6 +48,9 @@ DEFAULT_MODEL = "gpt-5.5"
 DEFAULT_CLAUDE_MODEL = "sonnet"
 ALLOWED_CODEX_MODELS = frozenset({"gpt-5.5", "gpt-5.3-codex"})
 ALLOWED_CLAUDE_MODELS = frozenset({"sonnet", "opus", "claude-code", "claude-sonnet"})
+DIAGNOSE_ONLY_TAG = "diagnose-only"
+READ_ONLY_SANDBOX = "read-only"
+CLAUDE_DIAGNOSE_TOOLS = "Read,Grep,Glob,LS"
 DEFAULT_MAX_RESULT_CHARS = 12000
 IMAGE_MARKDOWN_RE = re.compile(r"!\[[^\]]*\]\(([^)\s]+)\)")
 DATA_IMAGE_RE = re.compile(r"^data:(image/[A-Za-z0-9.+-]+);base64,(.+)$", re.DOTALL)
@@ -230,6 +233,26 @@ def runtime_for_memory(
     return None
 
 
+def is_diagnose_only_request(memory: JsonObject) -> bool:
+    """Return whether a request must run in read-only diagnostic mode."""
+    return DIAGNOSE_ONLY_TAG in _normalized_tags(memory)
+
+
+def _diagnose_only_prompt(prompt: str) -> str:
+    """Prefix prompts with non-destructive diagnostic constraints."""
+    return (
+        "DIAGNOSE-ONLY SAFETY MODE\n"
+        "You are investigating an issue. Do not change system state.\n"
+        "Allowed: read files, inspect logs, inspect status, reason about root cause.\n"
+        "Forbidden: editing files, deleting files, installing packages, running migrations, "
+        "restarting services, changing configuration, pushing commits, opening PRs, writing "
+        "to databases, or triggering external side effects.\n"
+        "Return: root cause, evidence, confidence, and the exact proposed patch/commands for "
+        "a human/main agent to review and apply.\n\n"
+        f"{prompt}"
+    )
+
+
 def model_for_memory(memory: JsonObject, default_model: str = DEFAULT_MODEL) -> str | None:
     """Resolve a Codex CLI model from memory tags for backward-compatible callers."""
     runtime = runtime_for_memory(memory, default_codex_model=default_model)
@@ -342,17 +365,19 @@ def build_codex_command(
     output_file: Path,
     prompt: str,
     model: str | None = None,
+    sandbox: str | None = None,
     image_paths: list[Path] | None = None,
 ) -> list[str]:
     """Build the non-interactive Codex CLI command."""
     selected_model = model or config.model
+    selected_sandbox = sandbox or config.sandbox
     command = [
         config.codex_bin,
         "exec",
         "--model",
         selected_model,
         "--sandbox",
-        config.sandbox,
+        selected_sandbox,
         "--skip-git-repo-check",
         "--output-last-message",
         str(output_file),
@@ -438,6 +463,7 @@ def build_claude_command(
     config: Codex55BridgeConfig,
     prompt: str,
     model: str | None = None,
+    diagnose_only: bool = False,
 ) -> list[str]:
     """Build the non-interactive Claude Code command.
 
@@ -447,6 +473,23 @@ def build_claude_command(
     path across Claude Code releases.
     """
     selected_model = model or config.claude_model
+    if diagnose_only:
+        return [
+            config.claude_bin,
+            "--print",
+            "--output-format",
+            "text",
+            "--model",
+            selected_model,
+            "--permission-mode",
+            "plan",
+            "--tools",
+            CLAUDE_DIAGNOSE_TOOLS,
+            "--disable-slash-commands",
+            "--no-chrome",
+            "--no-session-persistence",
+            "-",
+        ]
     return [
         config.claude_bin,
         "--print",
@@ -472,7 +515,12 @@ class CodexRunResult:
     timed_out: bool = False
 
 
-def run_codex(config: Codex55BridgeConfig, prompt: str, model: str | None = None) -> CodexRunResult:
+def run_codex(
+    config: Codex55BridgeConfig,
+    prompt: str,
+    model: str | None = None,
+    sandbox: str | None = None,
+) -> CodexRunResult:
     """Run Codex CLI once and capture the final assistant message."""
     config.workspace.mkdir(parents=True, exist_ok=True)
     fd, output_name = tempfile.mkstemp(prefix="codex-cli-", suffix=".txt", dir=config.workspace)
@@ -484,6 +532,7 @@ def run_codex(config: Codex55BridgeConfig, prompt: str, model: str | None = None
         output_file,
         prompt_for_cli,
         model=model,
+        sandbox=sandbox,
         image_paths=image_paths,
     )
     try:
@@ -522,11 +571,14 @@ def run_codex(config: Codex55BridgeConfig, prompt: str, model: str | None = None
 
 
 def run_claude(
-    config: Codex55BridgeConfig, prompt: str, model: str | None = None
+    config: Codex55BridgeConfig,
+    prompt: str,
+    model: str | None = None,
+    diagnose_only: bool = False,
 ) -> CodexRunResult:
     """Run Claude Code once and capture stdout as the final assistant message."""
     config.workspace.mkdir(parents=True, exist_ok=True)
-    command = build_claude_command(config, prompt, model=model)
+    command = build_claude_command(config, prompt, model=model, diagnose_only=diagnose_only)
     try:
         completed = subprocess.run(
             command,
@@ -557,12 +609,23 @@ def run_claude(
 
 
 def run_runtime(
-    config: Codex55BridgeConfig, prompt: str, runtime: RuntimeRequest
+    config: Codex55BridgeConfig,
+    prompt: str,
+    runtime: RuntimeRequest,
+    *,
+    diagnose_only: bool = False,
 ) -> CodexRunResult:
     """Run one requested CLI runtime."""
+    if diagnose_only:
+        prompt = _diagnose_only_prompt(prompt)
     if runtime.provider == CLAUDE_PROVIDER:
-        return run_claude(config, prompt, model=runtime.model)
-    return run_codex(config, prompt, model=runtime.model)
+        return run_claude(config, prompt, model=runtime.model, diagnose_only=diagnose_only)
+    return run_codex(
+        config,
+        prompt,
+        model=runtime.model,
+        sandbox=READ_ONLY_SANDBOX if diagnose_only else None,
+    )
 
 
 def _trim(value: str, max_chars: int) -> str:
@@ -650,7 +713,12 @@ def run_once(config: Codex55BridgeConfig) -> int:
             processed_ids.add(memory_id)
             save_processed_ids(config.state_file, processed_ids)
             continue
-        result = run_runtime(config, prompt, runtime)
+        result = run_runtime(
+            config,
+            prompt,
+            runtime,
+            diagnose_only=is_diagnose_only_request(memory),
+        )
         content, tags = format_cli_result(
             source_memory_id=memory_id,
             result=result,

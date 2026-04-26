@@ -9,6 +9,7 @@ from app.services.codex55_bridge import (
     extract_prompt_images,
     format_cli_result,
     format_codex_result,
+    is_diagnose_only_request,
     model_for_memory,
     should_process_memory,
 )
@@ -123,6 +124,27 @@ def test_build_codex_command_accepts_request_model_override() -> None:
     assert command[:4] == ["/bin/codex", "exec", "--model", "gpt-5.3-codex"]
 
 
+def test_build_codex_command_accepts_sandbox_override() -> None:
+    config = Codex55BridgeConfig(
+        base_url="http://127.0.0.1:8000",
+        board_id="board",
+        local_auth_token="token",
+        codex_bin="/bin/codex",
+        sandbox="workspace-write",
+        workspace=Path("/tmp/workspace"),
+    )
+
+    command = build_codex_command(
+        config,
+        Path("/tmp/out.txt"),
+        "Diagnose only",
+        sandbox="read-only",
+    )
+
+    sandbox_index = command.index("--sandbox") + 1
+    assert command[sandbox_index] == "read-only"
+
+
 def test_should_process_claude_request_with_provider_tag() -> None:
     memory = {
         "id": "memory-4",
@@ -133,6 +155,38 @@ def test_should_process_claude_request_with_provider_tag() -> None:
 
     assert should_process_memory(memory, set()) is True
     assert model_for_memory(memory) is None
+
+
+def test_diagnose_only_tag_is_detected() -> None:
+    memory = {
+        "id": "memory-diagnose",
+        "content": "diagnose safely",
+        "tags": ["chat", "codex-cli-request", "diagnose-only"],
+        "source": "Dashboard",
+    }
+
+    assert should_process_memory(memory, set()) is True
+    assert is_diagnose_only_request(memory) is True
+
+
+def test_diagnose_only_claude_command_uses_plan_mode_without_write_bypass() -> None:
+    config = Codex55BridgeConfig(
+        base_url="http://127.0.0.1:8000",
+        board_id="board",
+        local_auth_token="token",
+        claude_bin="/bin/claude",
+        workspace=Path("/tmp/workspace"),
+    )
+
+    command = build_claude_command(config, "diagnose safely", model="sonnet", diagnose_only=True)
+
+    assert "--permission-mode" in command
+    assert command[command.index("--permission-mode") + 1] == "plan"
+    assert "--tools" in command
+    assert command[command.index("--tools") + 1] == "Read,Grep,Glob,LS"
+    assert "--dangerously-skip-permissions" not in command
+    assert "--disable-slash-commands" in command
+    assert "--no-session-persistence" in command
 
 
 def test_format_claude_result_tags_provider() -> None:

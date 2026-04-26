@@ -2,7 +2,15 @@
 
 export const dynamic = "force-dynamic";
 
-import { type KeyboardEvent, type MouseEvent, useMemo } from "react";
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -10,12 +18,15 @@ import { useQuery } from "@tanstack/react-query";
 import { SignedIn, SignedOut, useAuth } from "@/auth/clerk";
 import {
   Activity,
+  AlertTriangle,
   ArrowUpRight,
   Bot,
+  ChevronDown,
   Info,
   LayoutGrid,
   Shield,
   Timer,
+  Wrench,
 } from "lucide-react";
 
 import { DashboardSidebar } from "@/components/organisms/DashboardSidebar";
@@ -27,6 +38,7 @@ import {
   type dashboardMetricsApiV1MetricsDashboardGetResponse,
   useDashboardMetricsApiV1MetricsDashboardGet,
 } from "@/api/generated/metrics/metrics";
+import { createBoardMemoryApiV1BoardsBoardIdMemoryPost } from "@/api/generated/board-memory/board-memory";
 import {
   gatewaysStatusApiV1GatewaysStatusGet,
 } from "@/api/generated/gateways/gateways";
@@ -50,19 +62,30 @@ import {
   parseTimestamp,
 } from "@/lib/formatters";
 
-type SessionSummary = {
+type BaseSessionSummary = {
   key: string;
+  sessionId: string | null;
   title: string;
   subtitle: string;
   usage: string;
   lastSeenAt: string | null;
   isMain: boolean;
+  source: string | null;
+};
+
+type SessionSummary = BaseSessionSummary & {
+  boardId: string;
+  boardName: string;
+  gatewayId: string;
+  gatewayUrl: string | null;
 };
 
 type SummaryRow = {
   label: string;
   value: string;
   tone?: "default" | "success" | "warning" | "danger";
+  href?: string;
+  ariaLabel?: string;
 };
 
 type GatewayTarget = {
@@ -82,10 +105,58 @@ type GatewaySnapshot = GatewayTarget & {
   requestError: string | null;
 };
 
+type ActionCenterIssue = {
+  id: string;
+  title: string;
+  description: string;
+  severity: "warning" | "danger";
+  boardId: string;
+  boardName: string;
+  gatewayId: string;
+  gatewayUrl: string | null;
+  statusText: string;
+  dispatchMessage: string;
+};
+
+type DispatchState = {
+  status: "idle" | "sending" | "sent" | "error";
+  message?: string;
+  sentAt?: string;
+};
+
+type IssueDispatchTrigger = "manual" | "watchdog";
+
+type IssueWatchdogRecord = {
+  firstSeenAt: number;
+  lastSeenAt: number;
+  lastAttemptAt?: number;
+  dispatchedAt?: number;
+  dispatchedAgents?: string[];
+};
+
+type IssueDiagnoseAgent = {
+  id: string;
+  label: string;
+  tags: string[];
+  safetyMode: string;
+};
+
 const DASH = "—";
 const DASHBOARD_RANGE = "7d";
 const DASHBOARD_RANGE_DAYS = 7;
 const DASHBOARD_RANGE_LABEL = "7 days";
+const ISSUE_WATCHDOG_DELAY_MS = 5 * 60 * 1000;
+const ISSUE_WATCHDOG_RETRY_MS = 10 * 60 * 1000;
+const ISSUE_WATCHDOG_STORAGE_KEY = "mission-control:dashboard-issue-watchdog:v1";
+const ISSUE_DIAGNOSE_AGENTS: IssueDiagnoseAgent[] = [
+  {
+    id: "codex",
+    label: "Codex",
+    tags: ["codex-cli-request", "provider:codex", "model:gpt-5.3-codex"],
+    safetyMode: "Codex read-only sandbox",
+  },
+];
+const ISSUE_DIAGNOSE_AGENT_IDS = ISSUE_DIAGNOSE_AGENTS.map((agent) => agent.id);
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 const SESSION_ID_KEYS = ["key", "id", "session_key", "sessionKey", "sessionId"];
@@ -189,6 +260,69 @@ const readTimestampFromRecords = (
   return null;
 };
 
+const readIssueWatchdogState = (): Record<string, IssueWatchdogRecord> => {
+  if (typeof window === "undefined") return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(ISSUE_WATCHDOG_STORAGE_KEY) ?? "{}");
+    const record = toRecord(parsed);
+    if (!record) return {};
+    const state: Record<string, IssueWatchdogRecord> = {};
+    for (const [issueId, value] of Object.entries(record)) {
+      const item = toRecord(value);
+      const firstSeenAt = typeof item?.firstSeenAt === "number" ? item.firstSeenAt : NaN;
+      const lastSeenAt = typeof item?.lastSeenAt === "number" ? item.lastSeenAt : firstSeenAt;
+      if (!Number.isFinite(firstSeenAt) || !Number.isFinite(lastSeenAt)) continue;
+      const dispatchedAgents = Array.isArray(item?.dispatchedAgents)
+        ? item.dispatchedAgents.filter((agent): agent is string => typeof agent === "string")
+        : typeof item?.dispatchedAt === "number"
+          ? ["codex"]
+          : undefined;
+      state[issueId] = {
+        firstSeenAt,
+        lastSeenAt,
+        lastAttemptAt: typeof item?.lastAttemptAt === "number" ? item.lastAttemptAt : undefined,
+        dispatchedAt: typeof item?.dispatchedAt === "number" ? item.dispatchedAt : undefined,
+        dispatchedAgents,
+      };
+    }
+    return state;
+  } catch {
+    return {};
+  }
+};
+
+const writeIssueWatchdogState = (state: Record<string, IssueWatchdogRecord>): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(ISSUE_WATCHDOG_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Best-effort persistence only; dispatch safety must not depend on localStorage.
+  }
+};
+
+const buildIssueDispatchPayloads = (
+  issue: ActionCenterIssue,
+  trigger: IssueDispatchTrigger,
+) =>
+  ISSUE_DIAGNOSE_AGENTS.map((agent) => ({
+    agent,
+    content: [
+      issue.dispatchMessage,
+      "",
+      `Diagnostic agent: ${agent.label}`,
+      `Safety mode: ${agent.safetyMode}`,
+      `Dispatch trigger: ${trigger === "watchdog" ? "automatic issue watchdog" : "manual action center"}`,
+    ].join("\n"),
+    tags: [
+      "chat",
+      ...agent.tags,
+      "diagnose-only",
+      `diagnose-agent:${agent.id}`,
+      trigger === "watchdog" ? "issue-watchdog" : "dashboard-action-center",
+    ],
+    source: trigger === "watchdog" ? "dashboard-issue-watchdog" : "dashboard-action-center",
+  }));
+
 const sessionIdentifiers = (record: Record<string, unknown> | null): string[] => {
   if (!record) return [];
   const ids = SESSION_ID_KEYS.map((key) => readString(record, [key])).filter(Boolean) as string[];
@@ -223,7 +357,7 @@ const formatPerDay = (total: number, days: number): string => {
 const toSessionSummaries = (
   sessions: unknown[] | null | undefined,
   mainSession: unknown,
-): SessionSummary[] => {
+): BaseSessionSummary[] => {
   const sessionRecords = (sessions ?? []).map(toRecord).filter(Boolean) as Array<
     Record<string, unknown>
   >;
@@ -340,9 +474,18 @@ const toSessionSummaries = (
     const modelWithProvider =
       modelProvider && model && modelProvider !== model ? `${model} · ${modelProvider}` : model;
     const subtitleWithProvider = [channel, modelWithProvider].filter(Boolean).join(" · ");
+    const source = readStringFromRecords([originRecord, entry], [
+      "source",
+      "origin",
+      "channel",
+      "kind",
+      "chatType",
+      "label",
+    ]);
 
     return {
       key,
+      sessionId: identifiers[0] ?? null,
       title: label,
       subtitle: subtitleWithProvider || subtitle,
       usage,
@@ -350,8 +493,57 @@ const toSessionSummaries = (
       isMain:
         mainIdentifiers.length > 0 &&
         sharesSessionIdentity(identifiers, mainIdentifiers),
+      source,
     };
   });
+};
+
+const summaryRowToneClass = (tone?: SummaryRow["tone"]): string =>
+  tone === "success"
+    ? "text-emerald-700"
+    : tone === "warning"
+      ? "text-amber-700"
+      : tone === "danger"
+        ? "text-rose-700"
+        : "text-slate-800";
+
+const buildFixAgentDispatchMessage = (
+  snapshot: GatewaySnapshot,
+  issueTitle: string,
+  issueSummary: string,
+  statusText: string,
+): string => {
+  const contextLines = [
+    `Board: ${snapshot.boardName} (${snapshot.boardId})`,
+    `Gateway ID: ${snapshot.gatewayId}`,
+    `Gateway URL: ${snapshot.gatewayUrl ?? "Not available"}`,
+    `Connection status: ${snapshot.connected ? "connected" : "disconnected"} (${statusText})`,
+    `Status request error: ${snapshot.requestError ?? "none"}`,
+    `Gateway error: ${snapshot.error ?? "none"}`,
+    `Main session error: ${snapshot.mainSessionError ?? "none"}`,
+    `Sessions observed: ${Math.max(0, snapshot.sessionsCount)}`,
+  ];
+
+  return [
+    "Mission Control dashboard detected an actionable gateway issue.",
+    "",
+    `Issue: ${issueTitle}`,
+    `Summary: ${issueSummary}`,
+    "",
+    "Safety constraints:",
+    "- Diagnose only; do not apply fixes directly.",
+    "- Do not edit files, install packages, run migrations, restart services, push commits, delete data, or change credentials/configuration.",
+    "- Use read-only inspection only and return a proposed fix for review.",
+    "",
+    "Full context:",
+    ...contextLines.map((line) => `- ${line}`),
+    "",
+    "Please diagnose root cause and then report:",
+    "- findings",
+    "- evidence checked",
+    "- exact proposed patch or commands for review",
+    "- remaining blockers and recommended next action",
+  ].join("\n");
 };
 
 function TopMetricCard({
@@ -361,6 +553,8 @@ function TopMetricCard({
   infoText,
   icon,
   accent,
+  href,
+  actionLabel,
 }: {
   title: string;
   value: string;
@@ -368,6 +562,8 @@ function TopMetricCard({
   infoText?: string;
   icon: React.ReactNode;
   accent: "blue" | "green" | "violet" | "emerald";
+  href?: string;
+  actionLabel?: string;
 }) {
   const iconTone =
     accent === "blue"
@@ -378,8 +574,8 @@ function TopMetricCard({
           ? "bg-violet-50 text-violet-600"
           : "bg-green-50 text-green-600";
 
-  return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 md:p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+  const cardContent = (
+    <>
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-1.5">
@@ -407,6 +603,30 @@ function TopMetricCard({
           {icon}
         </div>
       </div>
+      {href ? (
+        <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-slate-600">
+          Open details
+          <ArrowUpRight className="h-3.5 w-3.5" />
+        </span>
+      ) : null}
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        aria-label={actionLabel ?? `Open ${title}`}
+        className="group block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 md:p-6"
+      >
+        {cardContent}
+      </Link>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4 md:p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      {cardContent}
     </section>
   );
 }
@@ -452,24 +672,38 @@ function InfoBlock({
         ) : null}
       </div>
       <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
-        {rows.map((row) => (
-          <div key={`${row.label}-${row.value}`} className="flex items-start justify-between gap-3 px-3 py-2">
-            <span className="min-w-0 text-sm text-slate-500">{row.label}</span>
-            <span
-              className={`max-w-[65%] break-words text-right text-sm font-medium leading-5 ${
-                row.tone === "success"
-                  ? "text-emerald-700"
-                  : row.tone === "warning"
-                    ? "text-amber-700"
-                    : row.tone === "danger"
-                      ? "text-rose-700"
-                      : "text-slate-800"
-              }`}
+        {rows.map((row) => {
+          const toneClass = summaryRowToneClass(row.tone);
+          if (row.href) {
+            return (
+              <Link
+                key={`${row.label}-${row.value}-${row.href}`}
+                href={row.href}
+                aria-label={row.ariaLabel ?? `${row.label}: ${row.value}`}
+                className="group flex items-start justify-between gap-3 px-3 py-2 transition hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+              >
+                <span className="min-w-0 text-sm text-slate-500">{row.label}</span>
+                <span className="inline-flex max-w-[65%] items-center gap-1.5 text-right text-sm font-medium leading-5">
+                  <span className={`break-words ${toneClass}`}>{row.value}</span>
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-slate-400 transition group-hover:text-slate-600" />
+                </span>
+              </Link>
+            );
+          }
+          return (
+            <div
+              key={`${row.label}-${row.value}`}
+              className="flex items-start justify-between gap-3 px-3 py-2"
             >
-              {row.value}
-            </span>
-          </div>
-        ))}
+              <span className="min-w-0 text-sm text-slate-500">{row.label}</span>
+              <span
+                className={`max-w-[65%] break-words text-right text-sm font-medium leading-5 ${toneClass}`}
+              >
+                {row.value}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
@@ -478,6 +712,9 @@ function InfoBlock({
 export default function DashboardPage() {
   const router = useRouter();
   const { isSignedIn } = useAuth();
+  const [expandedSessionKey, setExpandedSessionKey] = useState<string | null>(null);
+  const [dispatchStateByIssue, setDispatchStateByIssue] = useState<Record<string, DispatchState>>({});
+  const dispatchInFlightRef = useRef<Set<string>>(new Set());
 
   const boardsQuery = useListBoardsApiV1BoardsGet<listBoardsApiV1BoardsGetResponse, ApiError>(
     { limit: 200 },
@@ -634,7 +871,7 @@ export default function DashboardPage() {
     () => gatewayStatusesQuery.data ?? [],
     [gatewayStatusesQuery.data],
   );
-  const sessionSummaries = useMemo(
+  const sessionSummaries = useMemo<SessionSummary[]>(
     () =>
       gatewaySnapshots.flatMap((snapshot) => {
         if (snapshot.requestError) return [];
@@ -642,6 +879,10 @@ export default function DashboardPage() {
         return toSessionSummaries(snapshot.sessions, snapshot.mainSession).map((session) => ({
           ...session,
           key: `${snapshot.gatewayId}:${session.key}`,
+          boardId: snapshot.boardId,
+          boardName: snapshot.boardName,
+          gatewayId: snapshot.gatewayId,
+          gatewayUrl: snapshot.gatewayUrl,
           subtitle: `${sourceLabel} · ${session.subtitle}`,
         }));
       }),
@@ -742,24 +983,34 @@ export default function DashboardPage() {
     {
       label: "Total work items",
       value: formatCount(tasksTotal),
+      href: "/boards",
+      ariaLabel: "Open boards",
     },
     {
       label: "Inbox",
       value: formatCount(inboxTasksMetric),
+      href: "/boards",
+      ariaLabel: "Open boards inbox work",
     },
     {
       label: "In progress",
       value: formatCount(inProgressTasksMetric),
       tone: inProgressTasksMetric > 0 ? "warning" : "default",
+      href: "/boards",
+      ariaLabel: "Open boards in-progress work",
     },
     {
       label: "In review",
       value: formatCount(reviewTasksMetric),
+      href: "/boards",
+      ariaLabel: "Open boards in-review work",
     },
     {
       label: "Completed",
       value: formatCount(doneTasksMetric),
       tone: doneTasksMetric > 0 ? "success" : "default",
+      href: "/boards",
+      ariaLabel: "Open boards completed work",
     },
   ];
 
@@ -799,24 +1050,222 @@ export default function DashboardPage() {
   ];
 
   const gatewayRows: SummaryRow[] = [
-    { label: "Gateway status", value: gatewayStatusLabel, tone: gatewayStatusTone },
-    { label: "Configured gateways", value: formatCount(gatewayTargets.length) },
+    {
+      label: "Gateway status",
+      value: gatewayStatusLabel,
+      tone: gatewayStatusTone,
+      href: "/gateways",
+      ariaLabel: `Gateway status: ${gatewayStatusLabel}. Open gateways`,
+    },
+    {
+      label: "Configured gateways",
+      value: formatCount(gatewayTargets.length),
+      href: "/gateways",
+      ariaLabel: "Open gateways",
+    },
     {
       label: "Connected gateways",
       value: formatCount(gatewayConnectedCount),
       tone: gatewayConnectedCount > 0 ? "success" : "default",
+      href: "/gateways",
+      ariaLabel: "Open connected gateways",
     },
     {
       label: "Unavailable gateways",
       value: formatCount(gatewayUnavailableCount),
       tone: gatewayUnavailableCount > 0 ? "danger" : "default",
+      href: "/gateways",
+      ariaLabel: "Open unavailable gateways",
     },
     {
       label: "Gateways with issues",
       value: formatCount(gatewayHealthErrorCount + gatewayDisconnectedCount),
       tone: gatewayHealthErrorCount + gatewayDisconnectedCount > 0 ? "warning" : "success",
+      href: "/gateways",
+      ariaLabel: "Open gateways with issues",
     },
   ];
+
+  const actionCenterIssues = useMemo<ActionCenterIssue[]>(() => {
+    const issues: ActionCenterIssue[] = [];
+    for (const snapshot of gatewaySnapshots) {
+      const addIssue = (
+        idSuffix: string,
+        title: string,
+        description: string,
+        severity: ActionCenterIssue["severity"],
+        statusText: string,
+      ) => {
+        issues.push({
+          id: `${snapshot.gatewayId}:${idSuffix}`,
+          title,
+          description,
+          severity,
+          boardId: snapshot.boardId,
+          boardName: snapshot.boardName,
+          gatewayId: snapshot.gatewayId,
+          gatewayUrl: snapshot.gatewayUrl,
+          statusText,
+          dispatchMessage: buildFixAgentDispatchMessage(snapshot, title, description, statusText),
+        });
+      };
+
+      if (snapshot.requestError) {
+        addIssue(
+          "unavailable",
+          "Gateway status unavailable",
+          snapshot.requestError,
+          "danger",
+          "status request failed",
+        );
+        continue;
+      }
+      if (!snapshot.connected) {
+        addIssue(
+          "disconnected",
+          "Gateway disconnected",
+          "Gateway is configured for this board but currently disconnected.",
+          "warning",
+          "disconnected",
+        );
+      }
+      if (snapshot.error) {
+        addIssue("gateway-error", "Gateway reported an error", snapshot.error, "danger", "gateway error");
+      }
+      if (snapshot.mainSessionError) {
+        addIssue(
+          "main-session-error",
+          "Main session reported an error",
+          snapshot.mainSessionError,
+          "warning",
+          "main session issue",
+        );
+      }
+    }
+    return issues;
+  }, [gatewaySnapshots]);
+
+  const handleDispatchFixAgent = useCallback(
+    async (issue: ActionCenterIssue, trigger: IssueDispatchTrigger = "manual") => {
+      if (dispatchInFlightRef.current.has(issue.id)) return;
+      const existing = dispatchStateByIssue[issue.id]?.status;
+      if (existing === "sending" || existing === "sent") return;
+
+      dispatchInFlightRef.current.add(issue.id);
+      setDispatchStateByIssue((previous) => ({
+        ...previous,
+        [issue.id]: { status: "sending" },
+      }));
+
+      try {
+        const now = Date.now();
+        const watchdogState = readIssueWatchdogState();
+        const previousRecord = watchdogState[issue.id];
+        const dispatchedAgents = new Set(previousRecord?.dispatchedAgents ?? []);
+        const payloads = buildIssueDispatchPayloads(issue, trigger).filter(
+          (payload) => !dispatchedAgents.has(payload.agent.id),
+        );
+
+        for (const payload of payloads) {
+          const result = await createBoardMemoryApiV1BoardsBoardIdMemoryPost(issue.boardId, {
+            content: payload.content,
+            tags: payload.tags,
+            source: payload.source,
+          });
+          if (result.status !== 200) {
+            throw new Error(`Unable to dispatch ${payload.agent.label} diagnose agent (${result.status}).`);
+          }
+          dispatchedAgents.add(payload.agent.id);
+          watchdogState[issue.id] = {
+            firstSeenAt: previousRecord?.firstSeenAt ?? now,
+            lastSeenAt: now,
+            lastAttemptAt: now,
+            dispatchedAgents: [...dispatchedAgents],
+            dispatchedAt: ISSUE_DIAGNOSE_AGENT_IDS.every((agentId) => dispatchedAgents.has(agentId))
+              ? now
+              : undefined,
+          };
+          writeIssueWatchdogState(watchdogState);
+        }
+
+        setDispatchStateByIssue((previous) => ({
+          ...previous,
+          [issue.id]: {
+            status: "sent",
+            sentAt: new Date().toISOString(),
+            message: "Dispatched the Codex read-only diagnose agent.",
+          },
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to dispatch diagnose agent.";
+        setDispatchStateByIssue((previous) => ({
+          ...previous,
+          [issue.id]: { status: "error", message },
+        }));
+      } finally {
+        dispatchInFlightRef.current.delete(issue.id);
+      }
+    },
+    [dispatchStateByIssue],
+  );
+
+  useEffect(() => {
+    if (!isSignedIn || gatewayStatusesQuery.isLoading) return;
+
+    const now = Date.now();
+    const activeIssueIds = new Set(actionCenterIssues.map((issue) => issue.id));
+    const watchdogState = readIssueWatchdogState();
+    let changed = false;
+
+    for (const issueId of Object.keys(watchdogState)) {
+      if (activeIssueIds.has(issueId)) continue;
+      delete watchdogState[issueId];
+      changed = true;
+    }
+
+    for (const issue of actionCenterIssues) {
+      const current = watchdogState[issue.id] ?? {
+        firstSeenAt: now,
+        lastSeenAt: now,
+      };
+      current.lastSeenAt = now;
+      watchdogState[issue.id] = current;
+      changed = true;
+
+      const dispatchState = dispatchStateByIssue[issue.id]?.status;
+      if (dispatchState === "sending" || dispatchState === "sent") continue;
+      if (
+        current.dispatchedAt &&
+        ISSUE_DIAGNOSE_AGENT_IDS.every((agentId) => current.dispatchedAgents?.includes(agentId))
+      ) {
+        continue;
+      }
+      if (now - current.firstSeenAt < ISSUE_WATCHDOG_DELAY_MS) continue;
+      if (
+        current.lastAttemptAt &&
+        now - current.lastAttemptAt < ISSUE_WATCHDOG_RETRY_MS
+      ) {
+        continue;
+      }
+
+      current.lastAttemptAt = now;
+      writeIssueWatchdogState(watchdogState);
+      void handleDispatchFixAgent(issue, "watchdog");
+      return;
+    }
+
+    if (changed) writeIssueWatchdogState(watchdogState);
+  }, [
+    actionCenterIssues,
+    dispatchStateByIssue,
+    gatewayStatusesQuery.isLoading,
+    handleDispatchFixAgent,
+    isSignedIn,
+  ]);
+
+  const handleSessionRowToggle = useCallback((sessionKey: string) => {
+    setExpandedSessionKey((previous) => (previous === sessionKey ? null : sessionKey));
+  }, []);
   const pendingApprovalItems = metrics?.pending_approvals.items ?? [];
   const pendingApprovalsTotal = metrics?.pending_approvals.total ?? 0;
   const hasPendingApprovals = pendingApprovalItems.length > 0;
@@ -915,6 +1364,8 @@ export default function DashboardPage() {
                 secondary={`${formatCount(agents.length)} total`}
                 icon={<Bot className="h-4 w-4" />}
                 accent="blue"
+                href="/agents"
+                actionLabel="Open agents"
               />
               <TopMetricCard
                 title="Tasks In Progress"
@@ -922,6 +1373,8 @@ export default function DashboardPage() {
                 secondary={`${formatCount(tasksTotal)} total`}
                 icon={<LayoutGrid className="h-4 w-4" />}
                 accent="green"
+                href="/boards"
+                actionLabel="Open boards with in-progress work"
               />
               <TopMetricCard
                 title="Error Rate"
@@ -959,6 +1412,129 @@ export default function DashboardPage() {
                 rows={gatewayRows}
               />
             </div>
+
+            <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 md:p-6 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-900">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    Action Center
+                  </h3>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Unhandled issues dispatch one Codex read-only diagnose agent after 5 minutes.
+                  </p>
+                </div>
+                <span className="text-xs text-slate-500">
+                  {formatCount(actionCenterIssues.length)} active issue
+                  {actionCenterIssues.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              {!hasConfiguredGateways ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+                  Connect at least one board to a gateway to unlock actionable diagnostics.
+                </div>
+              ) : gatewayStatusesQuery.isLoading ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+                  Scanning gateway issues...
+                </div>
+              ) : actionCenterIssues.length > 0 ? (
+                <div className="space-y-3">
+                  {actionCenterIssues.map((issue) => {
+                    const dispatchState = dispatchStateByIssue[issue.id] ?? { status: "idle" };
+                    const isSending = dispatchState.status === "sending";
+                    const isSent = dispatchState.status === "sent";
+                    return (
+                      <article
+                        key={issue.id}
+                        className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                        aria-label={`${issue.title} on board ${issue.boardName}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900">{issue.title}</p>
+                            <p className="mt-0.5 text-xs text-slate-600">{issue.description}</p>
+                          </div>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                              issue.severity === "danger"
+                                ? "bg-rose-100 text-rose-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {issue.statusText}
+                          </span>
+                        </div>
+                        <dl className="mt-3 grid grid-cols-1 gap-2 text-[11px] text-slate-600 sm:grid-cols-2">
+                          <div>
+                            <dt className="font-semibold uppercase tracking-wider text-slate-500">Board</dt>
+                            <dd className="mt-0.5">
+                              <Link
+                                href={`/boards/${encodeURIComponent(issue.boardId)}`}
+                                className="text-slate-700 underline underline-offset-2 transition hover:text-slate-900"
+                              >
+                                {issue.boardName}
+                              </Link>
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="font-semibold uppercase tracking-wider text-slate-500">Gateway</dt>
+                            <dd className="mt-0.5 break-all text-slate-700">{issue.gatewayId}</dd>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <dt className="font-semibold uppercase tracking-wider text-slate-500">URL</dt>
+                            <dd className="mt-0.5 break-all text-slate-700">{issue.gatewayUrl ?? DASH}</dd>
+                          </div>
+                        </dl>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/boards/${encodeURIComponent(issue.boardId)}`}
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                          >
+                            Open board
+                            <ArrowUpRight className="h-3.5 w-3.5" />
+                          </Link>
+                          <Link
+                            href="/gateways"
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                          >
+                            Open gateways
+                            <ArrowUpRight className="h-3.5 w-3.5" />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => void handleDispatchFixAgent(issue)}
+                            disabled={isSending || isSent}
+                            aria-label={`Dispatch Codex read-only diagnose agent for ${issue.title} on ${issue.boardName}`}
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-900 bg-slate-900 px-2 py-1 text-xs font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:cursor-not-allowed disabled:border-slate-400 disabled:bg-slate-400"
+                          >
+                            <Wrench className="h-3.5 w-3.5" />
+                            {isSending
+                              ? "Dispatching..."
+                              : isSent
+                                ? "Diagnose dispatched"
+                                : "Dispatch Codex diagnose"}
+                          </button>
+                        </div>
+                        {dispatchState.status === "error" && dispatchState.message ? (
+                          <p className="mt-2 text-xs text-rose-700">{dispatchState.message}</p>
+                        ) : null}
+                        {dispatchState.status === "sent" && dispatchState.sentAt ? (
+                          <p className="mt-2 text-xs text-emerald-700">
+                            {dispatchState.message ?? "Codex diagnose dispatched"} Sent{" "}
+                            {formatRelativeTimestamp(dispatchState.sentAt)} with full context.
+                          </p>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                  No actionable gateway issues detected.
+                </div>
+              )}
+            </section>
 
             <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 md:p-6 shadow-sm">
               <div className="mb-3 flex items-center justify-between gap-3">
@@ -1041,36 +1617,119 @@ export default function DashboardPage() {
                           from reachable gateways.
                         </div>
                       ) : null}
-                      {sessionSummaries.map((session) => (
-                        <div
-                          key={session.key}
-                          className="overflow-hidden rounded-lg border border-slate-200 bg-white px-3 py-2"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-slate-900">
-                                <span
-                                  className={`mr-2 inline-block h-2 w-2 rounded-full ${
-                                    session.isMain ? "bg-emerald-500" : "bg-slate-400"
-                                  }`}
-                                />
-                                {session.title}
-                              </p>
-                              <p className="mt-0.5 truncate text-xs text-slate-500">{session.subtitle}</p>
-                            </div>
-                            <div className="min-w-0 max-w-[45%] text-right">
-                              <p className="truncate text-xs font-medium text-slate-700">
-                                {session.usage === DASH ? "Usage unavailable" : session.usage}
-                              </p>
-                              <p className="text-[11px] text-slate-500">
-                                {session.lastSeenAt
-                                  ? formatRelativeTimestamp(session.lastSeenAt)
-                                  : "Activity unavailable"}
-                              </p>
-                            </div>
+                      {sessionSummaries.map((session) => {
+                        const isExpanded = expandedSessionKey === session.key;
+                        const detailsId = `session-detail-${session.key.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+                        return (
+                          <div
+                            key={session.key}
+                            className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+                          >
+                            <button
+                              type="button"
+                              aria-expanded={isExpanded}
+                              aria-controls={detailsId}
+                              aria-label={`Inspect session ${session.title}`}
+                              onClick={() => handleSessionRowToggle(session.key)}
+                              className="group flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-slate-900">
+                                  <span
+                                    className={`mr-2 inline-block h-2 w-2 rounded-full ${
+                                      session.isMain ? "bg-emerald-500" : "bg-slate-400"
+                                    }`}
+                                  />
+                                  {session.title}
+                                </p>
+                                <p className="mt-0.5 truncate text-xs text-slate-500">{session.subtitle}</p>
+                              </div>
+                              <div className="min-w-0 max-w-[45%] text-right">
+                                <p className="truncate text-xs font-medium text-slate-700">
+                                  {session.usage === DASH ? "Usage unavailable" : session.usage}
+                                </p>
+                                <div className="mt-0.5 inline-flex items-center justify-end gap-1 text-[11px] text-slate-500">
+                                  <span>
+                                    {session.lastSeenAt
+                                      ? formatRelativeTimestamp(session.lastSeenAt)
+                                      : "Activity unavailable"}
+                                  </span>
+                                  <ChevronDown
+                                    className={`h-3.5 w-3.5 transition ${isExpanded ? "rotate-180" : ""}`}
+                                  />
+                                </div>
+                              </div>
+                            </button>
+                            {isExpanded ? (
+                              <div
+                                id={detailsId}
+                                className="border-t border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600"
+                              >
+                                <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                  <div>
+                                    <dt className="font-semibold uppercase tracking-wider text-slate-500">
+                                      Session
+                                    </dt>
+                                    <dd className="mt-0.5 break-all text-slate-700">
+                                      {session.sessionId ?? session.key}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt className="font-semibold uppercase tracking-wider text-slate-500">
+                                      Source
+                                    </dt>
+                                    <dd className="mt-0.5 text-slate-700">{session.source ?? "Unknown"}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="font-semibold uppercase tracking-wider text-slate-500">
+                                      Usage
+                                    </dt>
+                                    <dd className="mt-0.5 text-slate-700">{session.usage}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="font-semibold uppercase tracking-wider text-slate-500">
+                                      Last seen
+                                    </dt>
+                                    <dd className="mt-0.5 text-slate-700">
+                                      {session.lastSeenAt
+                                        ? `${formatRelativeTimestamp(session.lastSeenAt)} (${formatTimestamp(session.lastSeenAt)})`
+                                        : "Activity unavailable"}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt className="font-semibold uppercase tracking-wider text-slate-500">
+                                      Board
+                                    </dt>
+                                    <dd className="mt-0.5 text-slate-700">{session.boardName}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="font-semibold uppercase tracking-wider text-slate-500">
+                                      Gateway
+                                    </dt>
+                                    <dd className="mt-0.5 break-all text-slate-700">{session.gatewayId}</dd>
+                                  </div>
+                                </dl>
+                                <div className="mt-3 flex flex-wrap items-center gap-2">
+                                  <Link
+                                    href={`/boards/${encodeURIComponent(session.boardId)}`}
+                                    className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                                  >
+                                    Open board
+                                    <ArrowUpRight className="h-3.5 w-3.5" />
+                                  </Link>
+                                  <Link
+                                    href="/gateways"
+                                    className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                                  >
+                                    Open gateways
+                                    <ArrowUpRight className="h-3.5 w-3.5" />
+                                  </Link>
+                                </div>
+                              </div>
+                            ) : null}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </>
                   ) : gatewayUnavailableCount === gatewayTargets.length ? (
                     <div className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-700">
