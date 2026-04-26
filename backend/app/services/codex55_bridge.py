@@ -42,6 +42,7 @@ CLAUDE_RESULT_TAG = "claude-cli-result"
 CLAUDE_ERROR_TAG = "claude-cli-error"
 MODEL_TAG_PREFIX = "model:"
 PROVIDER_TAG_PREFIX = "provider:"
+CLI_CHAT_SESSION_TAG_PREFIX = "cli-chat:"
 CODEX_PROVIDER = "codex"
 CLAUDE_PROVIDER = "claude"
 DEFAULT_MODEL = "gpt-5.5"
@@ -286,6 +287,24 @@ def _result_tags_for_runtime(provider: str, model: str, exit_code: int) -> list[
                 tags.append(CODEX53_ERROR_TAG)
         elif provider == CLAUDE_PROVIDER:
             tags.append(CLAUDE_ERROR_TAG)
+    return tags
+
+
+def _cli_chat_session_tags(memory: JsonObject) -> list[str]:
+    """Return stable CLI Chat session tags that should follow bridge results."""
+    return sorted(
+        tag for tag in _normalized_tags(memory) if tag.startswith(CLI_CHAT_SESSION_TAG_PREFIX)
+    )
+
+
+def _append_unique_tags(tags: list[str], extra_tags: list[str]) -> list[str]:
+    """Append tags without duplicating existing values while preserving order."""
+    seen = set(tags)
+    for tag in extra_tags:
+        if tag in seen:
+            continue
+        tags.append(tag)
+        seen.add(tag)
     return tags
 
 
@@ -639,10 +658,13 @@ def format_cli_result(
     source_memory_id: str,
     result: CodexRunResult,
     runtime: RuntimeRequest,
+    request_memory: JsonObject | None = None,
     max_chars: int = DEFAULT_MAX_RESULT_CHARS,
 ) -> tuple[str, list[str]]:
     """Format one CLI result as a board-chat memory payload."""
     tags = _result_tags_for_runtime(runtime.provider, runtime.model, result.exit_code)
+    if request_memory is not None:
+        _append_unique_tags(tags, _cli_chat_session_tags(request_memory))
     runtime_label = source_for_runtime(runtime.provider, runtime.model)
     if result.timed_out:
         title = f"{runtime_label} timed out"
@@ -723,6 +745,7 @@ def run_once(config: Codex55BridgeConfig) -> int:
             source_memory_id=memory_id,
             result=result,
             runtime=runtime,
+            request_memory=memory,
             max_chars=config.max_result_chars,
         )
         post_board_chat(config, content, tags, provider=runtime.provider, model=runtime.model)

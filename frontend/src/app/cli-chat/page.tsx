@@ -253,6 +253,7 @@ function CliChatContent() {
   const endRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const latestSeenRef = useRef<string | null>(null);
+  const postSendRefreshTimersRef = useRef<number[]>([]);
 
   const selectedRuntime = runtimeOption(runtime);
   const selectedSessionTag = useMemo(
@@ -332,6 +333,30 @@ function CliChatContent() {
       setIsLoadingMessages(false);
     }
   }, [isSignedIn, selectedBoardId]);
+
+  const schedulePostSendRefreshes = useCallback(() => {
+    if (typeof window === "undefined") return;
+    for (const timer of postSendRefreshTimersRef.current) {
+      window.clearTimeout(timer);
+    }
+    postSendRefreshTimersRef.current = [5_000, 15_000, 35_000, 75_000].map(
+      (delay) =>
+        window.setTimeout(() => {
+          void loadMessages();
+        }, delay),
+    );
+  }, [loadMessages]);
+
+  useEffect(
+    () => () => {
+      if (typeof window === "undefined") return;
+      for (const timer of postSendRefreshTimersRef.current) {
+        window.clearTimeout(timer);
+      }
+      postSendRefreshTimersRef.current = [];
+    },
+    [],
+  );
 
   useEffect(() => {
     void loadBoards();
@@ -582,6 +607,7 @@ function CliChatContent() {
           nextMessages[nextMessages.length - 1]?.created_at ?? latestSeenRef.current;
         return nextMessages;
       });
+      schedulePostSendRefreshes();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to send message.");
     } finally {
@@ -594,6 +620,7 @@ function CliChatContent() {
     images.length,
     isSending,
     runtime,
+    schedulePostSendRefreshes,
     selectedBoardId,
     selectedSessionTag,
     selectedRuntime.shortLabel,

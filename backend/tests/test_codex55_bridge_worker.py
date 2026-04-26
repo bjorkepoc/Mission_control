@@ -87,6 +87,26 @@ def test_format_codex53_result_tags_model() -> None:
     assert "model:gpt-5.3-codex" in tags
 
 
+def test_format_cli_result_carries_cli_chat_session_tag() -> None:
+    content, tags = format_cli_result(
+        source_memory_id="abc",
+        result=CodexRunResult(
+            exit_code=0,
+            final_message="OK",
+            stdout="",
+            stderr="",
+        ),
+        runtime=RuntimeRequest(provider="codex", model="gpt-5.5"),
+        request_memory={
+            "id": "abc",
+            "tags": ["chat", "codex55-request", "cli-chat:gpt-5.5:main"],
+        },
+    )
+
+    assert "OK" in content
+    assert "cli-chat:gpt-5.5:main" in tags
+
+
 def test_build_codex_command_uses_configured_model_and_workspace_output() -> None:
     config = Codex55BridgeConfig(
         base_url="http://127.0.0.1:8000",
