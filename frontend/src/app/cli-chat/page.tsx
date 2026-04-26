@@ -188,20 +188,20 @@ function CliMessageCard({ message }: { message: BoardMemoryRead }) {
   return (
     <article
       className={cn(
-        "mc-message-card rounded-2xl border p-4",
+        "mc-message-card rounded-xl border px-3 py-2.5",
         isRequest
-          ? "mc-message-card--request ml-auto max-w-[86%]"
+          ? "mc-message-card--request ml-auto max-w-[84%]"
           : kind === "error"
-            ? "mc-message-card--error mr-auto max-w-[92%]"
+            ? "mc-message-card--error mr-auto max-w-[90%]"
             : runtime === "openclaw"
-              ? "mc-message-card--openclaw mr-auto max-w-[92%]"
-              : "mc-message-card--runtime mr-auto max-w-[92%]",
+              ? "mc-message-card--openclaw mr-auto max-w-[90%]"
+              : "mc-message-card--runtime mr-auto max-w-[90%]",
       )}
     >
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11px]">
         <span
           className={cn(
-            "mc-message-label rounded-full px-2.5 py-1 font-semibold",
+            "mc-message-label rounded-full px-2 py-0.5 font-semibold",
             isRequest
               ? "mc-message-label--request"
               : kind === "error"
@@ -213,12 +213,12 @@ function CliMessageCard({ message }: { message: BoardMemoryRead }) {
         >
           {label}
         </span>
-        <span className="mc-runtime-pill rounded-full border px-2.5 py-1 font-medium">
+        <span className="mc-runtime-pill rounded-full border px-2 py-0.5 font-medium">
           {option.shortLabel}
         </span>
         <span className="mc-muted-text">{formatTime(message.created_at)}</span>
       </div>
-      <div className="mc-markdown prose max-w-none text-sm prose-pre:my-2">
+      <div className="mc-markdown prose max-w-none text-[13px] leading-snug prose-pre:my-2">
         <Markdown content={message.content} variant="comment" />
       </div>
     </article>
@@ -240,9 +240,9 @@ function CliChatContent() {
     useState(false);
   const [isSending, setIsSending] = useState(false);
   const [streamStatus, setStreamStatus] = useState<StreamStatus>("idle");
-  const [clearedSessions, setClearedSessions] = useState<Record<string, string>>(
-    {},
-  );
+  const [clearedSessions, setClearedSessions] = useState<
+    Record<string, string>
+  >({});
   const [hasLoadedClearedSessions, setHasLoadedClearedSessions] =
     useState(false);
   const [listeningLanguage, setListeningLanguage] = useState<
@@ -408,7 +408,11 @@ function CliChatContent() {
   }, [selectedBoardId]);
 
   useEffect(() => {
-    if (!selectedBoardId || !hasLoadedClearedSessions || typeof window === "undefined") {
+    if (
+      !selectedBoardId ||
+      !hasLoadedClearedSessions ||
+      typeof window === "undefined"
+    ) {
       return;
     }
     window.localStorage.setItem(
@@ -463,9 +467,10 @@ function CliChatContent() {
       } catch (err) {
         if (cancelled || controller.signal.aborted) return;
         setStreamStatus("fallback");
-        setNotice((current) =>
-          current ??
-          "Live stream unavailable. Using slower fallback refresh.",
+        setNotice(
+          (current) =>
+            current ??
+            "Live stream unavailable. Using slower fallback refresh.",
         );
         setError(
           err instanceof Error ? err.message : "Unable to stream runtime chat.",
@@ -604,7 +609,8 @@ function CliChatContent() {
       setMessages((current) => {
         const nextMessages = mergeMessages(current, [result.data]);
         latestSeenRef.current =
-          nextMessages[nextMessages.length - 1]?.created_at ?? latestSeenRef.current;
+          nextMessages[nextMessages.length - 1]?.created_at ??
+          latestSeenRef.current;
         return nextMessages;
       });
       schedulePostSendRefreshes();
@@ -764,9 +770,7 @@ function CliChatContent() {
                     onClick={() => setRuntime(option.id)}
                     className={cn(
                       "mc-runtime-option w-full rounded-2xl border p-3 text-left transition",
-                      runtime === option.id
-                        ? "mc-runtime-option--active"
-                        : "",
+                      runtime === option.id ? "mc-runtime-option--active" : "",
                     )}
                   >
                     <span className="flex items-center gap-2 font-semibold">
@@ -813,7 +817,9 @@ function CliChatContent() {
           <section className="mc-panel-surface flex min-h-0 flex-col overflow-hidden rounded-2xl border">
             <div className="mc-section-divider flex shrink-0 flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
               <div>
-                <p className="mc-title-text text-sm font-semibold">Runtime Chat</p>
+                <p className="mc-title-text text-sm font-semibold">
+                  Runtime Chat
+                </p>
                 <p className="mc-muted-text text-xs">
                   Stream-first updates. Model usage starts only when you press
                   Send. Messages older than 24h are hidden.
@@ -839,7 +845,7 @@ function CliChatContent() {
               </div>
             </div>
 
-            <div className="mc-chat-surface min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+            <div className="mc-chat-surface min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
               {error ? (
                 <div className="mc-alert mc-alert--error rounded-2xl border px-4 py-3 text-sm">
                   {error}

@@ -81,17 +81,19 @@
   --success: #16a34a;
   --warning: #d97706;
   --danger: #dc2626;
-  --shadow-panel:
-    0 0 0 1px rgba(0, 0, 0, 0.07), 0 8px 24px rgba(0, 0, 0, 0.08);
-  --shadow-card:
-    0 0 0 1px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-panel: 0 0 0 1px rgba(0, 0, 0, 0.07), 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 /* ── Body backgrounds ───────────────────────────────────── */
 body {
   @apply font-body;
   background:
-    radial-gradient(circle at 25% 20%, rgba(0, 200, 255, 0.09), transparent 32%),
+    radial-gradient(
+      circle at 25% 20%,
+      rgba(0, 200, 255, 0.09),
+      transparent 32%
+    ),
     radial-gradient(circle at 80% 0%, rgba(0, 200, 255, 0.06), transparent 30%),
     var(--bg);
   color: var(--text);
@@ -226,15 +228,19 @@ body::before {
   }
 
   .mc-message-card {
-    background: var(--surface-muted);
-    border-color: var(--border);
+    background: color-mix(
+      in srgb,
+      var(--surface-muted) 82%,
+      var(--app-chat-bg)
+    );
+    border-color: color-mix(in srgb, var(--border) 82%, transparent);
     color: var(--text);
-    box-shadow: var(--shadow-card);
+    box-shadow: none;
   }
 
   .mc-message-card--request {
-    background: color-mix(in srgb, var(--accent) 18%, var(--surface));
-    border-color: color-mix(in srgb, var(--accent) 46%, var(--border));
+    background: color-mix(in srgb, var(--accent) 13%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
   }
 
   .mc-message-card--error {
@@ -243,13 +249,40 @@ body::before {
   }
 
   .mc-message-card--openclaw {
-    background: color-mix(in srgb, var(--accent) 10%, var(--surface));
-    border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+    background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
   }
 
   .mc-message-card--runtime {
-    background: color-mix(in srgb, var(--success) 12%, var(--surface));
-    border-color: color-mix(in srgb, var(--success) 36%, var(--border));
+    background: color-mix(in srgb, var(--success) 8%, var(--surface));
+    border-color: color-mix(in srgb, var(--success) 24%, var(--border));
+  }
+
+  .mc-chat-scroll {
+    background: var(--app-chat-bg);
+    border-color: var(--border);
+  }
+
+  .mc-chat-bubble {
+    background: color-mix(
+      in srgb,
+      var(--surface-muted) 86%,
+      var(--app-chat-bg)
+    );
+    border-color: color-mix(in srgb, var(--border) 84%, transparent);
+    color: var(--text);
+    box-shadow: none;
+  }
+
+  .mc-chat-bubble--accent {
+    background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
+  }
+
+  .mc-chat-bubble--tag {
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+    color: var(--text-muted);
   }
 
   .mc-message-label {
