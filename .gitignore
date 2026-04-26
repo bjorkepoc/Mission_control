@@ -4,6 +4,9 @@ data/calendar-sync.log
 data/.tasks-snapshot.json
 data/.webhook-debug.log
 
+# Generated Graphify cache; keep graph outputs tracked without status noise.
+graphify-out/cache/
+
 # Python
 __pycache__/
 *.py[cod]

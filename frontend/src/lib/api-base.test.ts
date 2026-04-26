@@ -5,6 +5,7 @@ import { getApiBaseUrl } from "./api-base";
 describe("getApiBaseUrl", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 
   it("returns normalized explicit URL", () => {
@@ -23,5 +24,19 @@ describe("getApiBaseUrl", () => {
     vi.stubEnv("NEXT_PUBLIC_API_URL", "");
 
     expect(getApiBaseUrl()).toBe("http://localhost:8000");
+  });
+
+  it("defaults to same-origin for deployed HTTPS hosts", () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "auto");
+    vi.stubGlobal("window", {
+      location: {
+        protocol: "https:",
+        hostname: "37.27.203.209.nip.io",
+        port: "",
+        origin: "https://37.27.203.209.nip.io",
+      },
+    });
+
+    expect(getApiBaseUrl()).toBe("https://37.27.203.209.nip.io");
   });
 });

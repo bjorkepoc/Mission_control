@@ -12,7 +12,23 @@ export function getApiBaseUrl(): string {
     const protocol = window.location.protocol === "https:" ? "https" : "http";
     const host = window.location.hostname;
     if (host) {
-      return `${protocol}://${host}:8000`;
+      const port = window.location.port;
+      const isLoopbackHost =
+        host === "localhost" ||
+        host === "127.0.0.1" ||
+        host === "::1" ||
+        host === "[::1]";
+
+      // Keep local dev ergonomic (`localhost:3000` -> backend `:8000`),
+      // but default to same-origin for deployed/proxied environments.
+      if (isLoopbackHost || port === "3000") {
+        return `${protocol}://${host}:8000`;
+      }
+
+      const origin = window.location.origin.replace(/\/+$/, "");
+      if (origin) {
+        return origin;
+      }
     }
   }
 
