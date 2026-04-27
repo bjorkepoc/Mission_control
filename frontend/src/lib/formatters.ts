@@ -39,11 +39,13 @@ export const formatRelativeTimestamp = (
   const date = parseTimestamp(value);
   if (!date) return fallback;
   const diff = Date.now() - date.getTime();
-  const minutes = Math.round(diff / 60000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  const isFuture = diff < 0;
+  const minutes = Math.round(Math.abs(diff) / 60000);
+  const suffix = isFuture ? "from now" : "ago";
+  if (minutes < 1) return isFuture ? "Now" : "Just now";
+  if (minutes < 60) return `${minutes}m ${suffix}`;
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return `${hours}h ${suffix}`;
   const days = Math.round(hours / 24);
-  return `${days}d ago`;
+  return `${days}d ${suffix}`;
 };

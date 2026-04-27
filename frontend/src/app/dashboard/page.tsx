@@ -290,10 +290,12 @@ const readTimestamp = (
     if (typeof value === "string") {
       const trimmed = value.trim();
       if (!trimmed) continue;
-      const numeric = Number.parseFloat(trimmed);
-      if (Number.isFinite(numeric)) {
-        const date = new Date(normalizeEpochMs(numeric));
-        if (!Number.isNaN(date.getTime())) return date.toISOString();
+      if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) {
+        const numeric = Number.parseFloat(trimmed);
+        if (Number.isFinite(numeric)) {
+          const date = new Date(normalizeEpochMs(numeric));
+          if (!Number.isNaN(date.getTime())) return date.toISOString();
+        }
       }
       const parsed = parseTimestamp(trimmed);
       if (parsed) return parsed.toISOString();
@@ -324,6 +326,20 @@ const parseUsageWindow = (value: unknown): UsageRemainingWindow | null => {
       remainingPct === null ? null : Math.max(0, Math.min(100, remainingPct)),
     resetAt,
   };
+};
+
+const formatUsageRelativeTime = (value: string | null | undefined): string | null => {
+  const date = parseTimestamp(value);
+  if (!date) return null;
+  const diffMs = date.getTime() - Date.now();
+  const isFuture = diffMs > 0;
+  const minutes = Math.round(Math.abs(diffMs) / 60000);
+  if (minutes < 1) return isFuture ? "om under 1m" : "nå";
+  if (minutes < 60) return isFuture ? `om ${minutes}m` : `for ${minutes}m siden`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return isFuture ? `om ${hours}t` : `for ${hours}t siden`;
+  const days = Math.round(hours / 24);
+  return isFuture ? `om ${days}d` : `for ${days}d siden`;
 };
 
 const parseGatewayUsageSummary = (value: unknown): GatewayUsageSummary | null => {
@@ -1146,29 +1162,28 @@ export default function DashboardPage() {
     fiveHourRemaining !== null ? `${Math.round(fiveHourRemaining)}%` : DASH;
   const weeklyRemainingLabel =
     weeklyRemaining !== null ? `${Math.round(weeklyRemaining)}%` : DASH;
-  const fiveHourDetail =
-    usageSummary?.fiveHour?.resetAt
-      ? `Reset ${formatRelativeTimestamp(usageSummary.fiveHour.resetAt)}`
-      : usageSummary?.unavailableReason
-        ? "Ikke tilgjengelig"
-        : "Ikke rapportert";
-  const weeklyDetail =
-    usageSummary?.weekly?.resetAt
-      ? `Reset ${formatRelativeTimestamp(usageSummary.weekly.resetAt)}`
-      : usageSummary?.unavailableReason
-        ? "Ikke tilgjengelig"
-        : "Ikke rapportert";
+  const formatUsageResetDetail = (resetAt: string | null | undefined): string => {
+    if (!resetAt) {
+      return usageSummary?.unavailableReason ? "Ikke tilgjengelig" : "Ikke rapportert";
+    }
+    const relative = formatUsageRelativeTime(resetAt);
+    const absolute = formatTimestamp(resetAt);
+    return relative ? `Reset ${relative} · ${absolute}` : `Reset ${absolute}`;
+  };
+  const fiveHourDetail = formatUsageResetDetail(usageSummary?.fiveHour?.resetAt);
+  const weeklyDetail = formatUsageResetDetail(usageSummary?.weekly?.resetAt);
   const usageSourceLabel =
     usageSummary?.providerDisplayName ??
     usageSummary?.provider ??
     usageSummary?.source ??
     "usage.status";
+  const usageUpdatedLabel = formatUsageRelativeTime(usageSummary?.updatedAt);
   const usageStatusLabel = !hasConfiguredGateways
     ? "Ingen gateway"
     : gatewayStatusesQuery.isLoading
       ? "Henter usage"
-      : usageSummary?.updatedAt
-        ? `Oppdatert ${formatRelativeTimestamp(usageSummary.updatedAt)}`
+      : usageUpdatedLabel
+        ? `Oppdatert ${usageUpdatedLabel}`
         : "Usage utilgjengelig";
 
   const gatewayStatusLabel = !hasConfiguredGateways
@@ -1581,27 +1596,29 @@ export default function DashboardPage() {
               </div>
             ) : null}
 
-            <section className="mb-4 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-sky-50 px-4 py-3 shadow-sm">
+            <section className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <Timer className="h-4 w-4 text-indigo-600" />
+                  <span className="rounded-lg bg-slate-100 p-2 text-slate-600">
+                    <Timer className="h-4 w-4" />
+                  </span>
                   <span>Usage igjen</span>
-                  <span className="rounded-full border border-indigo-200 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                  <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
                     {usageStatusLabel}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2 text-sm">
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-700 shadow-sm">
+                  <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-slate-700">
                     <span className="font-medium text-slate-500">5 timer:</span>{" "}
                     <span className="font-semibold text-slate-950">{fiveHourRemainingLabel}</span>
                     <span className="ml-1 text-xs text-slate-500">{fiveHourDetail}</span>
                   </span>
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-700 shadow-sm">
+                  <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-slate-700">
                     <span className="font-medium text-slate-500">Uke:</span>{" "}
                     <span className="font-semibold text-slate-950">{weeklyRemainingLabel}</span>
                     <span className="ml-1 text-xs text-slate-500">{weeklyDetail}</span>
                   </span>
-                  <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs text-slate-500">
+                  <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs text-slate-500">
                     Kilde: {usageSourceLabel}
                   </span>
                 </div>
