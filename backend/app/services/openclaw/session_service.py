@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from datetime import UTC, datetime
+from math import isfinite
+from typing import TYPE_CHECKING, Callable
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -18,6 +20,8 @@ from app.schemas.gateway_api import (
     GatewaySessionMessageRequest,
     GatewaySessionResponse,
     GatewaySessionsResponse,
+    GatewayUsageRemainingSummary,
+    GatewayUsageRemainingWindow,
     GatewaysStatusResponse,
 )
 from app.services.openclaw.db_service import OpenClawDBService
@@ -90,6 +94,154 @@ class GatewaySessionService(OpenClawDBService):
         if isinstance(value, Iterable):
             return list(value)
         return []
+
+    @staticmethod
+    def as_object_dict(value: object) -> dict[str, object] | None:
+        if isinstance(value, dict):
+            return value
+        return None
+
+    @staticmethod
+    def _parse_percent(value: object) -> float | None:
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+        elif isinstance(value, str):
+            raw = value.strip().removesuffix("%")
+            if not raw:
+                return None
+            try:
+                numeric = float(raw)
+            except ValueError:
+                return None
+        else:
+            return None
+        if not isfinite(numeric):
+            return None
+        return max(0.0, min(100.0, numeric))
+
+    @staticmethod
+    def _parse_datetime(value: object) -> datetime | None:
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+            if numeric <= 0:
+                return None
+            seconds = numeric / 1000 if numeric >= 1_000_000_000_000 else numeric
+            try:
+                return datetime.fromtimestamp(seconds, tz=UTC)
+            except (OverflowError, OSError, ValueError):
+                return None
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return None
+            try:
+                numeric = float(raw)
+            except ValueError:
+                normalized = raw.replace("Z", "+00:00")
+                try:
+                    parsed = datetime.fromisoformat(normalized)
+                except ValueError:
+                    return None
+                if parsed.tzinfo is None:
+                    return parsed.replace(tzinfo=UTC)
+                return parsed.astimezone(UTC)
+            return GatewaySessionService._parse_datetime(numeric)
+        return None
+
+    @staticmethod
+    def _normalize_window_label(value: object) -> str:
+        if not isinstance(value, str):
+            return ""
+        return value.strip().lower()
+
+    @classmethod
+    def _extract_usage_window(
+        cls,
+        windows: list[dict[str, object]],
+        *,
+        predicate: Callable[[str], bool],
+    ) -> GatewayUsageRemainingWindow | None:
+        for window in windows:
+            if not predicate(cls._normalize_window_label(window.get("label"))):
+                continue
+            used_pct = cls._parse_percent(window.get("usedPercent"))
+            if used_pct is None:
+                used_pct = cls._parse_percent(window.get("used_percent"))
+            remaining_pct = None if used_pct is None else max(0.0, min(100.0, 100.0 - used_pct))
+            reset_at = cls._parse_datetime(window.get("resetAt"))
+            if reset_at is None:
+                reset_at = cls._parse_datetime(window.get("reset_at"))
+            return GatewayUsageRemainingWindow(
+                remaining_pct=remaining_pct,
+                reset_at=reset_at,
+            )
+        return None
+
+    @classmethod
+    def _summarize_usage(cls, payload: object) -> GatewayUsageRemainingSummary:
+        usage_record = cls.as_object_dict(payload)
+        if usage_record is None:
+            return GatewayUsageRemainingSummary(unavailable_reason="usage.status returned no payload")
+
+        raw_providers = cls.as_object_list(usage_record.get("providers"))
+        providers = [item for item in raw_providers if isinstance(item, dict)]
+        if not providers:
+            return GatewayUsageRemainingSummary(
+                updated_at=cls._parse_datetime(
+                    usage_record.get("updatedAt") or usage_record.get("updated_at"),
+                ),
+                unavailable_reason="No provider usage windows were returned.",
+            )
+
+        preferred_provider: dict[str, object] | None = None
+        for provider in providers:
+            if provider.get("provider") == "openai-codex":
+                preferred_provider = provider
+                break
+        if preferred_provider is None:
+            preferred_provider = providers[0]
+
+        windows = [
+            item
+            for item in cls.as_object_list(preferred_provider.get("windows"))
+            if isinstance(item, dict)
+        ]
+
+        five_hour = cls._extract_usage_window(
+            windows,
+            predicate=lambda label: label in {"5h", "5hr", "5-hour", "five-hour"},
+        )
+        weekly = cls._extract_usage_window(
+            windows,
+            predicate=lambda label: ("week" in label) or (label in {"7d", "weekly"}),
+        )
+
+        unavailable_reason: str | None = None
+        if five_hour is None or weekly is None:
+            provider_error = preferred_provider.get("error")
+            if isinstance(provider_error, str) and provider_error.strip():
+                unavailable_reason = provider_error.strip()
+            elif five_hour is None and weekly is None:
+                unavailable_reason = "5-hour and weekly windows were not provided by usage.status."
+            elif five_hour is None:
+                unavailable_reason = "5-hour window was not provided by usage.status."
+            else:
+                unavailable_reason = "Weekly window was not provided by usage.status."
+
+        return GatewayUsageRemainingSummary(
+            provider=preferred_provider.get("provider")
+            if isinstance(preferred_provider.get("provider"), str)
+            else None,
+            provider_display_name=preferred_provider.get("displayName")
+            if isinstance(preferred_provider.get("displayName"), str)
+            else None,
+            updated_at=cls._parse_datetime(
+                usage_record.get("updatedAt") or usage_record.get("updated_at"),
+            ),
+            five_hour=five_hour,
+            weekly=weekly,
+            unavailable_reason=unavailable_reason,
+        )
 
     async def resolve_gateway(
         self,
@@ -256,6 +408,14 @@ class GatewaySessionService(OpenClawDBService):
                         main_session_entry = ensured.get("entry") or ensured
                 except OpenClawGatewayError as exc:
                     main_session_error = str(exc)
+            usage: GatewayUsageRemainingSummary | None = None
+            try:
+                usage_payload = await openclaw_call("usage.status", config=config)
+                usage = self._summarize_usage(usage_payload)
+            except OpenClawGatewayError as exc:
+                usage = GatewayUsageRemainingSummary(
+                    unavailable_reason=normalize_gateway_error_message(str(exc)),
+                )
             return GatewaysStatusResponse(
                 connected=True,
                 gateway_url=config.url,
@@ -263,6 +423,7 @@ class GatewaySessionService(OpenClawDBService):
                 sessions=sessions_list,
                 main_session=main_session_entry,
                 main_session_error=main_session_error,
+                usage=usage,
             )
         except OpenClawGatewayError as exc:
             return GatewaysStatusResponse(

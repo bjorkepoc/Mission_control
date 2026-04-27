@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlmodel import SQLModel
 
 from app.schemas.common import NonEmptyStr
@@ -25,6 +27,25 @@ class GatewayResolveQuery(SQLModel):
     gateway_allow_insecure_tls: bool | None = None
 
 
+class GatewayUsageRemainingWindow(SQLModel):
+    """Usage-remaining snapshot for one quota window."""
+
+    remaining_pct: float | None = None
+    reset_at: datetime | None = None
+
+
+class GatewayUsageRemainingSummary(SQLModel):
+    """Safe subset of gateway usage.status payload for dashboard display."""
+
+    source: str = "usage.status"
+    provider: str | None = None
+    provider_display_name: str | None = None
+    updated_at: datetime | None = None
+    five_hour: GatewayUsageRemainingWindow | None = None
+    weekly: GatewayUsageRemainingWindow | None = None
+    unavailable_reason: str | None = None
+
+
 class GatewaysStatusResponse(SQLModel):
     """Aggregated gateway status response including session metadata."""
 
@@ -34,6 +55,7 @@ class GatewaysStatusResponse(SQLModel):
     sessions: list[object] | None = None
     main_session: object | None = None
     main_session_error: str | None = None
+    usage: GatewayUsageRemainingSummary | None = None
     error: str | None = None
 
 

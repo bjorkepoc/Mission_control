@@ -111,6 +111,8 @@ export * from "./gatewaysStatusResponse";
 export * from "./gatewayTemplatesSyncError";
 export * from "./gatewayTemplatesSyncResult";
 export * from "./gatewayUpdate";
+export * from "./gatewayUsageRemainingSummary";
+export * from "./gatewayUsageRemainingWindow";
 export * from "./getBoardGroupSnapshotApiV1BoardGroupsGroupIdSnapshotGetParams";
 export * from "./getBoardGroupSnapshotApiV1BoardsBoardIdGroupSnapshotGetParams";
 export * from "./getGatewaySessionApiV1GatewaysSessionsSessionIdGetParams";

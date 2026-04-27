@@ -4,6 +4,7 @@
  * Mission Control API
  * OpenAPI spec version: 0.1.0
  */
+import type { GatewayUsageRemainingSummary } from "./gatewayUsageRemainingSummary";
 
 /**
  * Aggregated gateway status response including session metadata.
@@ -16,4 +17,5 @@ export interface GatewaysStatusResponse {
   main_session_error?: string | null;
   sessions?: unknown[] | null;
   sessions_count?: number | null;
+  usage?: GatewayUsageRemainingSummary | null;
 }

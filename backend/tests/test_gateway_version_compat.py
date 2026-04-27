@@ -350,8 +350,23 @@ async def test_gateway_status_returns_sessions_when_version_compatible(
 
     async def _fake_openclaw_call(method: str, params: object = None, *, config: object) -> object:
         _ = (params, config)
-        assert method == "sessions.list"
-        return {"sessions": [{"key": "agent:main"}]}
+        if method == "sessions.list":
+            return {"sessions": [{"key": "agent:main"}]}
+        if method == "usage.status":
+            return {
+                "updatedAt": 1_747_000_000_000,
+                "providers": [
+                    {
+                        "provider": "openai-codex",
+                        "displayName": "OpenAI Codex",
+                        "windows": [
+                            {"label": "5h", "usedPercent": 35, "resetAt": 1_747_003_600_000},
+                            {"label": "Week", "usedPercent": 72, "resetAt": 1_747_086_400_000},
+                        ],
+                    }
+                ],
+            }
+        raise AssertionError(f"Unexpected method {method}")
 
     monkeypatch.setattr(session_service, "check_gateway_version_compatibility", _fake_check)
     monkeypatch.setattr(session_service, "openclaw_call", _fake_openclaw_call)
@@ -365,3 +380,48 @@ async def test_gateway_status_returns_sessions_when_version_compatible(
 
     assert response.connected is True
     assert response.sessions_count == 1
+    assert response.usage is not None
+    assert response.usage.five_hour is not None
+    assert response.usage.weekly is not None
+    assert response.usage.five_hour.remaining_pct == 65
+    assert response.usage.weekly.remaining_pct == 28
+
+
+@pytest.mark.asyncio
+async def test_gateway_status_marks_usage_unavailable_when_usage_status_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _fake_check(config: GatewayConfig, *, minimum_version: str | None = None) -> object:
+        _ = (config, minimum_version)
+        return GatewayVersionCheckResult(
+            compatible=True,
+            minimum_version="2026.1.30",
+            current_version="2026.2.0",
+            message=None,
+        )
+
+    async def _fake_openclaw_call(method: str, params: object = None, *, config: object) -> object:
+        _ = (params, config)
+        if method == "sessions.list":
+            return {"sessions": [{"key": "agent:main"}]}
+        if method == "usage.status":
+            raise OpenClawGatewayError("missing required scope: operator.read")
+        raise AssertionError(f"Unexpected method {method}")
+
+    monkeypatch.setattr(session_service, "check_gateway_version_compatibility", _fake_check)
+    monkeypatch.setattr(session_service, "openclaw_call", _fake_openclaw_call)
+
+    service = GatewaySessionService(session=object())  # type: ignore[arg-type]
+    response = await service.get_status(
+        params=GatewayResolveQuery(gateway_url="ws://gateway.example/ws"),
+        organization_id=uuid4(),
+        user=None,
+    )
+
+    assert response.connected is True
+    assert response.sessions_count == 1
+    assert response.usage is not None
+    assert response.usage.five_hour is None
+    assert response.usage.weekly is None
+    assert response.usage.unavailable_reason is not None
+    assert "missing required scope" in response.usage.unavailable_reason

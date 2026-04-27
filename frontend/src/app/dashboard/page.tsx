@@ -97,6 +97,21 @@ type GatewayTarget = {
   boardName: string;
 };
 
+type UsageRemainingWindow = {
+  remainingPct: number | null;
+  resetAt: string | null;
+};
+
+type GatewayUsageSummary = {
+  source: string | null;
+  provider: string | null;
+  providerDisplayName: string | null;
+  updatedAt: string | null;
+  fiveHour: UsageRemainingWindow | null;
+  weekly: UsageRemainingWindow | null;
+  unavailableReason: string | null;
+};
+
 type GatewaySnapshot = GatewayTarget & {
   connected: boolean;
   gatewayUrl: string | null;
@@ -104,6 +119,7 @@ type GatewaySnapshot = GatewayTarget & {
   sessions: unknown[];
   mainSession: unknown | null;
   mainSessionError: string | null;
+  usage: GatewayUsageSummary | null;
   error: string | null;
   requestError: string | null;
 };
@@ -295,6 +311,46 @@ const readTimestampFromRecords = (
     if (value) return value;
   }
   return null;
+};
+
+const parseUsageWindow = (value: unknown): UsageRemainingWindow | null => {
+  const record = toRecord(value);
+  if (!record) return null;
+  const remainingPct = readNumber(record, ["remaining_pct", "remainingPct"]);
+  const resetAt = readTimestamp(record, ["reset_at", "resetAt"]);
+  if (remainingPct === null && !resetAt) return null;
+  return {
+    remainingPct:
+      remainingPct === null ? null : Math.max(0, Math.min(100, remainingPct)),
+    resetAt,
+  };
+};
+
+const parseGatewayUsageSummary = (value: unknown): GatewayUsageSummary | null => {
+  const record = toRecord(value);
+  if (!record) return null;
+  const source = readString(record, ["source"]);
+  const provider = readString(record, ["provider"]);
+  const providerDisplayName = readString(record, [
+    "provider_display_name",
+    "providerDisplayName",
+  ]);
+  const updatedAt = readTimestamp(record, ["updated_at", "updatedAt"]);
+  const unavailableReason = readString(record, [
+    "unavailable_reason",
+    "unavailableReason",
+  ]);
+  const fiveHour = parseUsageWindow(record.five_hour ?? record.fiveHour);
+  const weekly = parseUsageWindow(record.weekly);
+  return {
+    source,
+    provider,
+    providerDisplayName,
+    updatedAt,
+    fiveHour,
+    weekly,
+    unavailableReason,
+  };
 };
 
 const readIssueWatchdogState = (): Record<string, IssueWatchdogRecord> => {
@@ -944,11 +1000,13 @@ export default function DashboardPage() {
                 sessions: [],
                 mainSession: null,
                 mainSessionError: null,
+                usage: null,
                 error: null,
                 requestError: `Gateway status request failed (${response.status})`,
               };
             }
             const payload: GatewaysStatusResponse = response.data;
+            const payloadRecord = toRecord(payload as unknown);
             return {
               ...target,
               connected: Boolean(payload.connected),
@@ -957,6 +1015,7 @@ export default function DashboardPage() {
               sessions: Array.isArray(payload.sessions) ? payload.sessions : [],
               mainSession: payload.main_session ?? null,
               mainSessionError: payload.main_session_error ?? null,
+              usage: parseGatewayUsageSummary(payloadRecord?.usage),
               error: payload.error ?? null,
               requestError: null,
             };
@@ -970,6 +1029,7 @@ export default function DashboardPage() {
               sessions: [],
               mainSession: null,
               mainSessionError: null,
+              usage: null,
               error: null,
               requestError:
                 error instanceof Error ? error.message : "Gateway status request failed.",
@@ -1001,6 +1061,23 @@ export default function DashboardPage() {
       }),
     [gatewaySnapshots],
   );
+  const usageSummary = useMemo<GatewayUsageSummary | null>(() => {
+    const candidates = gatewaySnapshots
+      .map((snapshot) => snapshot.usage)
+      .filter((entry): entry is GatewayUsageSummary => Boolean(entry));
+    if (candidates.length === 0) return null;
+    const withUsageData = candidates.filter(
+      (entry) =>
+        entry.fiveHour?.remainingPct != null ||
+        entry.weekly?.remainingPct != null,
+    );
+    const ranked = withUsageData.length > 0 ? withUsageData : candidates;
+    return [...ranked].sort((left, right) => {
+      const leftTime = parseTimestamp(left.updatedAt)?.getTime() ?? 0;
+      const rightTime = parseTimestamp(right.updatedAt)?.getTime() ?? 0;
+      return rightTime - leftTime;
+    })[0] ?? null;
+  }, [gatewaySnapshots]);
 
   const activityEvents = useMemo(
     () =>
@@ -1063,6 +1140,36 @@ export default function DashboardPage() {
     0,
   );
   const activeSessions = Math.max(countedSessions, sessionSummaries.length);
+  const fiveHourRemaining = usageSummary?.fiveHour?.remainingPct ?? null;
+  const weeklyRemaining = usageSummary?.weekly?.remainingPct ?? null;
+  const fiveHourRemainingLabel =
+    fiveHourRemaining !== null ? `${Math.round(fiveHourRemaining)}%` : DASH;
+  const weeklyRemainingLabel =
+    weeklyRemaining !== null ? `${Math.round(weeklyRemaining)}%` : DASH;
+  const fiveHourDetail =
+    usageSummary?.fiveHour?.resetAt
+      ? `Reset ${formatRelativeTimestamp(usageSummary.fiveHour.resetAt)}`
+      : usageSummary?.unavailableReason
+        ? "Ikke tilgjengelig"
+        : "Ikke rapportert";
+  const weeklyDetail =
+    usageSummary?.weekly?.resetAt
+      ? `Reset ${formatRelativeTimestamp(usageSummary.weekly.resetAt)}`
+      : usageSummary?.unavailableReason
+        ? "Ikke tilgjengelig"
+        : "Ikke rapportert";
+  const usageSourceLabel =
+    usageSummary?.providerDisplayName ??
+    usageSummary?.provider ??
+    usageSummary?.source ??
+    "usage.status";
+  const usageStatusLabel = !hasConfiguredGateways
+    ? "Ingen gateway"
+    : gatewayStatusesQuery.isLoading
+      ? "Henter usage"
+      : usageSummary?.updatedAt
+        ? `Oppdatert ${formatRelativeTimestamp(usageSummary.updatedAt)}`
+        : "Usage utilgjengelig";
 
   const gatewayStatusLabel = !hasConfiguredGateways
     ? "Not configured"
@@ -1473,6 +1580,38 @@ export default function DashboardPage() {
                 Load failed: {metricsQuery.error.message}
               </div>
             ) : null}
+
+            <section className="mb-4 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-sky-50 px-4 py-3 shadow-sm">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Timer className="h-4 w-4 text-indigo-600" />
+                  <span>Usage igjen</span>
+                  <span className="rounded-full border border-indigo-200 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                    {usageStatusLabel}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2 text-sm">
+                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-700 shadow-sm">
+                    <span className="font-medium text-slate-500">5 timer:</span>{" "}
+                    <span className="font-semibold text-slate-950">{fiveHourRemainingLabel}</span>
+                    <span className="ml-1 text-xs text-slate-500">{fiveHourDetail}</span>
+                  </span>
+                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-700 shadow-sm">
+                    <span className="font-medium text-slate-500">Uke:</span>{" "}
+                    <span className="font-semibold text-slate-950">{weeklyRemainingLabel}</span>
+                    <span className="ml-1 text-xs text-slate-500">{weeklyDetail}</span>
+                  </span>
+                  <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs text-slate-500">
+                    Kilde: {usageSourceLabel}
+                  </span>
+                </div>
+              </div>
+              {usageSummary?.unavailableReason ? (
+                <p className="mt-2 text-xs text-amber-700">
+                  {usageSummary.unavailableReason}
+                </p>
+              ) : null}
+            </section>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <TopMetricCard
