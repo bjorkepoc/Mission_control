@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   Network,
   Settings,
+  Sparkles,
   Store,
   Tags,
   Terminal,
@@ -105,6 +106,30 @@ export function DashboardSidebar() {
               >
                 <Terminal className="h-4 w-4" />
                 CLI Chat
+              </Link>
+              <Link
+                href="/jarvis-live"
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[color:var(--text)] transition",
+                  pathname.startsWith("/jarvis-live")
+                    ? "bg-[color:var(--surface-strong)] text-[color:var(--accent-strong)] font-medium"
+                    : "hover:bg-[color:var(--surface-muted)] hover:text-[color:var(--accent-strong)]",
+                )}
+              >
+                <Sparkles className="h-4 w-4" />
+                Jarvis Live
+              </Link>
+              <Link
+                href="/polymarket"
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[color:var(--text)] transition",
+                  pathname.startsWith("/polymarket")
+                    ? "bg-[color:var(--surface-strong)] text-[color:var(--accent-strong)] font-medium"
+                    : "hover:bg-[color:var(--surface-muted)] hover:text-[color:var(--accent-strong)]",
+                )}
+              >
+                <Network className="h-4 w-4" />
+                Polymarket
               </Link>
             </div>
           </div>

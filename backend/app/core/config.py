@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     cors_origins: str = ""
     base_url: str = ""
 
+    # Polymarket dashboard is intentionally personal/sensitive. Keep it behind
+    # an explicit user allowlist instead of generic organization membership.
+    # Prefer stable user IDs; email allowlisting is a local-mode fallback only.
+    polymarket_allowed_user_ids: str = ""
+    polymarket_allowed_user_emails: str = ""
+
     # Security response headers (set to blank to disable a specific header)
     security_header_x_content_type_options: str = "nosniff"
     security_header_x_frame_options: str = "DENY"
