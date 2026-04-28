@@ -18,6 +18,7 @@ import {
   listBoardMemoryApiV1BoardsBoardIdMemoryGet,
   streamBoardMemoryApiV1BoardsBoardIdMemoryStreamGet,
 } from "@/api/generated/board-memory/board-memory";
+import { ApiError } from "@/api/mutator";
 import { listBoardsApiV1BoardsGet } from "@/api/generated/boards/boards";
 import type { BoardMemoryRead, BoardRead } from "@/api/generated/model";
 import { Markdown } from "@/components/atoms/Markdown";
@@ -54,14 +55,124 @@ type SpeechWindow = Window &
   };
 
 type StreamStatus = "idle" | "connecting" | "live" | "fallback";
+type CallModeStatus =
+  | "listening"
+  | "thinking"
+  | "speaking"
+  | "idle"
+  | "unsupported";
+type VoiceRouteId =
+  | "browser-call"
+  | "local-stack"
+  | "cloud-realtime"
+  | "phone-bridge";
+type VoiceRouteOption = {
+  id: VoiceRouteId;
+  label: string;
+  state: "live-now" | "prototype";
+  summary: string;
+  architecture: string;
+};
+type ExperimentTrackCard = {
+  id: "browser" | "hybrid";
+  title: string;
+  subtitle: string;
+  latency: string;
+  privacy: string;
+  reliability: string;
+  buildEffort: string;
+  pros: string;
+  cons: string;
+  nextTest: string;
+};
 
 const BOARD_CHAT_PAGE_LIMIT = 200;
 const STREAM_FALLBACK_POLL_MS = 15_000;
 const JARVIS_SOURCE = "Jarvis Live Talk";
 const QUICK_INSERT_CHIPS = ["@lead ", "@all ", "/pause", "/resume"];
+const CALL_MODE_DUPLICATE_GUARD_MS = 2_000;
+const CALL_MODE_RESTART_DELAY_MS = 220;
+const VOICE_ROUTE_OPTIONS: VoiceRouteOption[] = [
+  {
+    id: "browser-call",
+    label: "Browser call mode",
+    state: "live-now",
+    summary: "Current MVP path. Browser STT/TTS + board-memory chat route.",
+    architecture:
+      "Mic/STT in browser -> board-memory chat -> browser TTS reply (WebRTC bridge planned).",
+  },
+  {
+    id: "local-stack",
+    label: "Local stack",
+    state: "prototype",
+    summary: "Research route for local STT/TTS engines and local audio control.",
+    architecture:
+      "Local STT/TTS workers -> board-memory chat orchestration -> local audio playback.",
+  },
+  {
+    id: "cloud-realtime",
+    label: "Cloud realtime",
+    state: "prototype",
+    summary:
+      "Research route for low-latency cloud realtime audio while preserving board context.",
+    architecture:
+      "Cloud realtime audio bridge -> board-memory chat context sync -> cloud or browser TTS.",
+  },
+  {
+    id: "phone-bridge",
+    label: "Phone bridge",
+    state: "prototype",
+    summary:
+      "Research route for PSTN-like phone conversation without implementing it yet.",
+    architecture:
+      "Phone gateway/PSTN bridge -> board-memory chat context -> realtime voice relay.",
+  },
+];
+const EXPERIMENT_TRACK_CARDS: ExperimentTrackCard[] = [
+  {
+    id: "browser",
+    title: "Browser live / WebRTC-ready",
+    subtitle: "Recommended path",
+    latency: "Low-medium today, lower with WebRTC bridge",
+    privacy: "Browser mic/audio stays local; transcript sent to API",
+    reliability: "Good fallback: manual text always available",
+    buildEffort: "Low now, medium for realtime bridge hardening",
+    pros: "Fast to iterate with existing frontend controls and fallback paths.",
+    cons: "Latency and browser API behavior vary by device and browser.",
+    nextTest: "Implement realtime WebRTC bridge behind feature flag.",
+  },
+  {
+    id: "hybrid",
+    title: "Research/local-cloud hybrid",
+    subtitle: "Research-inspired path",
+    latency: "Potentially lowest, depends on local/cloud route quality",
+    privacy: "Flexible: local-first possible, cloud path varies by provider",
+    reliability: "Higher ops complexity; route-specific failure handling needed",
+    buildEffort: "Medium-high due transport + infra branching",
+    pros: "Can optimize for privacy or realtime quality based on route selection.",
+    cons: "Needs additional routing, observability, and failure recovery work.",
+    nextTest: "Prototype simulated route telemetry before real audio wiring.",
+  },
+];
 
 const normalizeSource = (value: string | null | undefined) =>
   (value ?? "").trim().toLowerCase();
+
+const getSendApiErrorMessage = (error: ApiError) => {
+  if (error.status === 401 || error.status === 403) {
+    return "Authentication failed while sending. Sign in again and retry.";
+  }
+  if (error.status === 404) {
+    return "The selected board was not found. Refresh boards and choose another board.";
+  }
+  if (error.status === 422) {
+    return "Message was rejected by board-memory validation. Check board and message text.";
+  }
+  if (error.status >= 500) {
+    return `Board-memory API is unavailable right now (HTTP ${error.status}).`;
+  }
+  return `Unable to send message (HTTP ${error.status}).`;
+};
 
 const formatTime = (value: string) => {
   const date = new Date(value);
@@ -225,17 +336,39 @@ function JarvisLiveContent() {
   const [speechSynthesisSupported, setSpeechSynthesisSupported] =
     useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [callModeEnabled, setCallModeEnabled] = useState(false);
+  const [activeVoiceRouteId, setActiveVoiceRouteId] =
+    useState<VoiceRouteId>("browser-call");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const latestSeenRef = useRef<string | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
   const postSendRefreshTimersRef = useRef<number[]>([]);
   const locallySentIdsRef = useRef<Set<string>>(new Set());
   const lastSpokenMessageIdRef = useRef<string | null>(null);
+  const sendInFlightRef = useRef(false);
+  const callModeEnabledRef = useRef(false);
+  const isSpeakingRef = useRef(false);
+  const speechPauseRef = useRef(false);
+  const preventAutoRestartRef = useRef(false);
+  const lastAutoSubmitRef = useRef<{
+    normalized: string;
+    at: number;
+  } | null>(null);
+  const startSpeechInputRef = useRef<(autoRestart: boolean) => void>(() => {});
 
   const selectedBoard = useMemo(
     () => boards.find((board) => board.id === selectedBoardId) ?? null,
     [boards, selectedBoardId],
   );
+  const activeVoiceRoute = useMemo(
+    () =>
+      VOICE_ROUTE_OPTIONS.find((route) => route.id === activeVoiceRouteId) ??
+      VOICE_ROUTE_OPTIONS[0],
+    [activeVoiceRouteId],
+  );
+  const isBrowserVoiceRoute = activeVoiceRoute.id === "browser-call";
 
   const assistantMessages = useMemo(
     () =>
@@ -252,10 +385,19 @@ function JarvisLiveContent() {
 
   const latestAssistantMessage =
     assistantMessages[assistantMessages.length - 1] ?? null;
+  const latestAssistantMessageId = latestAssistantMessage?.id ?? null;
   const latestAssistantContent = latestAssistantMessage?.content ?? "";
+  const effectiveTtsEnabled = isBrowserVoiceRoute && (callModeEnabled || ttsEnabled);
   const subtitleText =
     latestAssistantContent.trim() ||
     "Waiting for assistant response from board chat.";
+  const sendDisabledReason = useMemo(() => {
+    if (!isSignedIn) return "Sign in required to send.";
+    if (!selectedBoardId) return "Select a board to enable send.";
+    if (!prompt.trim()) return "Type a message to enable send.";
+    if (isSending || sendInFlightRef.current) return "Send in progress...";
+    return null;
+  }, [isSending, isSignedIn, prompt, selectedBoardId]);
 
   const streamStatusText = useMemo(() => {
     if (streamStatus === "live") return "Live stream updates";
@@ -263,6 +405,38 @@ function JarvisLiveContent() {
     if (streamStatus === "fallback") return "Fallback refresh every 15s";
     return "Waiting for stream";
   }, [streamStatus]);
+
+  const callModeStatus = useMemo<CallModeStatus>(() => {
+    if (!callModeEnabled) return "idle";
+    if (!isBrowserVoiceRoute) return "unsupported";
+    if (!speechRecognitionSupported || !speechSynthesisSupported) {
+      return "unsupported";
+    }
+    if (isSpeaking) return "speaking";
+    if (isListening) return "listening";
+    if (isThinking || isSending) return "thinking";
+    return "idle";
+  }, [
+    callModeEnabled,
+    isBrowserVoiceRoute,
+    isListening,
+    isSending,
+    isSpeaking,
+    isThinking,
+    speechRecognitionSupported,
+    speechSynthesisSupported,
+  ]);
+
+  const callModeStatusText = useMemo(() => {
+    if (!isBrowserVoiceRoute) {
+      return "Call status: Browser route required";
+    }
+    if (callModeStatus === "unsupported") return "Call status: Unsupported";
+    if (callModeStatus === "listening") return "Call status: Listening";
+    if (callModeStatus === "thinking") return "Call status: Thinking";
+    if (callModeStatus === "speaking") return "Call status: Speaking";
+    return "Call status: Idle";
+  }, [callModeStatus, isBrowserVoiceRoute]);
 
   const loadBoards = useCallback(async () => {
     if (!isSignedIn) return;
@@ -342,6 +516,9 @@ function JarvisLiveContent() {
       setMessages([]);
       setHasLoadedInitialMessages(false);
       setStreamStatus("idle");
+      setIsThinking(false);
+      sendInFlightRef.current = false;
+      lastAutoSubmitRef.current = null;
       latestSeenRef.current = null;
       locallySentIdsRef.current.clear();
       lastSpokenMessageIdRef.current = null;
@@ -350,6 +527,9 @@ function JarvisLiveContent() {
     setMessages([]);
     setHasLoadedInitialMessages(false);
     setStreamStatus("idle");
+    setIsThinking(false);
+    sendInFlightRef.current = false;
+    lastAutoSubmitRef.current = null;
     latestSeenRef.current = null;
     locallySentIdsRef.current.clear();
     lastSpokenMessageIdRef.current = null;
@@ -446,6 +626,46 @@ function JarvisLiveContent() {
     );
   }, []);
 
+  useEffect(() => {
+    callModeEnabledRef.current = callModeEnabled;
+  }, [callModeEnabled]);
+
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
+
+  useEffect(() => {
+    if (isBrowserVoiceRoute) {
+      setNotice((current) =>
+        current?.startsWith("Simulation route:") ? null : current,
+      );
+      return;
+    }
+    setNotice(
+      `Simulation route: ${activeVoiceRoute.label} is prototype/planned. Text still sends through board-memory chat.`,
+    );
+  }, [activeVoiceRoute.label, isBrowserVoiceRoute]);
+
+  useEffect(() => {
+    if (isBrowserVoiceRoute) return;
+    preventAutoRestartRef.current = true;
+    speechPauseRef.current = false;
+    recognitionRef.current?.stop();
+    setIsListening(false);
+    if (callModeEnabled) {
+      setCallModeEnabled(false);
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+  }, [callModeEnabled, isBrowserVoiceRoute]);
+
+  useEffect(() => {
+    if (!latestAssistantMessageId) return;
+    setIsThinking(false);
+  }, [latestAssistantMessageId]);
+
   useEffect(
     () => () => {
       recognitionRef.current?.stop();
@@ -457,14 +677,230 @@ function JarvisLiveContent() {
   );
 
   useEffect(() => {
-    if (ttsEnabled) return;
+    if (effectiveTtsEnabled) return;
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
-  }, [ttsEnabled]);
+    speechPauseRef.current = false;
+    setIsSpeaking(false);
+  }, [effectiveTtsEnabled]);
+
+  const sendBoardChatMessage = useCallback(
+    async (rawContent: string, options?: { clearPrompt?: boolean }) => {
+      const content = rawContent.trim();
+      if (!isSignedIn) {
+        setError("Sign in is required before sending messages.");
+        return false;
+      }
+      if (!selectedBoardId) {
+        setError("Select a board before sending.");
+        return false;
+      }
+      if (!content) {
+        setError("Type a message before sending.");
+        return false;
+      }
+      if (sendInFlightRef.current || isSending) {
+        setNotice("A previous send is still in progress. Please wait a moment.");
+        return false;
+      }
+
+      sendInFlightRef.current = true;
+      setIsSending(true);
+      setError(null);
+      setNotice(null);
+      try {
+        const result = await createBoardMemoryApiV1BoardsBoardIdMemoryPost(
+          selectedBoardId,
+          {
+            content,
+            tags: [
+              "chat",
+              "jarvis-live",
+              `voice-route:${activeVoiceRoute.id}`,
+              isBrowserVoiceRoute ? "voice-live" : "voice-simulated",
+            ],
+            source: JARVIS_SOURCE,
+          },
+        );
+        if (result.status !== 200) {
+          throw new Error("Unable to send message.");
+        }
+        locallySentIdsRef.current.add(result.data.id);
+        if (options?.clearPrompt) {
+          setPrompt("");
+        }
+        setMessages((current) => {
+          const next = mergeMessages(current, [result.data]);
+          latestSeenRef.current =
+            next[next.length - 1]?.created_at ?? latestSeenRef.current;
+          return next;
+        });
+        setIsThinking(true);
+        schedulePostSendRefreshes();
+        if (!isBrowserVoiceRoute) {
+          setNotice(
+            `Simulation route active: ${activeVoiceRoute.label} sent through board-memory chat.`,
+          );
+        }
+        return true;
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(getSendApiErrorMessage(err));
+        } else {
+          setError(err instanceof Error ? err.message : "Unable to send message.");
+        }
+        return false;
+      } finally {
+        setIsSending(false);
+        sendInFlightRef.current = false;
+      }
+    },
+    [
+      activeVoiceRoute.id,
+      activeVoiceRoute.label,
+      isBrowserVoiceRoute,
+      isSending,
+      isSignedIn,
+      schedulePostSendRefreshes,
+      selectedBoardId,
+    ],
+  );
+
+  const startSpeechInput = useCallback(
+    (autoRestart = false) => {
+      if (!isBrowserVoiceRoute) {
+        setNotice(
+          `Voice route ${activeVoiceRoute.label} is prototype/planned. Use manual send simulation for now.`,
+        );
+        return;
+      }
+      if (typeof window === "undefined") return;
+      const speechWindow = window as SpeechWindow;
+      const Recognition =
+        speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+      if (!Recognition) {
+        setError(
+          "Speech-to-text is not available in this browser. Use text input instead.",
+        );
+        return;
+      }
+      if (isSpeakingRef.current) return;
+
+      if (isListening && !autoRestart) {
+        preventAutoRestartRef.current = true;
+        recognitionRef.current?.stop();
+        setIsListening(false);
+        return;
+      }
+
+      preventAutoRestartRef.current = true;
+      recognitionRef.current?.stop();
+      const recognition = new Recognition();
+      recognition.lang = "nb-NO";
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.onresult = (event) => {
+        let finalTranscript = "";
+        for (let index = 0; index < event.results.length; index += 1) {
+          const transcript = event.results[index]?.[0]?.transcript ?? "";
+          const isFinal = event.results[index]?.isFinal ?? true;
+          if (!isFinal || !transcript.trim()) continue;
+          finalTranscript = appendText(finalTranscript, transcript);
+        }
+        const transcript = finalTranscript.trim();
+        if (!transcript) return;
+
+        if (!callModeEnabledRef.current) {
+          setPrompt((current) => appendText(current, transcript));
+          return;
+        }
+
+        const normalized = transcript.toLowerCase().replace(/\s+/g, " ");
+        const now = Date.now();
+        const previous = lastAutoSubmitRef.current;
+        if (
+          previous &&
+          previous.normalized === normalized &&
+          now - previous.at < CALL_MODE_DUPLICATE_GUARD_MS
+        ) {
+          return;
+        }
+        lastAutoSubmitRef.current = { normalized, at: now };
+        void sendBoardChatMessage(transcript);
+      };
+      recognition.onerror = () => {
+        setError("Speech input stopped before it produced text.");
+        setIsListening(false);
+      };
+      recognition.onend = () => {
+        setIsListening(false);
+        if (!callModeEnabledRef.current || preventAutoRestartRef.current) return;
+        if (speechPauseRef.current || isSpeakingRef.current) return;
+        window.setTimeout(() => {
+          if (!callModeEnabledRef.current) return;
+          if (speechPauseRef.current || isSpeakingRef.current) return;
+          startSpeechInputRef.current(true);
+        }, CALL_MODE_RESTART_DELAY_MS);
+      };
+      recognitionRef.current = recognition;
+      setError(null);
+      setIsListening(true);
+      preventAutoRestartRef.current = false;
+      try {
+        recognition.start();
+      } catch {
+        setIsListening(false);
+        setError("Speech input could not start in this browser session.");
+      }
+    },
+    [activeVoiceRoute.label, isBrowserVoiceRoute, isListening, sendBoardChatMessage],
+  );
 
   useEffect(() => {
-    if (!ttsEnabled || !speechSynthesisSupported || !latestAssistantMessage) {
+    startSpeechInputRef.current = startSpeechInput;
+  }, [startSpeechInput]);
+
+  useEffect(() => {
+    if (!callModeEnabled) {
+      preventAutoRestartRef.current = true;
+      speechPauseRef.current = false;
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      setNotice((current) =>
+        current?.startsWith("Call mode active:") ? null : current,
+      );
+      return;
+    }
+    if (!isBrowserVoiceRoute) {
+      setCallModeEnabled(false);
+      setNotice(
+        "Call mode only runs on Browser call mode. Prototype routes stay in simulation mode.",
+      );
+      return;
+    }
+    setNotice(
+      "Call mode active: final speech transcripts auto-send through board-memory chat.",
+    );
+    if (!speechRecognitionSupported || !speechSynthesisSupported) return;
+    if (isSpeakingRef.current) return;
+    window.setTimeout(() => {
+      if (!callModeEnabledRef.current || isSpeakingRef.current) return;
+      startSpeechInputRef.current(true);
+    }, CALL_MODE_RESTART_DELAY_MS);
+  }, [
+    callModeEnabled,
+    isBrowserVoiceRoute,
+    speechRecognitionSupported,
+    speechSynthesisSupported,
+  ]);
+
+  useEffect(() => {
+    if (
+      !effectiveTtsEnabled ||
+      !speechSynthesisSupported ||
+      !latestAssistantMessage
+    ) {
       return;
     }
     if (lastSpokenMessageIdRef.current === latestAssistantMessage.id) {
@@ -475,93 +911,57 @@ function JarvisLiveContent() {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       return;
     }
+    if (callModeEnabledRef.current && isListening) {
+      speechPauseRef.current = true;
+      preventAutoRestartRef.current = true;
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(content);
     utterance.rate = 1;
     utterance.pitch = 1;
     utterance.lang = "en-US";
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+    };
+    const finishSpeaking = () => {
+      setIsSpeaking(false);
+      speechPauseRef.current = false;
+      if (!callModeEnabledRef.current || !speechRecognitionSupported) return;
+      window.setTimeout(() => {
+        if (!callModeEnabledRef.current || isSpeakingRef.current) return;
+        startSpeechInputRef.current(true);
+      }, CALL_MODE_RESTART_DELAY_MS);
+    };
+    utterance.onend = finishSpeaking;
+    utterance.onerror = finishSpeaking;
     lastSpokenMessageIdRef.current = latestAssistantMessage.id;
     window.speechSynthesis.speak(utterance);
-  }, [latestAssistantMessage, speechSynthesisSupported, ttsEnabled]);
-
-  const startSpeechInput = useCallback(() => {
-    if (typeof window === "undefined") return;
-    const speechWindow = window as SpeechWindow;
-    const Recognition =
-      speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
-    if (!Recognition) {
-      setError(
-        "Speech-to-text is not available in this browser. Use text input instead.",
-      );
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
-    recognitionRef.current?.stop();
-    const recognition = new Recognition();
-    recognition.lang = "nb-NO";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.onresult = (event) => {
-      let transcript = "";
-      for (let index = 0; index < event.results.length; index += 1) {
-        transcript += event.results[index]?.[0]?.transcript ?? "";
-      }
-      if (transcript.trim()) {
-        setPrompt((current) => appendText(current, transcript));
-      }
-    };
-    recognition.onerror = () => {
-      setError("Speech input stopped before it produced text.");
-      setIsListening(false);
-    };
-    recognition.onend = () => setIsListening(false);
-    recognitionRef.current = recognition;
-    setError(null);
-    setIsListening(true);
-    recognition.start();
-  }, [isListening]);
+  }, [
+    effectiveTtsEnabled,
+    isListening,
+    latestAssistantMessage,
+    speechRecognitionSupported,
+    speechSynthesisSupported,
+  ]);
 
   const sendPrompt = useCallback(async () => {
-    if (!selectedBoardId || isSending) return;
     const content = prompt.trim();
-    if (!content) return;
-
-    setIsSending(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const result = await createBoardMemoryApiV1BoardsBoardIdMemoryPost(
-        selectedBoardId,
-        {
-          content,
-          tags: ["chat", "jarvis-live"],
-          source: JARVIS_SOURCE,
-        },
-      );
-      if (result.status !== 200) {
-        throw new Error("Unable to send message.");
-      }
-      locallySentIdsRef.current.add(result.data.id);
-      setPrompt("");
-      setMessages((current) => {
-        const next = mergeMessages(current, [result.data]);
-        latestSeenRef.current =
-          next[next.length - 1]?.created_at ?? latestSeenRef.current;
-        return next;
-      });
-      schedulePostSendRefreshes();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to send message.");
-    } finally {
-      setIsSending(false);
+    if (!isSignedIn) {
+      setError("Sign in is required before sending messages.");
+      return;
     }
-  }, [isSending, prompt, schedulePostSendRefreshes, selectedBoardId]);
+    if (!selectedBoardId) {
+      setError("Select a board before sending.");
+      return;
+    }
+    if (!content) {
+      setError("Type a message before sending.");
+      return;
+    }
+    await sendBoardChatMessage(content, { clearPrompt: true });
+  }, [isSignedIn, prompt, selectedBoardId, sendBoardChatMessage]);
 
   const handleComposerKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -595,7 +995,16 @@ function JarvisLiveContent() {
                 {streamStatusText}
               </span>
               <span className="mc-status-pill rounded-full border px-3 py-1">
+                {activeVoiceRoute.label}
+              </span>
+              <span className="mc-status-pill rounded-full border px-3 py-1">
+                {callModeStatusText}
+              </span>
+              <span className="mc-status-pill rounded-full border px-3 py-1">
                 Text fallback always on
+              </span>
+              <span className="mc-status-pill rounded-full border px-3 py-1">
+                {isBrowserVoiceRoute ? "Live browser route" : "Prototype simulation"}
               </span>
             </div>
           </div>
@@ -625,40 +1034,131 @@ function JarvisLiveContent() {
             </div>
 
             <div className="mc-panel-muted-surface mt-5 rounded-2xl border p-3 text-xs leading-5">
+              <p className="mc-title-text font-semibold">Experiment mode</p>
+              <p className="mc-muted-text mt-1">
+                Compare two safe routes side-by-side while keeping board-memory
+                chat as the common send path.
+              </p>
+              <div className="mt-3 space-y-2">
+                {EXPERIMENT_TRACK_CARDS.map((track) => (
+                  <article key={track.id} className="rounded-xl border px-2.5 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="mc-title-text text-[11px] font-semibold">
+                        {track.title}
+                      </p>
+                      <span className="mc-status-pill rounded-full border px-2 py-0.5 text-[10px]">
+                        {track.subtitle}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[11px]">Latency: {track.latency}</p>
+                    <p className="text-[11px]">Privacy: {track.privacy}</p>
+                    <p className="text-[11px]">Reliability: {track.reliability}</p>
+                    <p className="text-[11px]">Build effort: {track.buildEffort}</p>
+                    <p className="mt-2 text-[11px]">Pros: {track.pros}</p>
+                    <p className="text-[11px]">Cons: {track.cons}</p>
+                    <p className="mc-muted-text mt-2 text-[11px]">
+                      Next test: {track.nextTest}
+                    </p>
+                  </article>
+                ))}
+              </div>
+
+              <label className="mc-muted-text mt-3 block text-[11px] font-semibold uppercase tracking-wider">
+                Active voice route
+              </label>
+              <div className="mt-2 space-y-2">
+                {VOICE_ROUTE_OPTIONS.map((route) => (
+                  <button
+                    key={route.id}
+                    type="button"
+                    onClick={() => setActiveVoiceRouteId(route.id)}
+                    className={cn(
+                      "w-full rounded-xl border px-2.5 py-2 text-left text-[11px]",
+                      activeVoiceRoute.id === route.id
+                        ? "ring-1 ring-cyan-300/40"
+                        : "",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="mc-title-text font-semibold">
+                        {route.label}
+                      </span>
+                      <span className="mc-status-pill rounded-full border px-2 py-0.5 text-[10px]">
+                        {route.state === "live-now" ? "Live now" : "Prototype/planned"}
+                      </span>
+                    </div>
+                    <p className="mc-muted-text mt-1">{route.summary}</p>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 rounded-xl border border-dashed px-2.5 py-2 text-[11px] leading-5">
+                Architecture: {activeVoiceRoute.architecture}
+              </div>
+            </div>
+
+            <div className="mc-panel-muted-surface mt-4 rounded-2xl border p-3 text-xs leading-5">
               <p className="mc-title-text font-semibold">Voice controls</p>
               <p className="mc-muted-text mt-1">
-                STT uses browser APIs when available. TTS is optional and
-                starts disabled.
+                {isBrowserVoiceRoute
+                  ? "Call mode keeps speech input and reply audio active while using board-memory chat as the single route."
+                  : "Prototype route selected. Voice controls stay in planning/simulation mode; manual send remains active."}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button
                   type="button"
+                  variant={callModeEnabled ? "primary" : "outline"}
+                  size="sm"
+                  onClick={() => setCallModeEnabled((current) => !current)}
+                  disabled={!selectedBoardId || !isBrowserVoiceRoute}
+                >
+                  <Mic className="h-4 w-4" />
+                  {callModeEnabled ? "End call mode" : "Start call mode"}
+                </Button>
+                <Button
+                  type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={startSpeechInput}
-                  disabled={!speechRecognitionSupported}
+                  onClick={() => startSpeechInput(false)}
+                  disabled={
+                    !isBrowserVoiceRoute ||
+                    !speechRecognitionSupported ||
+                    callModeEnabled
+                  }
                 >
                   <Mic className="h-4 w-4" />
                   {isListening ? "Stop listening" : "Start voice input"}
                 </Button>
                 <Button
                   type="button"
-                  variant={ttsEnabled ? "primary" : "outline"}
+                  variant={effectiveTtsEnabled ? "primary" : "outline"}
                   size="sm"
                   onClick={() => setTtsEnabled((current) => !current)}
-                  disabled={!speechSynthesisSupported}
+                  disabled={!isBrowserVoiceRoute || !speechSynthesisSupported}
                 >
                   <Sparkles className="h-4 w-4" />
-                  {ttsEnabled ? "TTS on" : "TTS off"}
+                  {effectiveTtsEnabled ? "TTS on" : "TTS off"}
                 </Button>
               </div>
-              {!speechRecognitionSupported ? (
+              <p className="mc-muted-text mt-2 text-[11px]">
+                {callModeStatusText}
+              </p>
+              {callModeEnabled ? (
+                <p className="mc-muted-text mt-1 text-[11px]">
+                  Push-to-talk is paused while call mode handles listening.
+                </p>
+              ) : null}
+              <div className="mt-2 rounded-xl border border-dashed px-2.5 py-2 text-[11px] leading-5">
+                {isBrowserVoiceRoute
+                  ? "Safety note: this mode uses browser STT/TTS. Voice text is sent through board-memory chat, and manual text fallback remains available."
+                  : "Safety note: prototype routes are simulated only. Messages still go through board-memory chat, and no live phone/cloud bridge is activated."}
+              </div>
+              {isBrowserVoiceRoute && !speechRecognitionSupported ? (
                 <p className="mt-2 text-[11px] text-amber-300">
                   SpeechRecognition unavailable. Use keyboard input on this
                   browser.
                 </p>
               ) : null}
-              {!speechSynthesisSupported ? (
+              {isBrowserVoiceRoute && !speechSynthesisSupported ? (
                 <p className="mt-1 text-[11px] text-amber-300">
                   SpeechSynthesis unavailable in this browser.
                 </p>
@@ -668,8 +1168,7 @@ function JarvisLiveContent() {
             <div className="mc-panel-muted-surface mt-4 rounded-2xl border p-3 text-xs leading-5">
               <p className="mc-title-text font-semibold">Quick dispatch chips</p>
               <p className="mc-muted-text mt-1">
-                Inserts command text into the composer. Nothing sends
-                automatically.
+                Inserts command text into the composer. Chips never auto-send.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {QUICK_INSERT_CHIPS.map((chip) => (
@@ -688,6 +1187,8 @@ function JarvisLiveContent() {
             <div className="mc-panel-muted-surface mc-muted-text mt-4 rounded-2xl border p-3 text-xs leading-5">
               <p className="mc-title-text font-semibold">Active route</p>
               <p className="mt-1">{selectedBoard?.name ?? "No board selected"}</p>
+              <p className="mt-1">Voice route: {activeVoiceRoute.label}</p>
+              <p className="mt-1">Route mode: {isBrowserVoiceRoute ? "Live" : "Prototype/planned"}</p>
               <p className="mt-1">Source tag: {JARVIS_SOURCE}</p>
             </div>
           </aside>
@@ -785,12 +1286,15 @@ function JarvisLiveContent() {
                 </p>
                 <Button
                   onClick={() => void sendPrompt()}
-                  disabled={!selectedBoardId || !prompt.trim() || isSending}
+                  disabled={Boolean(sendDisabledReason)}
                 >
                   <Send className="h-4 w-4" />
                   {isSending ? "Sending..." : "Send message"}
                 </Button>
               </div>
+              {sendDisabledReason ? (
+                <p className="mc-muted-text mt-2 text-[11px]">{sendDisabledReason}</p>
+              ) : null}
             </div>
           </section>
         </section>

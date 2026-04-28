@@ -11,7 +11,7 @@ import type { PolymarketJournalResponseFeedbackSummary } from "./polymarketJourn
  */
 export interface PolymarketJournalResponse {
   feedback_summary?: PolymarketJournalResponseFeedbackSummary;
-  requests_for_human?: string[];
   latest_events?: unknown[];
+  requests_for_human?: string[];
   warnings?: string[];
 }

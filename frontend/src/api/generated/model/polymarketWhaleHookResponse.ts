@@ -13,13 +13,14 @@ import type { PolymarketWhaleHookResponseExecution } from "./polymarketWhaleHook
  * Read-only whale-hook execution and diagnostics summary.
  */
 export interface PolymarketWhaleHookResponse {
-  source_file?: string | null;
-  generated_at?: string | null;
-  whale_count: number;
-  selected_actions?: unknown[];
   action_diagnostics?: PolymarketWhaleHookResponseActionDiagnostics;
+  capital_allocator?: PolymarketWhaleHookResponseCapitalAllocator;
   caps?: PolymarketWhaleHookResponseCaps;
   execution?: PolymarketWhaleHookResponseExecution;
-  capital_allocator?: PolymarketWhaleHookResponseCapitalAllocator;
+  generated_at?: string | null;
+  selected_actions?: unknown[];
+  source_file?: string | null;
   warnings?: string[];
+  whale_count: number;
+  whales?: string[];
 }

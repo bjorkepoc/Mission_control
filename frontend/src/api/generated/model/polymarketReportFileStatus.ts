@@ -9,8 +9,8 @@
  * Compact file metadata used in Polymarket status endpoint.
  */
 export interface PolymarketReportFileStatus {
-  path: string;
   exists: boolean;
-  size_bytes?: number | null;
   modified_at?: string | null;
+  path: string;
+  size_bytes?: number | null;
 }

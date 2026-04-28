@@ -13,14 +13,14 @@ import type { PolymarketSignalsResponseProtectedPositions } from "./polymarketSi
  * Read-only strategy signal summary extracted from watcher reports/history.
  */
 export interface PolymarketSignalsResponse {
-  source_file?: string | null;
-  generated_at?: string | null;
   bankroll?: PolymarketSignalsResponseBankroll;
-  plan?: unknown[];
-  suggestions?: unknown[];
-  requests_for_human?: string[];
   comment_analysis?: PolymarketSignalsResponseCommentAnalysis;
-  protected_positions?: PolymarketSignalsResponseProtectedPositions;
   exit_monitor?: PolymarketSignalsResponseExitMonitor;
+  generated_at?: string | null;
+  plan?: unknown[];
+  protected_positions?: PolymarketSignalsResponseProtectedPositions;
+  requests_for_human?: string[];
+  source_file?: string | null;
+  suggestions?: unknown[];
   warnings?: string[];
 }

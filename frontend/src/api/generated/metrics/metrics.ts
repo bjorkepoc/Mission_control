@@ -20,6 +20,7 @@ import type {
 import type {
   DashboardMetrics,
   DashboardMetricsApiV1MetricsDashboardGetParams,
+  DashboardSystemMetrics,
   HTTPValidationError,
 } from ".././model";
 
@@ -234,6 +235,180 @@ export function useDashboardMetricsApiV1MetricsDashboardGet<
     params,
     options,
   );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Return live host CPU, memory, swap, and disk telemetry for the dashboard.
+ * @summary System Metrics
+ */
+export type systemMetricsApiV1MetricsSystemGetResponse200 = {
+  data: DashboardSystemMetrics;
+  status: 200;
+};
+
+export type systemMetricsApiV1MetricsSystemGetResponseSuccess =
+  systemMetricsApiV1MetricsSystemGetResponse200 & {
+    headers: Headers;
+  };
+export type systemMetricsApiV1MetricsSystemGetResponse =
+  systemMetricsApiV1MetricsSystemGetResponseSuccess;
+
+export const getSystemMetricsApiV1MetricsSystemGetUrl = () => {
+  return `/api/v1/metrics/system`;
+};
+
+export const systemMetricsApiV1MetricsSystemGet = async (
+  options?: RequestInit,
+): Promise<systemMetricsApiV1MetricsSystemGetResponse> => {
+  return customFetch<systemMetricsApiV1MetricsSystemGetResponse>(
+    getSystemMetricsApiV1MetricsSystemGetUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getSystemMetricsApiV1MetricsSystemGetQueryKey = () => {
+  return [`/api/v1/metrics/system`] as const;
+};
+
+export const getSystemMetricsApiV1MetricsSystemGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getSystemMetricsApiV1MetricsSystemGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>
+  > = ({ signal }) =>
+    systemMetricsApiV1MetricsSystemGet({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type SystemMetricsApiV1MetricsSystemGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>
+>;
+export type SystemMetricsApiV1MetricsSystemGetQueryError = unknown;
+
+export function useSystemMetricsApiV1MetricsSystemGet<
+  TData = Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+          TError,
+          Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useSystemMetricsApiV1MetricsSystemGet<
+  TData = Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+          TError,
+          Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useSystemMetricsApiV1MetricsSystemGet<
+  TData = Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary System Metrics
+ */
+
+export function useSystemMetricsApiV1MetricsSystemGet<
+  TData = Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof systemMetricsApiV1MetricsSystemGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getSystemMetricsApiV1MetricsSystemGetQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

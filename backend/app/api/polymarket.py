@@ -11,6 +11,7 @@ from app.core.auth import AuthContext
 from app.core.config import settings
 from app.schemas.polymarket import (
     PolymarketJournalResponse,
+    PolymarketLearnerResponse,
     PolymarketPortfolioResponse,
     PolymarketSignalsResponse,
     PolymarketStatusResponse,
@@ -19,6 +20,7 @@ from app.schemas.polymarket import (
 from app.services.organizations import OrganizationContext
 from app.services.polymarket import (
     build_journal_payload,
+    build_learner_payload,
     build_portfolio_payload,
     build_signals_payload,
     build_status_payload,
@@ -107,3 +109,11 @@ async def get_polymarket_journal(
 ) -> PolymarketJournalResponse:
     """Return trade-journal feedback summary and latest events."""
     return PolymarketJournalResponse.model_validate(build_journal_payload())
+
+
+@router.get("/learner", response_model=PolymarketLearnerResponse)
+async def get_polymarket_learner(
+    _org_ctx: OrganizationContext = POLYMARKET_ACCESS_DEP,
+) -> PolymarketLearnerResponse:
+    """Return paper-trading and learner update artifacts for the dashboard."""
+    return PolymarketLearnerResponse.model_validate(build_learner_payload())

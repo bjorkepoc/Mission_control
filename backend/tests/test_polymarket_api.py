@@ -213,6 +213,19 @@ async def test_polymarket_router_status_and_signals(tmp_path: Path, monkeypatch)
         tmp_path / "state/whale_history/signals.jsonl",
         [{"generated_at": "2026-04-18T09:06:00Z"}],
     )
+    _write_jsonl(
+        tmp_path / "state/portfolio_history/history.jsonl",
+        [
+            {
+                "address": "0x1234567890abcdef1234567890abcdef12345678",
+                "fetched_at": "2026-04-18T09:07:00Z",
+                "portfolio_value": 10.0,
+                "account_value": {"positions_value": 10.0, "cash_value": 2.5, "total_value": 12.5},
+                "open_positions": [],
+                "closed_positions": [],
+            }
+        ],
+    )
     monkeypatch.setenv(polymarket_reader.WATCHER_ROOT_ENV, str(tmp_path))
     app = _build_test_app()
 
@@ -222,6 +235,7 @@ async def test_polymarket_router_status_and_signals(tmp_path: Path, monkeypatch)
     ) as client:
         status_response = await client.get("/api/v1/polymarket/status")
         signals_response = await client.get("/api/v1/polymarket/signals")
+        portfolio_response = await client.get("/api/v1/polymarket/portfolio")
 
     assert status_response.status_code == 200
     status_payload = status_response.json()
@@ -232,6 +246,10 @@ async def test_polymarket_router_status_and_signals(tmp_path: Path, monkeypatch)
     signals_payload = signals_response.json()
     assert signals_payload["generated_at"] == "2026-04-18T09:06:08Z"
     assert signals_payload["plan"] == [{"action": "wait"}]
+
+    assert portfolio_response.status_code == 200
+    portfolio_payload = portfolio_response.json()
+    assert portfolio_payload["wallet_total"]["total_value"] == 12.5
 
 
 @pytest.mark.asyncio
@@ -271,3 +289,37 @@ async def test_polymarket_router_journal_handles_invalid_jsonl_line(
     assert payload["feedback_summary"]["closed_trades"] == 0
     assert payload["latest_events"] == [{"event": "open", "trade_id": "t1"}]
     assert any("invalid JSONL row" in warning for warning in payload["warnings"])
+
+
+@pytest.mark.asyncio
+async def test_polymarket_router_learner_returns_paper_snapshot(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _write_json(
+        tmp_path / "paper-trading/state.json",
+        {"mode": "paper", "equity_usd": 50.5, "open_positions": [], "closed_positions": []},
+    )
+    _write_json(tmp_path / "paper-trading/open-positions.json", [])
+    _write_jsonl(
+        tmp_path / "paper-trading/ledger.jsonl",
+        [{"type": "paper_mark", "equity_usd": 50.5}],
+    )
+    _write_jsonl(
+        tmp_path / "research/news-reports.jsonl",
+        [{"market": "Sample", "answer": "No material update"}],
+    )
+    monkeypatch.setenv(polymarket_reader.AGENTS_ROOT_ENV, str(tmp_path))
+    app = _build_test_app()
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get("/api/v1/polymarket/learner")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["paper_state"]["equity_usd"] == 50.5
+    assert payload["latest_ledger"] == [{"type": "paper_mark", "equity_usd": 50.5}]
+    assert payload["latest_research_reports"] == [{"market": "Sample", "answer": "No material update"}]

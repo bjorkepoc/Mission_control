@@ -10,11 +10,11 @@ import type { PolymarketReportFileStatus } from "./polymarketReportFileStatus";
  * Watcher root and report/state availability snapshot.
  */
 export interface PolymarketStatusResponse {
-  root_path: string;
-  root_exists: boolean;
-  state_exists: boolean;
-  latest_reports?: PolymarketReportFileStatus[];
   available_state_files?: string[];
   env_config_masked: boolean;
+  latest_reports?: PolymarketReportFileStatus[];
+  root_exists: boolean;
+  root_path: string;
+  state_exists: boolean;
   warnings?: string[];
 }

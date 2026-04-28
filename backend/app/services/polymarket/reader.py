@@ -11,7 +11,9 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_WATCHER_ROOT = Path("/home/clawd/.openclaw/workspace/polymarket-watcher")
+DEFAULT_AGENTS_ROOT = Path("/home/clawd/.openclaw/workspace/ops/polymarket-agents")
 WATCHER_ROOT_ENV = "POLYMARKET_WATCHER_ROOT"
+AGENTS_ROOT_ENV = "POLYMARKET_AGENTS_ROOT"
 STATE_DIRNAME = "state"
 
 _MAX_STATE_FILES = 60
@@ -19,6 +21,9 @@ _MAX_PORTFOLIO_POSITIONS = 12
 _MAX_SIGNALS = 12
 _MAX_PLAN_ITEMS = 12
 _MAX_JOURNAL_EVENTS = 20
+_MAX_LEARNER_EVENTS = 12
+_MAX_RESEARCH_EVENTS = 10
+_MAX_TEXT_EXCERPT = 6000
 _MAX_JSON_DEPTH = 5
 _MAX_DICT_ITEMS = 32
 _MAX_LIST_ITEMS = 20
@@ -51,6 +56,12 @@ def resolve_watcher_root() -> Path:
     """Resolve watcher root from env override or default path."""
     override = os.getenv(WATCHER_ROOT_ENV, "").strip()
     return Path(override).expanduser() if override else DEFAULT_WATCHER_ROOT
+
+
+def resolve_agents_root() -> Path:
+    """Resolve Polymarket scheduled-agent artifact root from env override."""
+    override = os.getenv(AGENTS_ROOT_ENV, "").strip()
+    return Path(override).expanduser() if override else DEFAULT_AGENTS_ROOT
 
 
 def build_status_payload() -> dict[str, Any]:
@@ -99,6 +110,7 @@ def build_portfolio_payload() -> dict[str, Any]:
             "has_snapshot": False,
             "source_file": None,
             "generated_at": None,
+            "wallet_total": {},
             "summary": {},
             "latest_positions": [],
             "closed_positions": [],
@@ -124,6 +136,7 @@ def build_portfolio_payload() -> dict[str, Any]:
             "has_snapshot": False,
             "source_file": _relative_path(latest_file, root),
             "generated_at": None,
+            "wallet_total": {},
             "summary": {},
             "latest_positions": [],
             "closed_positions": [],
@@ -160,11 +173,13 @@ def build_portfolio_payload() -> dict[str, Any]:
         limit=_MAX_PORTFOLIO_POSITIONS,
     )
     trends = _extract_first_dict(snapshot, keys=("delta", "deltas", "trend", "trends")) or {}
+    wallet_total = _build_wallet_total(snapshot, latest_positions=latest_positions)
 
     return {
         "has_snapshot": True,
         "source_file": _relative_path(latest_file, root),
         "generated_at": _read_generated_at(snapshot),
+        "wallet_total": _sanitize(wallet_total),
         "summary": _sanitize(summary),
         "latest_positions": _sanitize(latest_positions),
         "closed_positions": _sanitize(closed_positions),
@@ -262,6 +277,7 @@ def build_whale_hook_payload() -> dict[str, Any]:
             "source_file": None,
             "generated_at": None,
             "whale_count": 0,
+            "whales": [],
             "selected_actions": [],
             "action_diagnostics": {},
             "caps": {},
@@ -292,6 +308,7 @@ def build_whale_hook_payload() -> dict[str, Any]:
         "source_file": _relative_path(source_path, root) if source_path is not None else None,
         "generated_at": _read_generated_at(raw_payload) or _read_generated_at(snapshot_payload),
         "whale_count": whale_count or 0,
+        "whales": _sanitize(whales if isinstance(whales, list) else []),
         "selected_actions": _sanitize(selected_actions),
         "action_diagnostics": _sanitize(action_diagnostics),
         "caps": _sanitize(caps),
@@ -331,6 +348,111 @@ def build_journal_payload() -> dict[str, Any]:
         "feedback_summary": _sanitize(feedback_summary),
         "requests_for_human": _sanitize(_extract_string_list(feedback.get("requests_for_human"))),
         "latest_events": _sanitize(events),
+        "warnings": _dedupe_warnings(warnings),
+    }
+
+
+def build_learner_payload() -> dict[str, Any]:
+    """Load learner paper-trading and update artifacts for the dashboard."""
+    root = resolve_agents_root()
+    paper_dir = root / "paper-trading"
+    learning_dir = root / "learning"
+    research_dir = root / "research"
+    warnings: list[str] = []
+
+    source_files = [
+        _file_status(root=root, relative_path=rel, warnings=warnings)
+        for rel in (
+            "paper-trading/state.json",
+            "paper-trading/open-positions.json",
+            "paper-trading/ledger.jsonl",
+            "paper-trading/weekly-report.md",
+            "learning/observations.jsonl",
+            "learning/hook-candidates.jsonl",
+            "learning/strategy-playbook.md",
+            "learning/proposed-patches.md",
+            "research/news-scraper-policy.md",
+            "research/news-requests.jsonl",
+            "research/news-reports.jsonl",
+            "research/adaptive-bursts.jsonl",
+        )
+    ]
+
+    state_path = paper_dir / "state.json"
+    if not state_path.exists():
+        warnings.append("Paper-trading state not found yet.")
+    state_raw = _read_json_file(state_path, warnings=warnings, label="paper_trading_state")
+    state = state_raw if isinstance(state_raw, dict) else {}
+
+    open_positions_raw = _read_json_file(
+        paper_dir / "open-positions.json",
+        warnings=warnings,
+        label="paper_open_positions",
+    )
+    open_positions = open_positions_raw if isinstance(open_positions_raw, list) else []
+    if not open_positions and isinstance(state.get("open_positions"), list):
+        open_positions = state["open_positions"]
+    closed_positions = state.get("closed_positions") if isinstance(state.get("closed_positions"), list) else []
+
+    latest_ledger = _read_jsonl_tail(
+        paper_dir / "ledger.jsonl",
+        warnings=warnings,
+        label="paper_ledger",
+        limit=_MAX_LEARNER_EVENTS,
+    )
+    latest_observations = _read_jsonl_tail(
+        learning_dir / "observations.jsonl",
+        warnings=warnings,
+        label="learner_observations",
+        limit=_MAX_LEARNER_EVENTS,
+    )
+    hook_candidates = _read_jsonl_tail(
+        learning_dir / "hook-candidates.jsonl",
+        warnings=warnings,
+        label="hook_candidates",
+        limit=_MAX_LEARNER_EVENTS,
+    )
+    latest_research_requests = _read_jsonl_tail(
+        research_dir / "news-requests.jsonl",
+        warnings=warnings,
+        label="news_research_requests",
+        limit=_MAX_RESEARCH_EVENTS,
+    )
+    latest_research_reports = _read_jsonl_tail(
+        research_dir / "news-reports.jsonl",
+        warnings=warnings,
+        label="news_research_reports",
+        limit=_MAX_RESEARCH_EVENTS,
+    )
+
+    return {
+        "root_path": str(root),
+        "root_exists": root.exists(),
+        "paper_trading_path": str(paper_dir),
+        "paper_state": _sanitize(state),
+        "open_positions": _sanitize(open_positions),
+        "closed_positions": _sanitize(closed_positions[:_MAX_LIST_ITEMS]),
+        "latest_ledger": _sanitize(latest_ledger),
+        "latest_observations": _sanitize(latest_observations),
+        "hook_candidates": _sanitize(hook_candidates),
+        "latest_research_requests": _sanitize(latest_research_requests),
+        "latest_research_reports": _sanitize(latest_research_reports),
+        "weekly_report_excerpt": _read_text_excerpt(
+            paper_dir / "weekly-report.md",
+            warnings=warnings,
+            label="paper_weekly_report",
+        ),
+        "strategy_playbook_excerpt": _read_text_excerpt(
+            learning_dir / "strategy-playbook.md",
+            warnings=warnings,
+            label="strategy_playbook",
+        ),
+        "research_policy_excerpt": _read_text_excerpt(
+            research_dir / "news-scraper-policy.md",
+            warnings=warnings,
+            label="news_scraper_policy",
+        ),
+        "source_files": source_files,
         "warnings": _dedupe_warnings(warnings),
     }
 
@@ -421,6 +543,17 @@ def _read_json_file(path: Path, *, warnings: list[str], label: str) -> Any | Non
     except json.JSONDecodeError:
         warnings.append(f"{label}: invalid JSON in {path.name}.")
         return None
+
+
+def _read_text_excerpt(path: Path, *, warnings: list[str], label: str) -> str | None:
+    if not path.exists():
+        return None
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        warnings.append(f"{label}: unable to read {path.name} ({exc}).")
+        return None
+    return _sanitize_text_excerpt(raw, limit=_MAX_TEXT_EXCERPT)
 
 
 def _read_jsonl_tail(
@@ -518,6 +651,78 @@ def _compact_numeric_fields(source: dict[str, Any], *, keys: tuple[str, ...]) ->
     return compact
 
 
+def _build_wallet_total(snapshot: dict[str, Any], *, latest_positions: list[Any]) -> dict[str, Any]:
+    """Build account total view: positions + cash when cash is present in state."""
+    account_value = _extract_first_dict(snapshot, keys=("account_value", "wallet_total", "account_total")) or {}
+    address = snapshot.get("address") or account_value.get("address")
+    positions_value = _first_number(
+        account_value,
+        snapshot,
+        keys=("positions_value", "portfolio_value", "current_value", "positionsValue"),
+    )
+    if positions_value is None:
+        positions_value = _sum_numeric_field(latest_positions, keys=("currentValue", "current_value"))
+
+    cash_value = _first_number(
+        account_value,
+        snapshot,
+        keys=("cash_value", "wallet_cash_value", "cashValue", "usdc_value", "usdcValue"),
+    )
+
+    explicit_total = _first_number(
+        account_value,
+        snapshot,
+        keys=("total_value", "account_total_value", "wallet_total_value", "totalValue"),
+    )
+    if explicit_total is not None:
+        total_value = explicit_total
+        source = "account_total" if cash_value is not None else "account_total_snapshot"
+    elif cash_value is not None:
+        total_value = positions_value + cash_value
+        source = "positions_plus_cash"
+    else:
+        total_value = positions_value
+        source = "positions_only"
+
+    cash_assets = account_value.get("cash_tokens")
+    return {
+        "address": address,
+        "total_value": total_value,
+        "positions_value": positions_value,
+        "cash_value": cash_value,
+        "cash_available": cash_value is not None,
+        "source": source,
+        "cash_source": account_value.get("cash_source") or account_value.get("source"),
+        "cash_assets": cash_assets if isinstance(cash_assets, list) else [],
+        "open_position_count": len(latest_positions),
+    }
+
+
+def _first_number(*sources: dict[str, Any], keys: tuple[str, ...]) -> float | None:
+    for source in sources:
+        for key in keys:
+            if key not in source:
+                continue
+            value = _coerce_float(source.get(key))
+            if value is not None:
+                return max(0.0, value)
+    return None
+
+
+def _sum_numeric_field(rows: list[Any], *, keys: tuple[str, ...]) -> float:
+    total = 0.0
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        for key in keys:
+            value = _coerce_float(row.get(key))
+            if value is None:
+                continue
+            total += max(0.0, value)
+            break
+    return total
+
+
 def _read_generated_at(payload: dict[str, Any]) -> str | None:
     generated = payload.get("generated_at")
     if not isinstance(generated, str):
@@ -539,6 +744,15 @@ def _coerce_int(value: Any) -> int | None:
         except ValueError:
             return None
     return None
+
+
+def _coerce_float(value: Any) -> float | None:
+    if isinstance(value, bool) or value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _sanitize(value: Any, *, key: str | None = None, depth: int = 0) -> Any:
@@ -590,6 +804,26 @@ def _sanitize_string(value: str, *, key: str | None) -> str:
     if len(text) > _MAX_STRING_LENGTH:
         return f"{text[:_MAX_STRING_LENGTH]}..."
     return text
+
+
+def _sanitize_text_excerpt(value: str, *, limit: int) -> str:
+    text = value.strip()
+    if not text:
+        return text
+    truncated = len(text) > limit
+    text = text[:limit]
+    cleaned_lines: list[str] = []
+    for line in text.splitlines():
+        if _SENSITIVE_VALUE_RE.search(line):
+            cleaned_lines.append("[masked]")
+            continue
+        masked = _PRIVATE_KEY_LIKE_RE.sub("[masked]", line)
+        masked = _ADDRESS_RE.sub(_mask_address_match, masked)
+        cleaned_lines.append(masked[:500])
+    cleaned = "\n".join(cleaned_lines)
+    if truncated:
+        cleaned = f"{cleaned}\n..."
+    return cleaned
 
 
 def _mask_address_match(match: re.Match[str]) -> str:

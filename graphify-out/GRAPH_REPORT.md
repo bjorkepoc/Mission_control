@@ -1,12 +1,12 @@
-# Graph Report - /home/clawd/.openclaw/workspace/mission-control  (2026-04-27)
+# Graph Report - /home/clawd/.openclaw/workspace/mission-control  (2026-04-28)
 
 ## Corpus Check
-- 727 files · ~398,093 words
+- 736 files · ~406,146 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 5132 nodes · 17222 edges · 611 communities detected
-- Extraction: 39% EXTRACTED · 61% INFERRED · 0% AMBIGUOUS · INFERRED: 10525 edges (avg confidence: 0.6)
+- 5212 nodes · 17384 edges · 642 communities detected
+- Extraction: 39% EXTRACTED · 61% INFERRED · 0% AMBIGUOUS · INFERRED: 10608 edges (avg confidence: 0.6)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
@@ -621,6 +621,37 @@
 - [[_COMMUNITY_Community 608|Community 608]]
 - [[_COMMUNITY_Community 609|Community 609]]
 - [[_COMMUNITY_Community 610|Community 610]]
+- [[_COMMUNITY_Community 611|Community 611]]
+- [[_COMMUNITY_Community 612|Community 612]]
+- [[_COMMUNITY_Community 613|Community 613]]
+- [[_COMMUNITY_Community 614|Community 614]]
+- [[_COMMUNITY_Community 615|Community 615]]
+- [[_COMMUNITY_Community 616|Community 616]]
+- [[_COMMUNITY_Community 617|Community 617]]
+- [[_COMMUNITY_Community 618|Community 618]]
+- [[_COMMUNITY_Community 619|Community 619]]
+- [[_COMMUNITY_Community 620|Community 620]]
+- [[_COMMUNITY_Community 621|Community 621]]
+- [[_COMMUNITY_Community 622|Community 622]]
+- [[_COMMUNITY_Community 623|Community 623]]
+- [[_COMMUNITY_Community 624|Community 624]]
+- [[_COMMUNITY_Community 625|Community 625]]
+- [[_COMMUNITY_Community 626|Community 626]]
+- [[_COMMUNITY_Community 627|Community 627]]
+- [[_COMMUNITY_Community 628|Community 628]]
+- [[_COMMUNITY_Community 629|Community 629]]
+- [[_COMMUNITY_Community 630|Community 630]]
+- [[_COMMUNITY_Community 631|Community 631]]
+- [[_COMMUNITY_Community 632|Community 632]]
+- [[_COMMUNITY_Community 633|Community 633]]
+- [[_COMMUNITY_Community 634|Community 634]]
+- [[_COMMUNITY_Community 635|Community 635]]
+- [[_COMMUNITY_Community 636|Community 636]]
+- [[_COMMUNITY_Community 637|Community 637]]
+- [[_COMMUNITY_Community 638|Community 638]]
+- [[_COMMUNITY_Community 639|Community 639]]
+- [[_COMMUNITY_Community 640|Community 640]]
+- [[_COMMUNITY_Community 641|Community 641]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `Board` - 374 edges
@@ -629,10 +660,10 @@
 4. `User` - 220 edges
 5. `OkResponse` - 211 edges
 6. `Task` - 210 edges
-7. `OrganizationContext` - 189 edges
-8. `get()` - 188 edges
+7. `OrganizationContext` - 196 edges
+8. `get()` - 193 edges
 9. `OpenClawGatewayError` - 172 edges
-10. `GatewayConfig` - 164 edges
+10. `customFetch()` - 169 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `test_normalize_invited_email_strips_and_lowercases()` --calls--> `normalize_invited_email()`  [INFERRED]
@@ -643,102 +674,102 @@
   /home/clawd/mission-control-app/backend/tests/test_organizations_service.py → /home/clawd/mission-control-app/backend/app/services/organizations.py
 - `test_get_default_skill_pack_records_deduplicates_normalized_urls()` --calls--> `_get_default_skill_pack_records()`  [INFERRED]
   /home/clawd/mission-control-app/backend/tests/test_organizations_service.py → /home/clawd/mission-control-app/backend/app/services/organizations.py
-- `test_delete_where_rolls_back_when_commit_fails()` --calls--> `delete_where()`  [INFERRED]
+- `test_create_rolls_back_when_commit_fails()` --calls--> `create()`  [INFERRED]
   /home/clawd/mission-control-app/backend/tests/test_db_transaction_safety.py → /home/clawd/mission-control-app/backend/app/db/crud.py
 
 ## Communities
 
 ### Community 0 - "Community 0"
 Cohesion: 0.01
-Nodes (525): _fetch_task_comment_events(), list_activity(), list_task_comment_feed(), Utilities for recording normalized activity events., Create and attach an activity event row to the current DB session., record_activity(), agent_heartbeat(), create_task() (+517 more)
+Nodes (566): _fetch_task_comment_events(), list_activity(), list_task_comment_feed(), Utilities for recording normalized activity events., Create and attach an activity event row to the current DB session., record_activity(), create_task(), list_agents() (+558 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.03
-Nodes (577): AbstractGatewayMessagingService, ActivityEvent, ActivityEventRead, Serialized activity event payload returned by activity endpoints., Activity listing and task-comment feed endpoints., List activity events visible to the calling actor., List task-comment feed items for accessible boards., Stream task-comment events for accessible boards. (+569 more)
+Cohesion: 0.01
+Nodes (482): agentHealthzApiV1AgentHealthzGet(), agentHeartbeatApiV1AgentHeartbeatPost(), agentLeadAskUserViaGatewayMain(), agentLeadCreateAgent(), agentLeadCreateTask(), agentLeadDeleteBoardAgent(), agentLeadNudgeAgent(), agentLeadUpdateAgentSoul() (+474 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.01
-Nodes (497): agentHealthzApiV1AgentHealthzGet(), agentHeartbeatApiV1AgentHeartbeatPost(), agentLeadAskUserViaGatewayMain(), agentLeadCreateAgent(), agentLeadCreateTask(), agentLeadDeleteBoardAgent(), agentLeadNudgeAgent(), agentLeadUpdateAgentSoul() (+489 more)
+Cohesion: 0.03
+Nodes (351): ABC, AbstractGatewayMessagingService, Access control helpers for actor-type checks., Raise HTTP 403 unless the authenticated actor is a human user (not an agent)., require_user_actor(), AbstractGatewayMainAgentManager, DefaultGatewayMainAgentManager, GatewayAdminLifecycleService (+343 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.02
-Nodes (185): ABC, Access control helpers for actor-type checks., Raise HTTP 403 unless the authenticated actor is a human user (not an agent)., require_user_actor(), _find_agent_for_token(), get_agent_auth_context(), get_agent_auth_context_optional(), Agent authentication helpers for token-backed API access.  This module is used f (+177 more)
+Cohesion: 0.05
+Nodes (258): ActivityEvent, ActivityEventRead, ActivityTaskCommentFeedItemRead, Serialized activity event payload returned by activity endpoints., Discrete activity event tied to board/task/agent context., Denormalized task-comment feed item enriched with task and board fields., Activity listing and task-comment feed endpoints., List activity events visible to the calling actor. (+250 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.02
-Nodes (183): bootstrap_user(), _require_approval_for_done_from_draft(), openEditTaskDialog(), iter_md_files(), main(), normalize_target(), Return markdown files to check.      Policy:     - Always check root contributor, _gateway_file_content() (+175 more)
+Cohesion: 0.03
+Nodes (182): Activity event model persisted for audit and feed use-cases., ApprovalTaskLink, Helpers for normalizing and querying approval-task associations., Replace approval-task link rows for an approval id., Acquire row locks for task ids in deterministic order within a transaction., Return the first conflicting pending approval id for each requested task id., Map an approval request to one task (many links per approval allowed)., Compute total/pending approval counts per task across all linked tasks on a boar (+174 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.02
-Nodes (125): BaseModel, BaseAgentLifecycleManager, BoardAgentLifecycleManager, _channel_heartbeat_visibility_patch(), _control_plane_for_gateway(), lead_session_key(), slugify(), workspace_path() (+117 more)
+Cohesion: 0.01
+Nodes (166): BaseModel, _build_connect_params(), _build_control_ui_origin(), _build_gateway_url(), _create_ssl_context(), delete_session(), get_chat_history(), is_known_gateway_method() (+158 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.03
-Nodes (151): GatewayAdminLifecycleService, normalize_gateway_error_message(), Normalization helpers for user-facing OpenClaw gateway errors., Return a user-friendly message for common gateway auth failures., GatewayCommandsResponse, GatewayResolveQuery, GatewaySessionHistoryResponse, GatewaySessionMessageRequest (+143 more)
+Cohesion: 0.02
+Nodes (164): _find_agent_for_token(), get_agent_auth_context(), get_agent_auth_context_optional(), Agent authentication helpers for token-backed API access.  This module is used f, Require and validate agent auth token from request headers., Optionally resolve agent auth context from `X-Agent-Token` or `Authorization: Be, Best-effort update of last_seen/status for any authenticated agent request., _resolve_agent_token() (+156 more)
 
 ### Community 7 - "Community 7"
 Cohesion: 0.02
-Nodes (137): getApiBaseUrl(), AuthProvider(), applyBoardGroupHeartbeatApiV1BoardGroupsGroupIdHeartbeatPost(), createBoardGroupApiV1BoardGroupsPost(), deleteBoardGroupApiV1BoardGroupsGroupIdDelete(), getApplyBoardGroupHeartbeatApiV1BoardGroupsGroupIdHeartbeatPostMutationOptions(), getApplyBoardGroupHeartbeatApiV1BoardGroupsGroupIdHeartbeatPostUrl(), getBoardGroupApiV1BoardGroupsGroupIdGet() (+129 more)
+Nodes (138): getApiBaseUrl(), AuthProvider(), applyBoardGroupHeartbeatApiV1BoardGroupsGroupIdHeartbeatPost(), createBoardGroupApiV1BoardGroupsPost(), deleteBoardGroupApiV1BoardGroupsGroupIdDelete(), getApplyBoardGroupHeartbeatApiV1BoardGroupsGroupIdHeartbeatPostMutationOptions(), getApplyBoardGroupHeartbeatApiV1BoardGroupsGroupIdHeartbeatPostUrl(), getBoardGroupApiV1BoardGroupsGroupIdGet() (+130 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.02
 Nodes (119): getListActivityApiV1ActivityGetQueryKey(), getListActivityApiV1ActivityGetQueryOptions(), getListActivityApiV1ActivityGetUrl(), getListTaskCommentFeedApiV1ActivityTaskCommentsGetQueryKey(), getListTaskCommentFeedApiV1ActivityTaskCommentsGetQueryOptions(), getListTaskCommentFeedApiV1ActivityTaskCommentsGetUrl(), getStreamTaskCommentFeedApiV1ActivityTaskCommentsStreamGetQueryKey(), getStreamTaskCommentFeedApiV1ActivityTaskCommentsStreamGetQueryOptions() (+111 more)
 
 ### Community 9 - "Community 9"
-Cohesion: 0.03
-Nodes (116): ActivityTaskCommentFeedItemRead, Activity event model persisted for audit and feed use-cases., Denormalized task-comment feed item enriched with task and board fields., Helpers for normalizing and querying approval-task associations., ApprovalBase, normalize_task_links(), Shared approval fields used across create/read payloads., validate_lead_reasoning() (+108 more)
+Cohesion: 0.02
+Nodes (117): buildActivity(), buildResident(), clamp(), hashText(), isMainAssistantAgent(), placementForResident(), resolveAction(), resolveTone() (+109 more)
 
 ### Community 10 - "Community 10"
-Cohesion: 0.03
-Nodes (78): buildActivity(), buildResident(), clamp(), hashText(), isMainAssistantAgent(), placementForResident(), resolveAction(), resolveTone() (+70 more)
+Cohesion: 0.04
+Nodes (123): iter_md_files(), main(), normalize_target(), Return markdown files to check.      Policy:     - Always check root contributor, exists(), Return whether any object exists for lookup values., _base64url_encode(), build_device_auth_payload() (+115 more)
 
 ### Community 11 - "Community 11"
 Cohesion: 0.03
-Nodes (79): getUpdateBoardApiV1BoardsBoardIdPatchUrl(), updateBoardApiV1BoardsBoardIdPatch(), areSortedStringArraysEqual(), buildCustomFieldUpdatePayload(), canonicalJson(), createCustomFieldPayload(), deriveFormStateFromCustomField(), extractApiErrorMessage() (+71 more)
+Nodes (96): _error_payload(), _get_request_id(), _http_exception_exception_handler(), _http_exception_handler(), install_error_handling(), _json_safe(), Global exception handlers and request-id middleware for FastAPI.  This module st, Install middleware and exception handlers on the FastAPI app. (+88 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.04
-Nodes (92): _append_unique_tags(), build_claude_command(), build_codex_command(), _cli_chat_session_tags(), Codex55BridgeConfig, CodexRunResult, _diagnose_only_prompt(), _download_image() (+84 more)
+Cohesion: 0.05
+Nodes (94): normalize_gateway_error_message(), Normalization helpers for user-facing OpenClaw gateway errors., Return a user-friendly message for common gateway auth failures., GatewayCommandsResponse, GatewayResolveQuery, GatewaySessionHistoryResponse, GatewaySessionMessageRequest, GatewaySessionResponse (+86 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.08
-Nodes (80): Discrete activity event tied to board/task/agent context., Agent configuration and lifecycle state persisted in the database., Map an approval request to one task (many links per approval allowed)., Approval request and decision metadata for gated operations., QueryModel, Base model mixins and shared SQLModel abstractions., Base SQLModel with a shared query manager descriptor., Persisted memory items associated with a board group. (+72 more)
+Cohesion: 0.03
+Nodes (78): getUpdateBoardApiV1BoardsBoardIdPatchUrl(), updateBoardApiV1BoardsBoardIdPatch(), areSortedStringArraysEqual(), buildCustomFieldUpdatePayload(), canonicalJson(), createCustomFieldPayload(), deriveFormStateFromCustomField(), extractApiErrorMessage() (+70 more)
 
 ### Community 14 - "Community 14"
 Cohesion: 0.05
-Nodes (74): _build_payload_preview(), _compute_webhook_retry_delay(), _compute_webhook_retry_jitter(), dequeue_webhook_delivery(), dequeue_webhook_delivery_task(), flush_webhook_delivery_queue(), process_webhook_queue_task(), requeue_webhook_queue_task() (+66 more)
+Nodes (74): _build_payload_preview(), _compute_webhook_retry_delay(), _compute_webhook_retry_jitter(), dequeue_webhook_delivery(), dequeue_webhook_delivery_task(), flush_webhook_delivery_queue(), _process_single_item(), process_webhook_queue_task() (+66 more)
 
 ### Community 15 - "Community 15"
-Cohesion: 0.03
-Nodes (67): get_url(), _normalize_database_url(), Alembic environment configuration for backend database migrations., Return the normalized SQLAlchemy database URL for Alembic., Run migrations in offline mode without DB engine connectivity., Run migrations in online mode using a live DB connection., run_migrations_offline(), run_migrations_online() (+59 more)
+Cohesion: 0.04
+Nodes (83): _append_unique_tags(), build_claude_command(), build_codex_command(), _cli_chat_session_tags(), Codex55BridgeConfig, CodexRunResult, _diagnose_only_prompt(), _download_image() (+75 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.06
-Nodes (57): BoardOnboardingConfirm, Payload used to confirm generated onboarding draft fields., _apply_board_update(), _board_group_change_message(), _board_update_message(), BoardBase, BoardCreate, BoardUpdate (+49 more)
+Cohesion: 0.04
+Nodes (61): get_url(), _normalize_database_url(), Alembic environment configuration for backend database migrations., Return the normalized SQLAlchemy database URL for Alembic., Run migrations in offline mode without DB engine connectivity., Run migrations in online mode using a live DB connection., run_migrations_offline(), run_migrations_online() (+53 more)
 
 ### Community 17 - "Community 17"
-Cohesion: 0.06
-Nodes (57): blocked_by_dependency_ids(), blocked_by_for_task(), _dedupe_uuid_list(), dependency_ids_by_task_id(), dependency_status_by_id(), dependent_task_ids(), _has_cycle(), Task-dependency helpers for validation, querying, and replacement. (+49 more)
+Cohesion: 0.05
+Nodes (63): _authenticate_clerk_request(), bootstrap_user(), ClerkTokenPayload, delete_clerk_user(), _extract_bearer_token(), _extract_claim_email(), _extract_claim_name(), _extract_clerk_profile() (+55 more)
 
 ### Community 18 - "Community 18"
 Cohesion: 0.06
-Nodes (56): _authenticate_clerk_request(), ClerkTokenPayload, delete_clerk_user(), _extract_bearer_token(), _extract_claim_email(), _extract_claim_name(), _extract_clerk_profile(), _fetch_clerk_profile() (+48 more)
+Nodes (55): _apply_board_update(), _board_group_change_message(), _board_update_message(), BoardBase, BoardCreate, BoardUpdate, create_board(), delete_board() (+47 more)
 
 ### Community 19 - "Community 19"
-Cohesion: 0.07
-Nodes (40): create_tag(), _dedupe_uuid_list(), delete_tag(), _ensure_slug_available(), get_tag(), list_tags(), load_tag_state(), normalize_slug() (+32 more)
+Cohesion: 0.14
+Nodes (49): RuntimeError, GatewayInstalledSkill, MarketplaceSkillActionResponse, MarketplaceSkillCardRead, MarketplaceSkillCreate, MarketplaceSkillRead, PackSkillCandidate, Schemas for skills marketplace listing and install/uninstall actions. (+41 more)
 
 ### Community 20 - "Community 20"
-Cohesion: 0.07
-Nodes (39): _board_ids_by_definition_id(), BoardTaskCustomFieldCreate, BoardTaskCustomFieldRead, _compiled_validation_regex(), create_org_custom_field(), delete_org_custom_field(), _get_org_definition(), list_org_custom_fields() (+31 more)
+Cohesion: 0.13
+Nodes (46): _cpu_snapshot(), DashboardKpis, DashboardMetrics, DashboardPendingApproval, DashboardPendingApprovals, DashboardRangeSeries, DashboardSeriesPoint, DashboardSeriesSet (+38 more)
 
 ### Community 21 - "Community 21"
-Cohesion: 0.12
-Nodes (29): _actor(), agent_healthz(), ask_user_via_gateway_main(), broadcast_gateway_lead_message(), create_agent(), create_approval(), create_board_memory(), create_task_comment() (+21 more)
+Cohesion: 0.08
+Nodes (34): create_tag(), delete_tag(), _ensure_slug_available(), get_tag(), list_tags(), normalize_slug(), Helpers for validating and loading tags and tag mappings., List tags for the active organization. (+26 more)
 
 ### Community 22 - "Community 22"
-Cohesion: 0.12
-Nodes (19): _FakeExecResult, _FakeSession, test_apply_invite_to_member_upgrades_role_and_merges_access_rows(), test_apply_member_access_update_deletes_existing_and_adds_rows_when_not_all_boards(), test_ensure_member_for_user_accepts_pending_invite(), test_ensure_member_for_user_creates_personal_org_and_owner(), test_ensure_member_for_user_recovers_on_default_install_integrity_error(), test_ensure_member_for_user_returns_existing_membership() (+11 more)
+Cohesion: 0.08
+Nodes (28): BoardTaskCustomFieldCreate, BoardTaskCustomFieldRead, _compiled_validation_regex(), normalize_field_type(), normalize_optional_field_type(), normalize_optional_ui_visibility(), normalize_optional_validation_regex(), normalize_ui_visibility() (+20 more)
 
 ### Community 23 - "Community 23"
 Cohesion: 0.13
@@ -749,28 +780,28 @@ Cohesion: 0.15
 Nodes (16): ApprovalUpdate, Payload for mutating approval status., _approval(), _ApprovalObjects, _board(), _ByIdQuery, _FakeSession, test_approval_resolution_message_uses_rejected_enum_value() (+8 more)
 
 ### Community 25 - "Community 25"
-Cohesion: 0.15
-Nodes (15): add board_id to activity_events  Revision ID: a9b1c2d3e4f7 Revises: a1b2c3d4e5f6, upgrade(), downgrade(), _has_column(), _has_constraint(), _has_index(), _has_table(), add skills marketplace tables  Revision ID: c9d7e9b6a4f2 Revises: b6f4c7d9e1a2 C (+7 more)
+Cohesion: 0.11
+Nodes (19): main(), Export the backend OpenAPI schema to a versioned JSON artifact., Generate `openapi.json` from the FastAPI app definition., _op_tags(), Authenticated heartbeats should infer identity from token without payload., Schema-level metadata should advertise usage context for model-driven tooling., Some pure response shapes are actor-agnostic and expose interpretation instead., Request/response fields should include field-level usage hints. (+11 more)
 
 ### Community 26 - "Community 26"
+Cohesion: 0.14
+Nodes (9): _ExecAllResult, _ExecOneResult, _ExecResult, _FakeSession, _SequentialSession, test_pending_approvals_snapshot_maps_rows(), test_pending_approvals_snapshot_returns_empty_for_empty_scope(), test_task_status_counts_maps_known_statuses() (+1 more)
+
+### Community 27 - "Community 27"
 Cohesion: 0.37
 Nodes (18): _make_engine(), _make_session(), _seed_board_task_and_agent(), test_update_task_allows_dependency_change_with_pending_approval(), test_update_task_allows_done_from_review_when_review_toggle_enabled(), test_update_task_allows_done_with_approved_multi_task_link(), test_update_task_allows_done_with_approved_primary_task_approval(), test_update_task_allows_done_without_approval_when_board_toggle_disabled() (+10 more)
 
-### Community 27 - "Community 27"
+### Community 28 - "Community 28"
 Cohesion: 0.23
 Nodes (16): calculateDiff(), extractRepoInfo(), fetchTasksFromGitHub(), findChildTasks(), formatEpicWorkOrder(), formatNotification(), formatStartNotification(), formatWorkOrder() (+8 more)
 
-### Community 28 - "Community 28"
+### Community 29 - "Community 29"
 Cohesion: 0.16
 Nodes (14): approval_required(), compute_confidence(), infer_planning(), Policy helpers for lead-agent approval and planning decisions., Compute aggregate confidence from rubric score components., Return whether an action must go through explicit approval., Infer planning intent from boolean heuristic signals., Build a stable hash key for deduplicating similar board tasks. (+6 more)
 
-### Community 29 - "Community 29"
+### Community 30 - "Community 30"
 Cohesion: 0.17
 Nodes (9): buildAccessList(), handleAccessDialogChange(), handleBoardReadToggle(), handleBoardWriteToggle(), handleInviteSubmit(), handleSaveAccess(), openAccessDialog(), resetAccessState() (+1 more)
-
-### Community 30 - "Community 30"
-Cohesion: 0.25
-Nodes (7): _FakeExecResult, _FakeSession, _make_ctx(), test_remove_org_member_deletes_member_access_and_member(), test_remove_org_member_disallows_self_removal(), test_remove_org_member_rejects_removing_last_owner(), test_remove_org_member_requires_owner_to_remove_owner()
 
 ### Community 31 - "Community 31"
 Cohesion: 0.2
@@ -785,132 +816,132 @@ Cohesion: 0.24
 Nodes (12): downgrade(), _downgrade_part_1(), _downgrade_part_2(), _downgrade_part_3(), Initial schema migration.  Revision ID: 658dca8f4a11 Revises: Create Date: 2026-, Create initial schema objects., Drop initial schema objects., upgrade() (+4 more)
 
 ### Community 34 - "Community 34"
-Cohesion: 0.21
-Nodes (9): _EmptyMembershipQuery, _FakeOrganizationMemberModel, _FakeSession, filter_by(), objects, Local deletion should not run if Clerk account deletion fails., User delete should invoke Clerk deletion, then remove local account., test_delete_me_aborts_when_clerk_delete_fails() (+1 more)
+Cohesion: 0.3
+Nodes (10): matches_agent_mention(), Helpers for extracting and matching `@mention` tokens in text., Return whether a mention set targets the provided agent., _agent(), test_extract_mentions_parses_tokens(), test_matches_agent_mention_empty_agent_name_is_false(), test_matches_agent_mention_matches_first_name(), test_matches_agent_mention_matches_full_normalized_name() (+2 more)
 
 ### Community 35 - "Community 35"
-Cohesion: 0.21
-Nodes (7): _FakeSession, Deleting a board should continue when gateway reports agent not found., Deleting a board should clear org-board access rows before commit., Deleting a board should remove task-linked rows before deleting tasks., test_delete_board_cleans_org_board_access_rows(), test_delete_board_cleans_tag_assignments_before_tasks(), test_delete_board_ignores_missing_gateway_agent()
+Cohesion: 0.26
+Nodes (6): BoardOnboardingStart, Persisted onboarding conversation and draft goal data for a board., _FakeScalarResult, _FakeSession, test_start_onboarding_does_not_redispatch_when_waiting_for_user(), test_start_onboarding_redispatches_when_last_message_is_user()
 
 ### Community 36 - "Community 36"
 Cohesion: 0.35
 Nodes (8): a(), B(), D(), g(), i(), k(), Q(), y()
 
 ### Community 37 - "Community 37"
-Cohesion: 0.31
-Nodes (6): _AgentStub, _BoardStub, _FakeSession, _GatewayStub, test_delete_agent_as_lead_rejects_gateway_main(), test_delete_agent_as_lead_removes_board_agent()
-
-### Community 38 - "Community 38"
-Cohesion: 0.28
-Nodes (3): _FakeScalarResult, _FakeSession, test_start_onboarding_does_not_redispatch_when_waiting_for_user()
-
-### Community 39 - "Community 39"
 Cohesion: 0.22
 Nodes (1): handleDelete()
 
-### Community 40 - "Community 40"
+### Community 38 - "Community 38"
 Cohesion: 0.43
 Nodes (5): _has_checked_in_since_wake(), _agent(), test_checked_in_since_wake_when_last_seen_after_wake(), test_not_checked_in_since_wake_when_last_seen_before_wake(), test_not_checked_in_since_wake_when_missing_last_seen()
 
-### Community 41 - "Community 41"
+### Community 39 - "Community 39"
+Cohesion: 0.61
+Nodes (7): downgrade(), _has_column(), _has_constraint(), _has_index(), _has_table(), add skills marketplace tables  Revision ID: c9d7e9b6a4f2 Revises: b6f4c7d9e1a2 C, upgrade()
+
+### Community 40 - "Community 40"
 Cohesion: 0.29
 Nodes (5): formatCategoryLabel(), formatRiskLabel(), loadInstalledGatewaysBySkill(), parsePageSizeParam(), parsePositiveIntParam()
 
-### Community 42 - "Community 42"
+### Community 41 - "Community 41"
 Cohesion: 0.29
 Nodes (0):
 
-### Community 43 - "Community 43"
-Cohesion: 0.4
-Nodes (2): _FakeSession, test_delete_board_group_cleans_group_memory_first()
-
-### Community 44 - "Community 44"
+### Community 42 - "Community 42"
 Cohesion: 0.33
 Nodes (5): downgrade(), Add optional agent mapping to board webhooks.  Revision ID: b7a1d9c3e4f5 Revises, Add optional mapped agent reference on board webhooks., Remove optional mapped agent reference from board webhooks., upgrade()
 
-### Community 45 - "Community 45"
+### Community 43 - "Community 43"
 Cohesion: 0.33
 Nodes (5): downgrade(), Add allow_insecure_tls field to gateways.  Revision ID: b497b348ebb4 Revises: c5, Add gateways.allow_insecure_tls column with default False., Remove gateways.allow_insecure_tls column., upgrade()
 
-### Community 46 - "Community 46"
+### Community 44 - "Community 44"
 Cohesion: 0.33
 Nodes (5): downgrade(), Add task custom field tables.  Revision ID: b6f4c7d9e1a2 Revises: 1a7b2c3d4e5f C, Drop task custom field tables., Create task custom-field definition, binding, and value tables., upgrade()
 
-### Community 47 - "Community 47"
+### Community 45 - "Community 45"
 Cohesion: 0.33
 Nodes (5): downgrade(), Add agent lifecycle metadata columns.  Revision ID: e3a1b2c4d5f6 Revises: b497b3, Add lifecycle generation, wake tracking, and failure metadata., Remove lifecycle generation, wake tracking, and failure metadata., upgrade()
 
-### Community 48 - "Community 48"
+### Community 46 - "Community 46"
 Cohesion: 0.33
 Nodes (5): downgrade(), Add disable_device_pairing setting to gateways.  Revision ID: c5d1a2b3e4f6 Revis, Add gateway toggle to bypass device pairing handshake., Remove gateway toggle to bypass device pairing handshake., upgrade()
 
-### Community 49 - "Community 49"
+### Community 47 - "Community 47"
 Cohesion: 0.33
 Nodes (5): downgrade(), Add max_agents field to boards.  Revision ID: 4c1f5e2a7b9d Revises: c9d7e9b6a4f2, Add required boards.max_agents column with a safe backfill default., Remove boards.max_agents column., upgrade()
 
-### Community 50 - "Community 50"
+### Community 48 - "Community 48"
 Cohesion: 0.33
 Nodes (5): downgrade(), Allow duplicate organization names.  Revision ID: a1e6b0d62f0c Revises: 658dca8f, Drop global unique constraint on organization names., Restore global unique constraint on organization names., upgrade()
 
-### Community 51 - "Community 51"
+### Community 49 - "Community 49"
 Cohesion: 0.33
 Nodes (5): downgrade(), Add description field to boards.  Revision ID: c3b58a391f2e Revises: b308f287635, Add required board description column., Remove board description column., upgrade()
 
-### Community 52 - "Community 52"
+### Community 50 - "Community 50"
 Cohesion: 0.33
 Nodes (5): downgrade(), Track prior in_progress_at during status transitions.  Revision ID: a2f6c9d4b7e8, Add previous_in_progress_at column to tasks., Drop previous_in_progress_at column from tasks., upgrade()
 
-### Community 53 - "Community 53"
+### Community 51 - "Community 51"
 Cohesion: 0.4
 Nodes (5): normalize_every(), parse_every_to_seconds(), Utilities for parsing human-readable duration schedule strings., Normalize schedule string to lower-case compact unit form., Parse compact schedule syntax into a number of seconds.
 
-### Community 54 - "Community 54"
+### Community 52 - "Community 52"
 Cohesion: 0.47
 Nodes (4): normalizeRepoSourceUrl(), packLabelFromUrl(), packUrlFromSkillSourceUrl(), repoBaseFromSkillSourceUrl()
 
-### Community 55 - "Community 55"
+### Community 53 - "Community 53"
 Cohesion: 0.4
 Nodes (2): handleOpenChange(), handleSelect()
 
-### Community 56 - "Community 56"
+### Community 54 - "Community 54"
 Cohesion: 0.4
 Nodes (2): initialsFrom(), memberDisplay()
 
-### Community 57 - "Community 57"
+### Community 55 - "Community 55"
 Cohesion: 0.5
 Nodes (4): agent_key(), Agent key derivation helpers shared across OpenClaw modules., Return stable gateway agent id derived from session key or name fallback., slugify()
 
-### Community 58 - "Community 58"
+### Community 56 - "Community 56"
 Cohesion: 0.4
 Nodes (0):
 
-### Community 59 - "Community 59"
+### Community 57 - "Community 57"
 Cohesion: 0.7
 Nodes (4): goToNext(), goToPrevious(), makeCurrent(), toggleClass()
 
-### Community 60 - "Community 60"
+### Community 58 - "Community 58"
 Cohesion: 0.5
 Nodes (1): add board rule toggles  Revision ID: c2e9f1a6d4b8 Revises: e2f9c6b4a1d3 Create D
 
-### Community 61 - "Community 61"
+### Community 59 - "Community 59"
 Cohesion: 0.5
 Nodes (1): make approval confidence float  Revision ID: e2f9c6b4a1d3 Revises: d8c1e5a4f7b2
 
-### Community 62 - "Community 62"
+### Community 60 - "Community 60"
+Cohesion: 0.5
+Nodes (2): add tags and tag assignments  Revision ID: d8c1e5a4f7b2 Revises: 99cd6df95f85, b, upgrade()
+
+### Community 61 - "Community 61"
 Cohesion: 0.5
 Nodes (1): sync agent gateway linkage schema  Revision ID: b308f2876359 Revises: a1e6b0d62f
 
-### Community 63 - "Community 63"
+### Community 62 - "Community 62"
 Cohesion: 0.5
 Nodes (1): add lead-only status change board rule  Revision ID: 1a7b2c3d4e5f Revises: c2e9f
 
-### Community 64 - "Community 64"
+### Community 63 - "Community 63"
 Cohesion: 0.5
 Nodes (1): add composite indexes for task listing  Revision ID: b4338be78eec Revises: f4d2b
 
-### Community 65 - "Community 65"
+### Community 64 - "Community 64"
 Cohesion: 0.5
 Nodes (1): add activity_events event_type created_at index  Revision ID: b05c7b628636 Revis
+
+### Community 65 - "Community 65"
+Cohesion: 0.5
+Nodes (2): add board_id to activity_events  Revision ID: a9b1c2d3e4f7 Revises: a1b2c3d4e5f6, upgrade()
 
 ### Community 66 - "Community 66"
 Cohesion: 0.5
@@ -1022,19 +1053,19 @@ Nodes (0):
 
 ### Community 93 - "Community 93"
 Cohesion: 1.0
-Nodes (2): _normalize_signature_header(), Normalize and validate signature_header as a valid HTTP header name.
+Nodes (1): Application name and version constants.
 
 ### Community 94 - "Community 94"
 Cohesion: 1.0
-Nodes (2): _normalize_secret(), Normalize blank/whitespace-only secrets to None.
+Nodes (1): Shared constants for lifecycle orchestration services.
 
 ### Community 95 - "Community 95"
 Cohesion: 1.0
-Nodes (1): Application name and version constants.
+Nodes (0):
 
 ### Community 96 - "Community 96"
 Cohesion: 1.0
-Nodes (1): Shared constants for lifecycle orchestration services.
+Nodes (0):
 
 ### Community 97 - "Community 97"
 Cohesion: 1.0
@@ -1186,23 +1217,23 @@ Nodes (0):
 
 ### Community 134 - "Community 134"
 Cohesion: 1.0
-Nodes (0):
+Nodes (1): Keep task identifiers deduplicated and task_id aligned with task_ids.
 
 ### Community 135 - "Community 135"
 Cohesion: 1.0
-Nodes (0):
+Nodes (1): Ensure each approval request includes explicit lead reasoning.
 
 ### Community 136 - "Community 136"
 Cohesion: 1.0
-Nodes (1): Keep task identifiers deduplicated and task_id aligned with task_ids.
+Nodes (1): Ensure explicitly provided `status` is not null.
 
 ### Community 137 - "Community 137"
 Cohesion: 1.0
-Nodes (1): Ensure each approval request includes explicit lead reasoning.
+Nodes (1): Treat empty slug strings as unset so API can auto-generate.
 
 ### Community 138 - "Community 138"
 Cohesion: 1.0
-Nodes (1): Ensure explicitly provided `status` is not null.
+Nodes (1): Normalize color to lowercase hex without a leading hash.
 
 ### Community 139 - "Community 139"
 Cohesion: 1.0
@@ -1214,47 +1245,47 @@ Nodes (1): Normalize color to lowercase hex without a leading hash.
 
 ### Community 141 - "Community 141"
 Cohesion: 1.0
-Nodes (1): Treat empty slug strings as unset so API can auto-generate.
+Nodes (1): Reject empty update payloads to avoid no-op patch calls.
 
 ### Community 142 - "Community 142"
 Cohesion: 1.0
-Nodes (1): Normalize color to lowercase hex without a leading hash.
+Nodes (1): Normalize empty/whitespace tokens to `None`.
 
 ### Community 143 - "Community 143"
 Cohesion: 1.0
-Nodes (1): Reject empty update payloads to avoid no-op patch calls.
+Nodes (1): Normalize empty/whitespace tokens to `None`.
 
 ### Community 144 - "Community 144"
 Cohesion: 1.0
-Nodes (1): Normalize empty/whitespace tokens to `None`.
+Nodes (1): Require gateway and goal details when creating a confirmed goal board.
 
 ### Community 145 - "Community 145"
 Cohesion: 1.0
-Nodes (1): Normalize empty/whitespace tokens to `None`.
+Nodes (1): Reject explicit null gateway IDs in patch payloads.
 
 ### Community 146 - "Community 146"
 Cohesion: 1.0
-Nodes (1): Require gateway and goal details when creating a confirmed goal board.
+Nodes (1): Require goal metadata when the board type is `goal`.
 
 ### Community 147 - "Community 147"
 Cohesion: 1.0
-Nodes (1): Reject explicit null gateway IDs in patch payloads.
+Nodes (1): Trim optional free-form profile text fields.
 
 ### Community 148 - "Community 148"
 Cohesion: 1.0
-Nodes (1): Require goal metadata when the board type is `goal`.
+Nodes (1): Trim optional lead-agent preference fields.
 
 ### Community 149 - "Community 149"
 Cohesion: 1.0
-Nodes (1): Trim optional free-form profile text fields.
+Nodes (1): Normalize identity profile keys and values as trimmed strings.
 
 ### Community 150 - "Community 150"
 Cohesion: 1.0
-Nodes (1): Trim optional lead-agent preference fields.
+Nodes (1): Normalize blank template text to null.
 
 ### Community 151 - "Community 151"
 Cohesion: 1.0
-Nodes (1): Normalize identity profile keys and values as trimmed strings.
+Nodes (1): Normalize identity-profile values into trimmed string mappings.
 
 ### Community 152 - "Community 152"
 Cohesion: 1.0
@@ -1266,87 +1297,87 @@ Nodes (1): Normalize identity-profile values into trimmed string mappings.
 
 ### Community 154 - "Community 154"
 Cohesion: 1.0
-Nodes (1): Normalize blank template text to null.
+Nodes (1): Normalize field keys to a stable lowercase representation.
 
 ### Community 155 - "Community 155"
 Cohesion: 1.0
-Nodes (1): Normalize identity-profile values into trimmed string mappings.
+Nodes (1): Normalize labels to a trimmed representation when provided.
 
 ### Community 156 - "Community 156"
 Cohesion: 1.0
-Nodes (1): Normalize field keys to a stable lowercase representation.
+Nodes (1): Normalize field type aliases.
 
 ### Community 157 - "Community 157"
 Cohesion: 1.0
-Nodes (1): Normalize labels to a trimmed representation when provided.
+Nodes (1): Normalize and validate regex pattern syntax.
 
 ### Community 158 - "Community 158"
 Cohesion: 1.0
-Nodes (1): Normalize field type aliases.
+Nodes (1): Normalize UI visibility aliases.
 
 ### Community 159 - "Community 159"
 Cohesion: 1.0
-Nodes (1): Normalize and validate regex pattern syntax.
+Nodes (1): Remove duplicates while preserving user-supplied order.
 
 ### Community 160 - "Community 160"
 Cohesion: 1.0
-Nodes (1): Normalize UI visibility aliases.
+Nodes (1): Default labels to field_key when omitted by older clients.
 
 ### Community 161 - "Community 161"
 Cohesion: 1.0
-Nodes (1): Remove duplicates while preserving user-supplied order.
+Nodes (1): Restrict regex validation to string-compatible field types.
 
 ### Community 162 - "Community 162"
 Cohesion: 1.0
-Nodes (1): Default labels to field_key when omitted by older clients.
+Nodes (1): Normalize board bindings when provided in updates.
 
 ### Community 163 - "Community 163"
 Cohesion: 1.0
-Nodes (1): Restrict regex validation to string-compatible field types.
+Nodes (1): Normalize optional field type aliases.
 
 ### Community 164 - "Community 164"
 Cohesion: 1.0
-Nodes (1): Normalize board bindings when provided in updates.
+Nodes (1): Normalize and validate optional regex pattern syntax.
 
 ### Community 165 - "Community 165"
 Cohesion: 1.0
-Nodes (1): Normalize optional field type aliases.
+Nodes (1): Normalize optional UI visibility aliases.
 
 ### Community 166 - "Community 166"
 Cohesion: 1.0
-Nodes (1): Normalize and validate optional regex pattern syntax.
+Nodes (1): Reject explicit null for non-nullable update fields.
 
 ### Community 167 - "Community 167"
 Cohesion: 1.0
-Nodes (1): Normalize optional UI visibility aliases.
+Nodes (1): Reject empty updates to avoid no-op requests.
 
 ### Community 168 - "Community 168"
 Cohesion: 1.0
-Nodes (1): Reject explicit null for non-nullable update fields.
+Nodes (1): Configure root logging handlers, formatters, and library levels.
 
 ### Community 169 - "Community 169"
 Cohesion: 1.0
-Nodes (1): Reject empty updates to avoid no-op requests.
+Nodes (1): Return a logger, ensuring logging has been configured.
 
 ### Community 170 - "Community 170"
 Cohesion: 1.0
-Nodes (1): Configure root logging handlers, formatters, and library levels.
+Nodes (1): Return the canonical page URL for this soul.
 
 ### Community 171 - "Community 171"
 Cohesion: 1.0
-Nodes (1): Return a logger, ensuring logging has been configured.
+Nodes (1): Return the raw markdown URL for this soul.
 
 ### Community 172 - "Community 172"
 Cohesion: 1.0
-Nodes (1): Return the canonical page URL for this soul.
+Nodes (1): Load config from the systemd environment file.
 
 ### Community 173 - "Community 173"
 Cohesion: 1.0
-Nodes (1): Return the raw markdown URL for this soul.
+Nodes (0):
 
 ### Community 174 - "Community 174"
 Cohesion: 1.0
-Nodes (1): Load config from the systemd environment file.
+Nodes (0):
 
 ### Community 175 - "Community 175"
 Cohesion: 1.0
@@ -2590,475 +2621,475 @@ Nodes (0):
 
 ### Community 485 - "Community 485"
 Cohesion: 1.0
-Nodes (1): Request payload for sending a message into a gateway session.
+Nodes (0):
 
 ### Community 486 - "Community 486"
 Cohesion: 1.0
-Nodes (1): Query parameters used to resolve which gateway to target.
+Nodes (0):
 
 ### Community 487 - "Community 487"
 Cohesion: 1.0
-Nodes (1): Aggregated gateway status response including session metadata.
+Nodes (0):
 
 ### Community 488 - "Community 488"
 Cohesion: 1.0
-Nodes (1): Gateway sessions list response payload.
+Nodes (0):
 
 ### Community 489 - "Community 489"
 Cohesion: 1.0
-Nodes (1): Single gateway session response payload.
+Nodes (0):
 
 ### Community 490 - "Community 490"
 Cohesion: 1.0
-Nodes (1): Gateway session history response payload.
+Nodes (0):
 
 ### Community 491 - "Community 491"
 Cohesion: 1.0
-Nodes (1): Gateway command catalog and protocol metadata.
+Nodes (0):
 
 ### Community 492 - "Community 492"
 Cohesion: 1.0
-Nodes (1): Resolve watcher root from env override or default path.
+Nodes (1): Paper-trading and learner update snapshot from local artifacts.
 
 ### Community 493 - "Community 493"
 Cohesion: 1.0
-Nodes (1): Build compact watcher status payload for API consumers.
+Nodes (1): Load trade-journal profile and latest events with bounded output.
 
 ### Community 494 - "Community 494"
 Cohesion: 1.0
-Nodes (1): Load latest portfolio snapshot from state/portfolio_history if present.
+Nodes (1): Load learner paper-trading and update artifacts for the dashboard.
 
 ### Community 495 - "Community 495"
 Cohesion: 1.0
-Nodes (1): Load strategy signals explainability with fallback to whale_history JSONL.
+Nodes (1): Build account total view: positions + cash when cash is present in state.
 
 ### Community 496 - "Community 496"
 Cohesion: 1.0
-Nodes (1): Load whale-hook explainability snapshot with history fallback.
+Nodes (1): Read-only strategy signal summary extracted from watcher reports/history.
 
 ### Community 497 - "Community 497"
 Cohesion: 1.0
-Nodes (1): Load trade-journal profile and latest events with bounded output.
+Nodes (1): Read-only whale-hook execution and diagnostics summary.
 
 ### Community 498 - "Community 498"
 Cohesion: 1.0
-Nodes (1): Load config from the systemd environment file.
+Nodes (1): Feedback profile and recent trade journal events.
 
 ### Community 499 - "Community 499"
 Cohesion: 1.0
-Nodes (1): Load processed board-memory IDs from disk.
+Nodes (1): Load strategy signals explainability with fallback to whale_history JSONL.
 
 ### Community 500 - "Community 500"
 Cohesion: 1.0
-Nodes (1): Persist processed IDs, keeping only a bounded set.
+Nodes (1): Load whale-hook explainability snapshot with history fallback.
 
 ### Community 501 - "Community 501"
 Cohesion: 1.0
-Nodes (1): Return the board-chat source label for one CLI runtime.
+Nodes (1): Load trade-journal profile and latest events with bounded output.
 
 ### Community 502 - "Community 502"
 Cohesion: 1.0
-Nodes (1): Return the board-chat source label for a Codex CLI model.
+Nodes (1): Load learner paper-trading and update artifacts for the dashboard.
 
 ### Community 503 - "Community 503"
 Cohesion: 1.0
-Nodes (1): Resolve the requested CLI runtime from memory tags.
+Nodes (1): Resolve watcher root from env override or default path.
 
 ### Community 504 - "Community 504"
 Cohesion: 1.0
-Nodes (1): Return whether a request must run in read-only diagnostic mode.
+Nodes (1): Resolve Polymarket scheduled-agent artifact root from env override.
 
 ### Community 505 - "Community 505"
 Cohesion: 1.0
-Nodes (1): Prefix prompts with non-destructive diagnostic constraints.
+Nodes (1): Build compact watcher status payload for API consumers.
 
 ### Community 506 - "Community 506"
 Cohesion: 1.0
-Nodes (1): Resolve a Codex CLI model from memory tags for backward-compatible callers.
+Nodes (1): Load latest portfolio snapshot from state/portfolio_history if present.
 
 ### Community 507 - "Community 507"
 Cohesion: 1.0
-Nodes (1): Return stable CLI Chat session tags that should follow bridge results.
+Nodes (1): Load strategy signals explainability with fallback to whale_history JSONL.
 
 ### Community 508 - "Community 508"
 Cohesion: 1.0
-Nodes (1): Append tags without duplicating existing values while preserving order.
+Nodes (1): Load whale-hook explainability snapshot with history fallback.
 
 ### Community 509 - "Community 509"
 Cohesion: 1.0
-Nodes (1): Return whether a board-chat memory entry is a new CLI runtime request.
+Nodes (1): Load trade-journal profile and latest events with bounded output.
 
 ### Community 510 - "Community 510"
 Cohesion: 1.0
-Nodes (1): Fetch recent board-chat memory entries.
+Nodes (1): Load learner paper-trading and update artifacts for the dashboard.
 
 ### Community 511 - "Community 511"
 Cohesion: 1.0
-Nodes (1): Build the non-interactive Codex CLI command.
+Nodes (1): Resolve watcher root from env override or default path.
 
 ### Community 512 - "Community 512"
 Cohesion: 1.0
-Nodes (1): Extract Markdown image attachments for Codex CLI image input.      The browser c
+Nodes (1): Build compact watcher status payload for API consumers.
 
 ### Community 513 - "Community 513"
 Cohesion: 1.0
-Nodes (1): Build the non-interactive Claude Code command.      We intentionally do not pass
+Nodes (1): Load latest portfolio snapshot from state/portfolio_history if present.
 
 ### Community 514 - "Community 514"
 Cohesion: 1.0
-Nodes (1): Result captured from one CLI invocation.
+Nodes (1): Load strategy signals explainability with fallback to whale_history JSONL.
 
 ### Community 515 - "Community 515"
 Cohesion: 1.0
-Nodes (1): Run Codex CLI once and capture the final assistant message.
+Nodes (1): Load whale-hook explainability snapshot with history fallback.
 
 ### Community 516 - "Community 516"
 Cohesion: 1.0
-Nodes (1): Run Claude Code once and capture stdout as the final assistant message.
+Nodes (1): Load trade-journal profile and latest events with bounded output.
 
 ### Community 517 - "Community 517"
 Cohesion: 1.0
-Nodes (1): Run one requested CLI runtime.
+Nodes (1): Request payload for sending a message into a gateway session.
 
 ### Community 518 - "Community 518"
 Cohesion: 1.0
-Nodes (1): Format one CLI result as a board-chat memory payload.
+Nodes (1): Query parameters used to resolve which gateway to target.
 
 ### Community 519 - "Community 519"
 Cohesion: 1.0
-Nodes (1): Format one Codex result as a board-chat memory payload.
+Nodes (1): Aggregated gateway status response including session metadata.
 
 ### Community 520 - "Community 520"
 Cohesion: 1.0
-Nodes (1): Post a bridge response back to board chat.
+Nodes (1): Gateway sessions list response payload.
 
 ### Community 521 - "Community 521"
 Cohesion: 1.0
-Nodes (1): Run the bridge forever.
+Nodes (1): Single gateway session response payload.
 
 ### Community 522 - "Community 522"
 Cohesion: 1.0
-Nodes (1): Resolved CLI runtime request from one board-chat memory entry.
+Nodes (1): Gateway session history response payload.
 
 ### Community 523 - "Community 523"
 Cohesion: 1.0
-Nodes (1): Runtime settings for the CLI bridge loop.      The class name is kept for compat
+Nodes (1): Gateway command catalog and protocol metadata.
 
 ### Community 524 - "Community 524"
 Cohesion: 1.0
-Nodes (1): Load config from the systemd environment file.
+Nodes (1): Resolve watcher root from env override or default path.
 
 ### Community 525 - "Community 525"
 Cohesion: 1.0
-Nodes (1): Load processed board-memory IDs from disk.
+Nodes (1): Load latest portfolio snapshot from state/portfolio_history if present.
 
 ### Community 526 - "Community 526"
 Cohesion: 1.0
-Nodes (1): Persist processed IDs, keeping only a bounded set.
+Nodes (1): Load strategy signals explainability with fallback to whale_history JSONL.
 
 ### Community 527 - "Community 527"
 Cohesion: 1.0
-Nodes (1): Return the board-chat source label for one CLI runtime.
+Nodes (1): Load whale-hook explainability snapshot with history fallback.
 
 ### Community 528 - "Community 528"
 Cohesion: 1.0
-Nodes (1): Return the board-chat source label for a Codex CLI model.
+Nodes (1): Load trade-journal profile and latest events with bounded output.
 
 ### Community 529 - "Community 529"
 Cohesion: 1.0
-Nodes (1): Resolve the requested CLI runtime from memory tags.
+Nodes (1): Load config from the systemd environment file.
 
 ### Community 530 - "Community 530"
 Cohesion: 1.0
-Nodes (1): Return whether a request must run in read-only diagnostic mode.
+Nodes (1): Load processed board-memory IDs from disk.
 
 ### Community 531 - "Community 531"
 Cohesion: 1.0
-Nodes (1): Prefix prompts with non-destructive diagnostic constraints.
+Nodes (1): Persist processed IDs, keeping only a bounded set.
 
 ### Community 532 - "Community 532"
 Cohesion: 1.0
-Nodes (1): Run Codex CLI once and capture the final assistant message.
+Nodes (1): Return the board-chat source label for one CLI runtime.
 
 ### Community 533 - "Community 533"
 Cohesion: 1.0
-Nodes (1): Return whether a board-chat memory entry is a new CLI runtime request.
+Nodes (1): Return the board-chat source label for a Codex CLI model.
 
 ### Community 534 - "Community 534"
 Cohesion: 1.0
-Nodes (1): Fetch recent board-chat memory entries.
+Nodes (1): Resolve the requested CLI runtime from memory tags.
 
 ### Community 535 - "Community 535"
 Cohesion: 1.0
-Nodes (1): Build the non-interactive Codex CLI command.
+Nodes (1): Return whether a request must run in read-only diagnostic mode.
 
 ### Community 536 - "Community 536"
 Cohesion: 1.0
-Nodes (1): Extract Markdown image attachments for Codex CLI image input.      The browser c
+Nodes (1): Prefix prompts with non-destructive diagnostic constraints.
 
 ### Community 537 - "Community 537"
 Cohesion: 1.0
-Nodes (1): Build the non-interactive Claude Code command.      We intentionally do not pass
+Nodes (1): Resolve a Codex CLI model from memory tags for backward-compatible callers.
 
 ### Community 538 - "Community 538"
 Cohesion: 1.0
-Nodes (1): Result captured from one CLI invocation.
+Nodes (1): Return stable CLI Chat session tags that should follow bridge results.
 
 ### Community 539 - "Community 539"
 Cohesion: 1.0
-Nodes (1): Run Codex CLI once and capture the final assistant message.
+Nodes (1): Append tags without duplicating existing values while preserving order.
 
 ### Community 540 - "Community 540"
 Cohesion: 1.0
-Nodes (1): Run Claude Code once and capture stdout as the final assistant message.
+Nodes (1): Return whether a board-chat memory entry is a new CLI runtime request.
 
 ### Community 541 - "Community 541"
 Cohesion: 1.0
-Nodes (1): Run one requested CLI runtime.
+Nodes (1): Fetch recent board-chat memory entries.
 
 ### Community 542 - "Community 542"
 Cohesion: 1.0
-Nodes (1): Format one CLI result as a board-chat memory payload.
+Nodes (1): Build the non-interactive Codex CLI command.
 
 ### Community 543 - "Community 543"
 Cohesion: 1.0
-Nodes (1): Run the bridge forever.
+Nodes (1): Extract Markdown image attachments for Codex CLI image input.      The browser c
 
 ### Community 544 - "Community 544"
 Cohesion: 1.0
-Nodes (1): Post a bridge response back to board chat.
+Nodes (1): Build the non-interactive Claude Code command.      We intentionally do not pass
 
 ### Community 545 - "Community 545"
 Cohesion: 1.0
-Nodes (1): Process pending CLI board-chat requests once.
+Nodes (1): Result captured from one CLI invocation.
 
 ### Community 546 - "Community 546"
 Cohesion: 1.0
-Nodes (1): Run the bridge forever.
+Nodes (1): Run Codex CLI once and capture the final assistant message.
 
 ### Community 547 - "Community 547"
 Cohesion: 1.0
-Nodes (1): Resolved CLI runtime request from one board-chat memory entry.
+Nodes (1): Run Claude Code once and capture stdout as the final assistant message.
 
 ### Community 548 - "Community 548"
 Cohesion: 1.0
-Nodes (1): Runtime settings for the CLI bridge loop.      The class name is kept for compat
+Nodes (1): Run one requested CLI runtime.
 
 ### Community 549 - "Community 549"
 Cohesion: 1.0
-Nodes (1): Return whether a board-chat memory entry is a new Codex 5.5 request.
+Nodes (1): Format one CLI result as a board-chat memory payload.
 
 ### Community 550 - "Community 550"
 Cohesion: 1.0
-Nodes (1): Resolve the requested Codex CLI model from memory tags.
+Nodes (1): Format one Codex result as a board-chat memory payload.
 
 ### Community 551 - "Community 551"
 Cohesion: 1.0
-Nodes (1): Persist processed IDs, keeping only a bounded set.
+Nodes (1): Post a bridge response back to board chat.
 
 ### Community 552 - "Community 552"
 Cohesion: 1.0
-Nodes (1): Return the board-chat source label for one CLI runtime.
+Nodes (1): Run the bridge forever.
 
 ### Community 553 - "Community 553"
 Cohesion: 1.0
-Nodes (1): Return the board-chat source label for a Codex CLI model.
+Nodes (1): Resolved CLI runtime request from one board-chat memory entry.
 
 ### Community 554 - "Community 554"
 Cohesion: 1.0
-Nodes (1): Resolve the requested CLI runtime from memory tags.
+Nodes (1): Runtime settings for the CLI bridge loop.      The class name is kept for compat
 
 ### Community 555 - "Community 555"
 Cohesion: 1.0
-Nodes (1): Return whether a request must run in read-only diagnostic mode.
+Nodes (1): Load config from the systemd environment file.
 
 ### Community 556 - "Community 556"
 Cohesion: 1.0
-Nodes (1): Prefix prompts with non-destructive diagnostic constraints.
+Nodes (1): Load processed board-memory IDs from disk.
 
 ### Community 557 - "Community 557"
 Cohesion: 1.0
-Nodes (1): Resolve a Codex CLI model from memory tags for backward-compatible callers.
+Nodes (1): Persist processed IDs, keeping only a bounded set.
 
 ### Community 558 - "Community 558"
 Cohesion: 1.0
-Nodes (1): Fetch recent board-chat memory entries.
+Nodes (1): Return the board-chat source label for one CLI runtime.
 
 ### Community 559 - "Community 559"
 Cohesion: 1.0
-Nodes (1): Extract Markdown image attachments for Codex CLI image input.      The browser c
+Nodes (1): Return the board-chat source label for a Codex CLI model.
 
 ### Community 560 - "Community 560"
 Cohesion: 1.0
-Nodes (1): Result captured from one CLI invocation.
+Nodes (1): Resolve the requested CLI runtime from memory tags.
 
 ### Community 561 - "Community 561"
 Cohesion: 1.0
-Nodes (1): Result captured from one CLI invocation.
+Nodes (1): Return whether a request must run in read-only diagnostic mode.
 
 ### Community 562 - "Community 562"
 Cohesion: 1.0
-Nodes (1): Run Codex CLI once and capture the final assistant message.
+Nodes (1): Prefix prompts with non-destructive diagnostic constraints.
 
 ### Community 563 - "Community 563"
 Cohesion: 1.0
-Nodes (1): Run Claude Code once and capture stdout as the final assistant message.
+Nodes (1): Run Codex CLI once and capture the final assistant message.
 
 ### Community 564 - "Community 564"
 Cohesion: 1.0
-Nodes (1): Run one requested CLI runtime.
+Nodes (1): Return whether a board-chat memory entry is a new CLI runtime request.
 
 ### Community 565 - "Community 565"
 Cohesion: 1.0
-Nodes (1): Process pending CLI board-chat requests once.
+Nodes (1): Fetch recent board-chat memory entries.
 
 ### Community 566 - "Community 566"
 Cohesion: 1.0
-Nodes (1): Format one Codex result as a board-chat memory payload.
+Nodes (1): Build the non-interactive Codex CLI command.
 
 ### Community 567 - "Community 567"
 Cohesion: 1.0
-Nodes (1): Post a bridge response back to board chat.
+Nodes (1): Extract Markdown image attachments for Codex CLI image input.      The browser c
 
 ### Community 568 - "Community 568"
 Cohesion: 1.0
-Nodes (1): Process pending CLI board-chat requests once.
+Nodes (1): Build the non-interactive Claude Code command.      We intentionally do not pass
 
 ### Community 569 - "Community 569"
 Cohesion: 1.0
-Nodes (1): Run the bridge forever.
+Nodes (1): Result captured from one CLI invocation.
 
 ### Community 570 - "Community 570"
 Cohesion: 1.0
-Nodes (1): Resolved CLI runtime request from one board-chat memory entry.
+Nodes (1): Run Codex CLI once and capture the final assistant message.
 
 ### Community 571 - "Community 571"
 Cohesion: 1.0
-Nodes (1): Runtime settings for the CLI bridge loop.      The class name is kept for compat
+Nodes (1): Run Claude Code once and capture stdout as the final assistant message.
 
 ### Community 572 - "Community 572"
 Cohesion: 1.0
-Nodes (1): Load config from the systemd environment file.
+Nodes (1): Run one requested CLI runtime.
 
 ### Community 573 - "Community 573"
 Cohesion: 1.0
-Nodes (1): Load processed board-memory IDs from disk.
+Nodes (1): Format one CLI result as a board-chat memory payload.
 
 ### Community 574 - "Community 574"
 Cohesion: 1.0
-Nodes (1): Persist processed IDs, keeping only a bounded set.
+Nodes (1): Run the bridge forever.
 
 ### Community 575 - "Community 575"
 Cohesion: 1.0
-Nodes (1): Return whether a board-chat memory entry is a new Codex CLI request.
+Nodes (1): Post a bridge response back to board chat.
 
 ### Community 576 - "Community 576"
 Cohesion: 1.0
-Nodes (1): Return the board-chat source label for a Codex CLI model.
+Nodes (1): Process pending CLI board-chat requests once.
 
 ### Community 577 - "Community 577"
 Cohesion: 1.0
-Nodes (1): Resolve the requested CLI runtime from memory tags.
+Nodes (1): Run the bridge forever.
 
 ### Community 578 - "Community 578"
 Cohesion: 1.0
-Nodes (1): Format one Codex result as a board-chat memory payload.
+Nodes (1): Resolved CLI runtime request from one board-chat memory entry.
 
 ### Community 579 - "Community 579"
 Cohesion: 1.0
-Nodes (1): Return whether a board-chat memory entry is a new CLI runtime request.
+Nodes (1): Runtime settings for the CLI bridge loop.      The class name is kept for compat
 
 ### Community 580 - "Community 580"
 Cohesion: 1.0
-Nodes (1): Fetch recent board-chat memory entries.
+Nodes (1): Return whether a board-chat memory entry is a new Codex 5.5 request.
 
 ### Community 581 - "Community 581"
 Cohesion: 1.0
-Nodes (1): Build the non-interactive Codex CLI command.
+Nodes (1): Resolve the requested Codex CLI model from memory tags.
 
 ### Community 582 - "Community 582"
 Cohesion: 1.0
-Nodes (1): Extract Markdown image attachments for Codex CLI image input.      The browser c
+Nodes (1): Persist processed IDs, keeping only a bounded set.
 
 ### Community 583 - "Community 583"
 Cohesion: 1.0
-Nodes (1): Build the non-interactive Claude Code command.      We intentionally do not pass
+Nodes (1): Return the board-chat source label for one CLI runtime.
 
 ### Community 584 - "Community 584"
 Cohesion: 1.0
-Nodes (1): Run Codex CLI once and capture the final assistant message.
+Nodes (1): Return the board-chat source label for a Codex CLI model.
 
 ### Community 585 - "Community 585"
 Cohesion: 1.0
-Nodes (1): Run Claude Code once and capture stdout as the final assistant message.
+Nodes (1): Resolve the requested CLI runtime from memory tags.
 
 ### Community 586 - "Community 586"
 Cohesion: 1.0
-Nodes (1): Run one requested CLI runtime.
+Nodes (1): Return whether a request must run in read-only diagnostic mode.
 
 ### Community 587 - "Community 587"
 Cohesion: 1.0
-Nodes (1): Format one CLI result as a board-chat memory payload.
+Nodes (1): Prefix prompts with non-destructive diagnostic constraints.
 
 ### Community 588 - "Community 588"
 Cohesion: 1.0
-Nodes (1): Format one Codex result as a board-chat memory payload.
+Nodes (1): Resolve a Codex CLI model from memory tags for backward-compatible callers.
 
 ### Community 589 - "Community 589"
 Cohesion: 1.0
-Nodes (1): Post a bridge response back to board chat.
+Nodes (1): Fetch recent board-chat memory entries.
 
 ### Community 590 - "Community 590"
 Cohesion: 1.0
-Nodes (1): Runtime settings for the Codex CLI bridge loop.      The class name is kept for
+Nodes (1): Extract Markdown image attachments for Codex CLI image input.      The browser c
 
 ### Community 591 - "Community 591"
 Cohesion: 1.0
-Nodes (1): Load config from the systemd environment file.
+Nodes (1): Result captured from one CLI invocation.
 
 ### Community 592 - "Community 592"
 Cohesion: 1.0
-Nodes (1): Persist processed IDs, keeping only a bounded set.
+Nodes (1): Result captured from one CLI invocation.
 
 ### Community 593 - "Community 593"
 Cohesion: 1.0
-Nodes (1): Persist processed IDs, keeping only a bounded set.
+Nodes (1): Run Codex CLI once and capture the final assistant message.
 
 ### Community 594 - "Community 594"
 Cohesion: 1.0
-Nodes (1): Return the board-chat source label for a Codex CLI model.
+Nodes (1): Run Claude Code once and capture stdout as the final assistant message.
 
 ### Community 595 - "Community 595"
 Cohesion: 1.0
-Nodes (1): Fetch recent board-chat memory entries.
+Nodes (1): Run one requested CLI runtime.
 
 ### Community 596 - "Community 596"
 Cohesion: 1.0
-Nodes (1): Build the non-interactive Codex CLI command.
+Nodes (1): Process pending CLI board-chat requests once.
 
 ### Community 597 - "Community 597"
 Cohesion: 1.0
-Nodes (1): Result captured from one Codex CLI invocation.
+Nodes (1): Format one Codex result as a board-chat memory payload.
 
 ### Community 598 - "Community 598"
 Cohesion: 1.0
-Nodes (1): Format one Codex result as a board-chat memory payload.
+Nodes (1): Post a bridge response back to board chat.
 
 ### Community 599 - "Community 599"
 Cohesion: 1.0
-Nodes (1): Post a bridge response back to board chat.
+Nodes (1): Process pending CLI board-chat requests once.
 
 ### Community 600 - "Community 600"
 Cohesion: 1.0
-Nodes (1): Process pending Codex CLI board-chat requests once.
+Nodes (1): Run the bridge forever.
 
 ### Community 601 - "Community 601"
 Cohesion: 1.0
-Nodes (1): Run the bridge forever.
+Nodes (1): Resolved CLI runtime request from one board-chat memory entry.
 
 ### Community 602 - "Community 602"
 Cohesion: 1.0
-Nodes (1): Runtime settings for the Codex 5.5 bridge loop.
+Nodes (1): Runtime settings for the CLI bridge loop.      The class name is kept for compat
 
 ### Community 603 - "Community 603"
 Cohesion: 1.0
@@ -3066,364 +3097,488 @@ Nodes (1): Load config from the systemd environment file.
 
 ### Community 604 - "Community 604"
 Cohesion: 1.0
-Nodes (1): Fetch recent board-chat memory entries.
+Nodes (1): Load processed board-memory IDs from disk.
 
 ### Community 605 - "Community 605"
 Cohesion: 1.0
-Nodes (1): Build the non-interactive Codex CLI command.
+Nodes (1): Persist processed IDs, keeping only a bounded set.
 
 ### Community 606 - "Community 606"
 Cohesion: 1.0
-Nodes (1): Result captured from one Codex CLI invocation.
+Nodes (1): Return whether a board-chat memory entry is a new Codex CLI request.
 
 ### Community 607 - "Community 607"
 Cohesion: 1.0
-Nodes (1): Run Codex CLI once and capture the final assistant message.
+Nodes (1): Return the board-chat source label for a Codex CLI model.
 
 ### Community 608 - "Community 608"
 Cohesion: 1.0
-Nodes (1): Post a bridge response back to board chat.
+Nodes (1): Resolve the requested CLI runtime from memory tags.
 
 ### Community 609 - "Community 609"
 Cohesion: 1.0
-Nodes (1): Process pending Codex 5.5 board-chat requests once.
+Nodes (1): Format one Codex result as a board-chat memory payload.
 
 ### Community 610 - "Community 610"
+Cohesion: 1.0
+Nodes (1): Return whether a board-chat memory entry is a new CLI runtime request.
+
+### Community 611 - "Community 611"
+Cohesion: 1.0
+Nodes (1): Fetch recent board-chat memory entries.
+
+### Community 612 - "Community 612"
+Cohesion: 1.0
+Nodes (1): Build the non-interactive Codex CLI command.
+
+### Community 613 - "Community 613"
+Cohesion: 1.0
+Nodes (1): Extract Markdown image attachments for Codex CLI image input.      The browser c
+
+### Community 614 - "Community 614"
+Cohesion: 1.0
+Nodes (1): Build the non-interactive Claude Code command.      We intentionally do not pass
+
+### Community 615 - "Community 615"
+Cohesion: 1.0
+Nodes (1): Run Codex CLI once and capture the final assistant message.
+
+### Community 616 - "Community 616"
+Cohesion: 1.0
+Nodes (1): Run Claude Code once and capture stdout as the final assistant message.
+
+### Community 617 - "Community 617"
+Cohesion: 1.0
+Nodes (1): Run one requested CLI runtime.
+
+### Community 618 - "Community 618"
+Cohesion: 1.0
+Nodes (1): Format one CLI result as a board-chat memory payload.
+
+### Community 619 - "Community 619"
+Cohesion: 1.0
+Nodes (1): Format one Codex result as a board-chat memory payload.
+
+### Community 620 - "Community 620"
+Cohesion: 1.0
+Nodes (1): Post a bridge response back to board chat.
+
+### Community 621 - "Community 621"
+Cohesion: 1.0
+Nodes (1): Runtime settings for the Codex CLI bridge loop.      The class name is kept for
+
+### Community 622 - "Community 622"
+Cohesion: 1.0
+Nodes (1): Load config from the systemd environment file.
+
+### Community 623 - "Community 623"
+Cohesion: 1.0
+Nodes (1): Persist processed IDs, keeping only a bounded set.
+
+### Community 624 - "Community 624"
+Cohesion: 1.0
+Nodes (1): Persist processed IDs, keeping only a bounded set.
+
+### Community 625 - "Community 625"
+Cohesion: 1.0
+Nodes (1): Return the board-chat source label for a Codex CLI model.
+
+### Community 626 - "Community 626"
+Cohesion: 1.0
+Nodes (1): Fetch recent board-chat memory entries.
+
+### Community 627 - "Community 627"
+Cohesion: 1.0
+Nodes (1): Build the non-interactive Codex CLI command.
+
+### Community 628 - "Community 628"
+Cohesion: 1.0
+Nodes (1): Result captured from one Codex CLI invocation.
+
+### Community 629 - "Community 629"
+Cohesion: 1.0
+Nodes (1): Format one Codex result as a board-chat memory payload.
+
+### Community 630 - "Community 630"
+Cohesion: 1.0
+Nodes (1): Post a bridge response back to board chat.
+
+### Community 631 - "Community 631"
+Cohesion: 1.0
+Nodes (1): Process pending Codex CLI board-chat requests once.
+
+### Community 632 - "Community 632"
+Cohesion: 1.0
+Nodes (1): Run the bridge forever.
+
+### Community 633 - "Community 633"
+Cohesion: 1.0
+Nodes (1): Runtime settings for the Codex 5.5 bridge loop.
+
+### Community 634 - "Community 634"
+Cohesion: 1.0
+Nodes (1): Load config from the systemd environment file.
+
+### Community 635 - "Community 635"
+Cohesion: 1.0
+Nodes (1): Fetch recent board-chat memory entries.
+
+### Community 636 - "Community 636"
+Cohesion: 1.0
+Nodes (1): Build the non-interactive Codex CLI command.
+
+### Community 637 - "Community 637"
+Cohesion: 1.0
+Nodes (1): Result captured from one Codex CLI invocation.
+
+### Community 638 - "Community 638"
+Cohesion: 1.0
+Nodes (1): Run Codex CLI once and capture the final assistant message.
+
+### Community 639 - "Community 639"
+Cohesion: 1.0
+Nodes (1): Post a bridge response back to board chat.
+
+### Community 640 - "Community 640"
+Cohesion: 1.0
+Nodes (1): Process pending Codex 5.5 board-chat requests once.
+
+### Community 641 - "Community 641"
 Cohesion: 1.0
 Nodes (1): Run the bridge forever.
 
 ## Knowledge Gaps
-- **529 isolated node(s):** `Return markdown files to check.      Policy:     - Always check root contributor`, `Migration graph integrity checks for CI.  Checks: - alembic script graph can be`, `Entrypoint for the host-side Codex 5.5 bridge service.`, `Export the backend OpenAPI schema to a versioned JSON artifact.`, `Generate `openapi.json` from the FastAPI app definition.` (+524 more)
+- **556 isolated node(s):** `Return markdown files to check.      Policy:     - Always check root contributor`, `Migration graph integrity checks for CI.  Checks: - alembic script graph can be`, `Entrypoint for the host-side Codex 5.5 bridge service.`, `Export the backend OpenAPI schema to a versioned JSON artifact.`, `Generate `openapi.json` from the FastAPI app definition.` (+551 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **Thin community `Community 91`** (2 nodes): `Entrypoint for the host-side Codex 5.5 bridge service.`, `codex55_bridge_worker.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 92`** (2 nodes): `test_queue_worker_lifecycle_handler.py`, `test_worker_registers_lifecycle_reconcile_handler()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 93`** (2 nodes): `_normalize_signature_header()`, `Normalize and validate signature_header as a valid HTTP header name.`
+- **Thin community `Community 93`** (2 nodes): `version.py`, `Application name and version constants.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 94`** (2 nodes): `_normalize_secret()`, `Normalize blank/whitespace-only secrets to None.`
+- **Thin community `Community 94`** (2 nodes): `Shared constants for lifecycle orchestration services.`, `constants.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 95`** (2 nodes): `version.py`, `Application name and version constants.`
+- **Thin community `Community 95`** (2 nodes): `testHooks.ts`, `setupCommonPageTestHooks()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 96`** (2 nodes): `Shared constants for lifecycle orchestration services.`, `constants.py`
+- **Thin community `Community 96`** (2 nodes): `onBeforeLoad()`, `commands.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 97`** (2 nodes): `testHooks.ts`, `setupCommonPageTestHooks()`
+- **Thin community `Community 97`** (2 nodes): `organizations.cy.ts`, `stubOrganizationApis()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 98`** (2 nodes): `onBeforeLoad()`, `commands.ts`
+- **Thin community `Community 98`** (2 nodes): `onboarding.ts`, `isOnboardingComplete()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 99`** (2 nodes): `organizations.cy.ts`, `stubOrganizationApis()`
+- **Thin community `Community 99`** (2 nodes): `timezones.ts`, `getSupportedTimezones()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 100`** (2 nodes): `onboarding.ts`, `isOnboardingComplete()`
+- **Thin community `Community 100`** (2 nodes): `memberWithUser()`, `display-name.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 101`** (2 nodes): `timezones.ts`, `getSupportedTimezones()`
+- **Thin community `Community 101`** (2 nodes): `utils.ts`, `cn()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 102`** (2 nodes): `memberWithUser()`, `display-name.test.ts`
+- **Thin community `Community 102`** (2 nodes): `page.tsx`, `Page()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 103`** (2 nodes): `utils.ts`, `cn()`
+- **Thin community `Community 103`** (2 nodes): `layout.tsx`, `RootLayout()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 104`** (2 nodes): `page.tsx`, `Page()`
+- **Thin community `Community 104`** (2 nodes): `loading.tsx`, `Loading()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 105`** (2 nodes): `layout.tsx`, `RootLayout()`
+- **Thin community `Community 105`** (2 nodes): `page.tsx`, `handleAccept()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 106`** (2 nodes): `loading.tsx`, `Loading()`
+- **Thin community `Community 106`** (2 nodes): `page.tsx`, `SkillsIndexPage()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 107`** (2 nodes): `page.tsx`, `handleAccept()`
+- **Thin community `Community 107`** (2 nodes): `page.tsx`, `EditMarketplaceSkillPage()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 108`** (2 nodes): `page.tsx`, `SkillsIndexPage()`
+- **Thin community `Community 108`** (2 nodes): `page.tsx`, `NewMarketplaceSkillPage()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 109`** (2 nodes): `page.tsx`, `EditMarketplaceSkillPage()`
+- **Thin community `Community 109`** (2 nodes): `buildDefinition()`, `custom-field-utils.test.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 110`** (2 nodes): `page.tsx`, `NewMarketplaceSkillPage()`
+- **Thin community `Community 110`** (2 nodes): `TaskCustomFieldsEditor.test.tsx`, `buildDefinition()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 111`** (2 nodes): `buildDefinition()`, `custom-field-utils.test.tsx`
+- **Thin community `Community 111`** (2 nodes): `TaskCustomFieldsEditor.tsx`, `TaskCustomFieldsEditor()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 112`** (2 nodes): `TaskCustomFieldsEditor.test.tsx`, `buildDefinition()`
+- **Thin community `Community 112`** (2 nodes): `page.tsx`, `stringifyPayload()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 113`** (2 nodes): `TaskCustomFieldsEditor.tsx`, `TaskCustomFieldsEditor()`
+- **Thin community `Community 113`** (2 nodes): `buildQuestionSession()`, `BoardOnboardingChat.test.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 114`** (2 nodes): `page.tsx`, `stringifyPayload()`
+- **Thin community `Community 114`** (2 nodes): `HeroKicker()`, `HeroKicker.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 115`** (2 nodes): `buildQuestionSession()`, `BoardOnboardingChat.test.tsx`
+- **Thin community `Community 115`** (2 nodes): `BrandMark()`, `BrandMark.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 116`** (2 nodes): `HeroKicker()`, `HeroKicker.tsx`
+- **Thin community `Community 116`** (2 nodes): `StatusPill.tsx`, `StatusPill()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 117`** (2 nodes): `BrandMark()`, `BrandMark.tsx`
+- **Thin community `Community 117`** (2 nodes): `AgentsTable()`, `AgentsTable.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 118`** (2 nodes): `StatusPill.tsx`, `StatusPill()`
+- **Thin community `Community 118`** (2 nodes): `TagsTable.tsx`, `normalizeColor()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 119`** (2 nodes): `AgentsTable()`, `AgentsTable.tsx`
+- **Thin community `Community 119`** (2 nodes): `GlobalLoader()`, `global-loader.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 120`** (2 nodes): `TagsTable.tsx`, `normalizeColor()`
+- **Thin community `Community 120`** (2 nodes): `Badge()`, `badge.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 121`** (2 nodes): `GlobalLoader()`, `global-loader.tsx`
+- **Thin community `Community 121`** (2 nodes): `searchable-select.tsx`, `SearchableSelect()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 122`** (2 nodes): `Badge()`, `badge.tsx`
+- **Thin community `Community 122`** (2 nodes): `BoardGroupsTable()`, `BoardGroupsTable.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 123`** (2 nodes): `searchable-select.tsx`, `SearchableSelect()`
+- **Thin community `Community 123`** (2 nodes): `HeroCopy()`, `HeroCopy.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 124`** (2 nodes): `BoardGroupsTable()`, `BoardGroupsTable.tsx`
+- **Thin community `Community 124`** (2 nodes): `TaskCard.tsx`, `TaskCard()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 125`** (2 nodes): `HeroCopy()`, `HeroCopy.tsx`
+- **Thin community `Community 125`** (2 nodes): `table-helpers.tsx`, `useTableSortingState()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 126`** (2 nodes): `TaskCard.tsx`, `TaskCard()`
+- **Thin community `Community 126`** (2 nodes): `QueryProvider.tsx`, `QueryProvider()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 127`** (2 nodes): `table-helpers.tsx`, `useTableSortingState()`
+- **Thin community `Community 127`** (2 nodes): `buildBoard()`, `CustomFieldForm.test.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 128`** (2 nodes): `QueryProvider.tsx`, `QueryProvider()`
+- **Thin community `Community 128`** (2 nodes): `buildField()`, `custom-field-form-utils.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 129`** (2 nodes): `buildBoard()`, `CustomFieldForm.test.tsx`
+- **Thin community `Community 129`** (2 nodes): `SignedOutPanel.tsx`, `SignedOutPanel()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 130`** (2 nodes): `buildField()`, `custom-field-form-utils.test.ts`
+- **Thin community `Community 130`** (2 nodes): `AdminOnlyNotice()`, `AdminOnlyNotice.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 131`** (2 nodes): `SignedOutPanel.tsx`, `SignedOutPanel()`
+- **Thin community `Community 131`** (2 nodes): `ActivityFeed()`, `ActivityFeed.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 132`** (2 nodes): `AdminOnlyNotice()`, `AdminOnlyNotice.tsx`
+- **Thin community `Community 132`** (2 nodes): `BoardAccessTable()`, `BoardAccessTable.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 133`** (2 nodes): `ActivityFeed()`, `ActivityFeed.tsx`
+- **Thin community `Community 133`** (1 nodes): `conftest.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 134`** (2 nodes): `BoardAccessTable()`, `BoardAccessTable.tsx`
+- **Thin community `Community 134`** (1 nodes): `Keep task identifiers deduplicated and task_id aligned with task_ids.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 135`** (1 nodes): `conftest.py`
+- **Thin community `Community 135`** (1 nodes): `Ensure each approval request includes explicit lead reasoning.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 136`** (1 nodes): `Keep task identifiers deduplicated and task_id aligned with task_ids.`
+- **Thin community `Community 136`** (1 nodes): `Ensure explicitly provided `status` is not null.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 137`** (1 nodes): `Ensure each approval request includes explicit lead reasoning.`
+- **Thin community `Community 137`** (1 nodes): `Treat empty slug strings as unset so API can auto-generate.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 138`** (1 nodes): `Ensure explicitly provided `status` is not null.`
+- **Thin community `Community 138`** (1 nodes): `Normalize color to lowercase hex without a leading hash.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 139`** (1 nodes): `Treat empty slug strings as unset so API can auto-generate.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 140`** (1 nodes): `Normalize color to lowercase hex without a leading hash.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 141`** (1 nodes): `Treat empty slug strings as unset so API can auto-generate.`
+- **Thin community `Community 141`** (1 nodes): `Reject empty update payloads to avoid no-op patch calls.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 142`** (1 nodes): `Normalize color to lowercase hex without a leading hash.`
+- **Thin community `Community 142`** (1 nodes): `Normalize empty/whitespace tokens to `None`.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 143`** (1 nodes): `Reject empty update payloads to avoid no-op patch calls.`
+- **Thin community `Community 143`** (1 nodes): `Normalize empty/whitespace tokens to `None`.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 144`** (1 nodes): `Normalize empty/whitespace tokens to `None`.`
+- **Thin community `Community 144`** (1 nodes): `Require gateway and goal details when creating a confirmed goal board.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 145`** (1 nodes): `Normalize empty/whitespace tokens to `None`.`
+- **Thin community `Community 145`** (1 nodes): `Reject explicit null gateway IDs in patch payloads.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 146`** (1 nodes): `Require gateway and goal details when creating a confirmed goal board.`
+- **Thin community `Community 146`** (1 nodes): `Require goal metadata when the board type is `goal`.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 147`** (1 nodes): `Reject explicit null gateway IDs in patch payloads.`
+- **Thin community `Community 147`** (1 nodes): `Trim optional free-form profile text fields.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 148`** (1 nodes): `Require goal metadata when the board type is `goal`.`
+- **Thin community `Community 148`** (1 nodes): `Trim optional lead-agent preference fields.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 149`** (1 nodes): `Trim optional free-form profile text fields.`
+- **Thin community `Community 149`** (1 nodes): `Normalize identity profile keys and values as trimmed strings.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 150`** (1 nodes): `Trim optional lead-agent preference fields.`
+- **Thin community `Community 150`** (1 nodes): `Normalize blank template text to null.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 151`** (1 nodes): `Normalize identity profile keys and values as trimmed strings.`
+- **Thin community `Community 151`** (1 nodes): `Normalize identity-profile values into trimmed string mappings.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 152`** (1 nodes): `Normalize blank template text to null.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 153`** (1 nodes): `Normalize identity-profile values into trimmed string mappings.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 154`** (1 nodes): `Normalize blank template text to null.`
+- **Thin community `Community 154`** (1 nodes): `Normalize field keys to a stable lowercase representation.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 155`** (1 nodes): `Normalize identity-profile values into trimmed string mappings.`
+- **Thin community `Community 155`** (1 nodes): `Normalize labels to a trimmed representation when provided.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 156`** (1 nodes): `Normalize field keys to a stable lowercase representation.`
+- **Thin community `Community 156`** (1 nodes): `Normalize field type aliases.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 157`** (1 nodes): `Normalize labels to a trimmed representation when provided.`
+- **Thin community `Community 157`** (1 nodes): `Normalize and validate regex pattern syntax.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 158`** (1 nodes): `Normalize field type aliases.`
+- **Thin community `Community 158`** (1 nodes): `Normalize UI visibility aliases.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 159`** (1 nodes): `Normalize and validate regex pattern syntax.`
+- **Thin community `Community 159`** (1 nodes): `Remove duplicates while preserving user-supplied order.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 160`** (1 nodes): `Normalize UI visibility aliases.`
+- **Thin community `Community 160`** (1 nodes): `Default labels to field_key when omitted by older clients.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 161`** (1 nodes): `Remove duplicates while preserving user-supplied order.`
+- **Thin community `Community 161`** (1 nodes): `Restrict regex validation to string-compatible field types.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 162`** (1 nodes): `Default labels to field_key when omitted by older clients.`
+- **Thin community `Community 162`** (1 nodes): `Normalize board bindings when provided in updates.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 163`** (1 nodes): `Restrict regex validation to string-compatible field types.`
+- **Thin community `Community 163`** (1 nodes): `Normalize optional field type aliases.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 164`** (1 nodes): `Normalize board bindings when provided in updates.`
+- **Thin community `Community 164`** (1 nodes): `Normalize and validate optional regex pattern syntax.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 165`** (1 nodes): `Normalize optional field type aliases.`
+- **Thin community `Community 165`** (1 nodes): `Normalize optional UI visibility aliases.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 166`** (1 nodes): `Normalize and validate optional regex pattern syntax.`
+- **Thin community `Community 166`** (1 nodes): `Reject explicit null for non-nullable update fields.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 167`** (1 nodes): `Normalize optional UI visibility aliases.`
+- **Thin community `Community 167`** (1 nodes): `Reject empty updates to avoid no-op requests.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 168`** (1 nodes): `Reject explicit null for non-nullable update fields.`
+- **Thin community `Community 168`** (1 nodes): `Configure root logging handlers, formatters, and library levels.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 169`** (1 nodes): `Reject empty updates to avoid no-op requests.`
+- **Thin community `Community 169`** (1 nodes): `Return a logger, ensuring logging has been configured.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 170`** (1 nodes): `Configure root logging handlers, formatters, and library levels.`
+- **Thin community `Community 170`** (1 nodes): `Return the canonical page URL for this soul.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 171`** (1 nodes): `Return a logger, ensuring logging has been configured.`
+- **Thin community `Community 171`** (1 nodes): `Return the raw markdown URL for this soul.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 172`** (1 nodes): `Return the canonical page URL for this soul.`
+- **Thin community `Community 172`** (1 nodes): `Load config from the systemd environment file.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 173`** (1 nodes): `Return the raw markdown URL for this soul.`
+- **Thin community `Community 173`** (1 nodes): `vitest.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 174`** (1 nodes): `Load config from the systemd environment file.`
+- **Thin community `Community 174`** (1 nodes): `orval.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 175`** (1 nodes): `vitest.config.ts`
+- **Thin community `Community 175`** (1 nodes): `next-env.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 176`** (1 nodes): `orval.config.ts`
+- **Thin community `Community 176`** (1 nodes): `vitest.full-coverage.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 177`** (1 nodes): `next-env.d.ts`
+- **Thin community `Community 177`** (1 nodes): `next.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 178`** (1 nodes): `vitest.full-coverage.config.ts`
+- **Thin community `Community 178`** (1 nodes): `cypress.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 179`** (1 nodes): `next.config.ts`
+- **Thin community `Community 179`** (1 nodes): `eslint.config.mjs`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 180`** (1 nodes): `cypress.config.ts`
+- **Thin community `Community 180`** (1 nodes): `postcss.config.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 181`** (1 nodes): `eslint.config.mjs`
+- **Thin community `Community 181`** (1 nodes): `e2e.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 182`** (1 nodes): `postcss.config.js`
+- **Thin community `Community 182`** (1 nodes): `boards_list.cy.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 183`** (1 nodes): `e2e.ts`
+- **Thin community `Community 183`** (1 nodes): `activity_smoke.cy.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 184`** (1 nodes): `boards_list.cy.ts`
+- **Thin community `Community 184`** (1 nodes): `skill_packs_sync.cy.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 185`** (1 nodes): `activity_smoke.cy.ts`
+- **Thin community `Community 185`** (1 nodes): `local_auth_login.cy.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 186`** (1 nodes): `skill_packs_sync.cy.ts`
+- **Thin community `Community 186`** (1 nodes): `global_approvals.cy.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 187`** (1 nodes): `local_auth_login.cy.ts`
+- **Thin community `Community 187`** (1 nodes): `setupTests.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 188`** (1 nodes): `global_approvals.cy.ts`
+- **Thin community `Community 188`** (1 nodes): `getBoardGroupSnapshotApiV1BoardsBoardIdGroupSnapshotGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 189`** (1 nodes): `setupTests.ts`
+- **Thin community `Community 189`** (1 nodes): `boardWebhookPayloadRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 190`** (1 nodes): `getBoardGroupSnapshotApiV1BoardsBoardIdGroupSnapshotGetParams.ts`
+- **Thin community `Community 190`** (1 nodes): `limitOffsetPageTypeVarCustomizedTaskRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 191`** (1 nodes): `boardWebhookPayloadRead.ts`
+- **Thin community `Community 191`** (1 nodes): `healthzHealthzGet200.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 192`** (1 nodes): `limitOffsetPageTypeVarCustomizedTaskRead.ts`
+- **Thin community `Community 192`** (1 nodes): `dashboardWipSeriesSet.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 193`** (1 nodes): `healthzHealthzGet200.ts`
+- **Thin community `Community 193`** (1 nodes): `listGatewaysApiV1GatewaysGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 194`** (1 nodes): `dashboardWipSeriesSet.ts`
+- **Thin community `Community 194`** (1 nodes): `agentReadHeartbeatConfig.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 195`** (1 nodes): `listGatewaysApiV1GatewaysGetParams.ts`
+- **Thin community `Community 195`** (1 nodes): `listBoardWebhooksApiV1BoardsBoardIdWebhooksGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 196`** (1 nodes): `agentReadHeartbeatConfig.ts`
+- **Thin community `Community 196`** (1 nodes): `listMarketplaceSkillsApiV1SkillsMarketplaceGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 197`** (1 nodes): `listBoardWebhooksApiV1BoardsBoardIdWebhooksGetParams.ts`
+- **Thin community `Community 197`** (1 nodes): `gatewaySessionMessageRequest.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 198`** (1 nodes): `listMarketplaceSkillsApiV1SkillsMarketplaceGetParams.ts`
+- **Thin community `Community 198`** (1 nodes): `taskCardReadStatus.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 199`** (1 nodes): `gatewaySessionMessageRequest.ts`
+- **Thin community `Community 199`** (1 nodes): `boardReadSuccessMetrics.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 200`** (1 nodes): `taskCardReadStatus.ts`
+- **Thin community `Community 200`** (1 nodes): `limitOffsetPageTypeVarCustomizedActivityTaskCommentFeedItemRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 201`** (1 nodes): `boardReadSuccessMetrics.ts`
+- **Thin community `Community 201`** (1 nodes): `polymarketWhaleHookResponseActionDiagnostics.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 202`** (1 nodes): `limitOffsetPageTypeVarCustomizedActivityTaskCommentFeedItemRead.ts`
+- **Thin community `Community 202`** (1 nodes): `dashboardMetricsApiV1MetricsDashboardGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 203`** (1 nodes): `polymarketWhaleHookResponseActionDiagnostics.ts`
+- **Thin community `Community 203`** (1 nodes): `agentReadIdentityProfile.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 204`** (1 nodes): `dashboardMetricsApiV1MetricsDashboardGetParams.ts`
+- **Thin community `Community 204`** (1 nodes): `organizationCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 205`** (1 nodes): `agentReadIdentityProfile.ts`
+- **Thin community `Community 205`** (1 nodes): `boardGroupTaskSummary.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 206`** (1 nodes): `organizationCreate.ts`
+- **Thin community `Community 206`** (1 nodes): `boardSnapshot.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 207`** (1 nodes): `boardGroupTaskSummary.ts`
+- **Thin community `Community 207`** (1 nodes): `taskCommentCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 208`** (1 nodes): `boardSnapshot.ts`
+- **Thin community `Community 208`** (1 nodes): `gatewayTemplatesSyncError.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 209`** (1 nodes): `taskCommentCreate.ts`
+- **Thin community `Community 209`** (1 nodes): `polymarketWhaleHookResponseExecution.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 210`** (1 nodes): `gatewayTemplatesSyncError.ts`
+- **Thin community `Community 210`** (1 nodes): `organizationInviteAccept.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 211`** (1 nodes): `polymarketWhaleHookResponseExecution.ts`
+- **Thin community `Community 211`** (1 nodes): `limitOffsetPageTypeVarCustomizedTagRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 212`** (1 nodes): `organizationInviteAccept.ts`
+- **Thin community `Community 212`** (1 nodes): `boardUpdateSuccessMetrics.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 213`** (1 nodes): `limitOffsetPageTypeVarCustomizedTagRead.ts`
+- **Thin community `Community 213`** (1 nodes): `organizationActiveUpdate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 214`** (1 nodes): `boardUpdateSuccessMetrics.ts`
+- **Thin community `Community 214`** (1 nodes): `organizationUserRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 215`** (1 nodes): `organizationActiveUpdate.ts`
+- **Thin community `Community 215`** (1 nodes): `listTagsApiV1TagsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 216`** (1 nodes): `organizationUserRead.ts`
+- **Thin community `Community 216`** (1 nodes): `getSessionHistoryApiV1GatewaysSessionsSessionIdHistoryGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 217`** (1 nodes): `listTagsApiV1TagsGetParams.ts`
+- **Thin community `Community 217`** (1 nodes): `limitOffsetPageTypeVarCustomizedBoardGroupMemoryRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 218`** (1 nodes): `getSessionHistoryApiV1GatewaysSessionsSessionIdHistoryGetParams.ts`
+- **Thin community `Community 218`** (1 nodes): `streamBoardGroupMemoryForBoardApiV1BoardsBoardIdGroupMemoryStreamGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 219`** (1 nodes): `limitOffsetPageTypeVarCustomizedBoardGroupMemoryRead.ts`
+- **Thin community `Community 219`** (1 nodes): `skillPackSyncResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 220`** (1 nodes): `streamBoardGroupMemoryForBoardApiV1BoardsBoardIdGroupMemoryStreamGetParams.ts`
+- **Thin community `Community 220`** (1 nodes): `gatewayUsageRemainingSummary.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 221`** (1 nodes): `skillPackSyncResponse.ts`
+- **Thin community `Community 221`** (1 nodes): `polymarketSignalsResponseProtectedPositions.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 222`** (1 nodes): `gatewayUsageRemainingSummary.ts`
+- **Thin community `Community 222`** (1 nodes): `approvalCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 223`** (1 nodes): `polymarketSignalsResponseProtectedPositions.ts`
+- **Thin community `Community 223`** (1 nodes): `syncGatewayTemplatesApiV1GatewaysGatewayIdTemplatesSyncPostParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 224`** (1 nodes): `approvalCreate.ts`
+- **Thin community `Community 224`** (1 nodes): `agentHealthStatusResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 225`** (1 nodes): `syncGatewayTemplatesApiV1GatewaysGatewayIdTemplatesSyncPostParams.ts`
+- **Thin community `Community 225`** (1 nodes): `activityTaskCommentFeedItemRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 226`** (1 nodes): `agentHealthStatusResponse.ts`
+- **Thin community `Community 226`** (1 nodes): `activityEventRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 227`** (1 nodes): `activityTaskCommentFeedItemRead.ts`
+- **Thin community `Community 227`** (1 nodes): `dashboardSystemMemory.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 228`** (1 nodes): `activityEventRead.ts`
+- **Thin community `Community 228`** (1 nodes): `boardGroupHeartbeatApplyResultRequested.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 229`** (1 nodes): `boardGroupHeartbeatApplyResultRequested.ts`
+- **Thin community `Community 229`** (1 nodes): `taskUpdateCustomFieldValues.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 230`** (1 nodes): `taskUpdateCustomFieldValues.ts`
+- **Thin community `Community 230`** (1 nodes): `dashboardSeriesPoint.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 231`** (1 nodes): `dashboardSeriesPoint.ts`
+- **Thin community `Community 231`** (1 nodes): `limitOffsetPageTypeVarCustomizedBoardMemoryRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 232`** (1 nodes): `limitOffsetPageTypeVarCustomizedBoardMemoryRead.ts`
+- **Thin community `Community 232`** (1 nodes): `userRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 233`** (1 nodes): `userRead.ts`
+- **Thin community `Community 233`** (1 nodes): `healthHealthGet200.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 234`** (1 nodes): `healthHealthGet200.ts`
+- **Thin community `Community 234`** (1 nodes): `boardOnboardingStart.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 235`** (1 nodes): `boardOnboardingStart.ts`
+- **Thin community `Community 235`** (1 nodes): `boardWebhookCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 236`** (1 nodes): `boardWebhookCreate.ts`
+- **Thin community `Community 236`** (1 nodes): `listBoardMemoryApiV1AgentBoardsBoardIdMemoryGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 237`** (1 nodes): `listBoardMemoryApiV1AgentBoardsBoardIdMemoryGetParams.ts`
+- **Thin community `Community 237`** (1 nodes): `skillPackRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 238`** (1 nodes): `skillPackRead.ts`
+- **Thin community `Community 238`** (1 nodes): `boardGroupMemoryCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 239`** (1 nodes): `boardGroupMemoryCreate.ts`
+- **Thin community `Community 239`** (1 nodes): `gatewaySessionHistoryResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 240`** (1 nodes): `gatewaySessionHistoryResponse.ts`
+- **Thin community `Community 240`** (1 nodes): `taskCustomFieldDefinitionRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 241`** (1 nodes): `taskCustomFieldDefinitionRead.ts`
+- **Thin community `Community 241`** (1 nodes): `getGatewaySessionApiV1GatewaysSessionsSessionIdGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 242`** (1 nodes): `getGatewaySessionApiV1GatewaysSessionsSessionIdGetParams.ts`
+- **Thin community `Community 242`** (1 nodes): `organizationRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 243`** (1 nodes): `organizationRead.ts`
+- **Thin community `Community 243`** (1 nodes): `lLMErrorResponseDetail.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 244`** (1 nodes): `lLMErrorResponseDetail.ts`
+- **Thin community `Community 244`** (1 nodes): `soulsDirectorySearchResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 245`** (1 nodes): `soulsDirectorySearchResponse.ts`
+- **Thin community `Community 245`** (1 nodes): `boardOnboardingAgentQuestion.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 246`** (1 nodes): `boardOnboardingAgentQuestion.ts`
+- **Thin community `Community 246`** (1 nodes): `boardGroupUpdate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 247`** (1 nodes): `boardGroupUpdate.ts`
+- **Thin community `Community 247`** (1 nodes): `updateAgentApiV1AgentsAgentIdPatchParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 248`** (1 nodes): `updateAgentApiV1AgentsAgentIdPatchParams.ts`
+- **Thin community `Community 248`** (1 nodes): `tagRef.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 249`** (1 nodes): `tagRef.ts`
+- **Thin community `Community 249`** (1 nodes): `tagCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 250`** (1 nodes): `tagCreate.ts`
+- **Thin community `Community 250`** (1 nodes): `dashboardKpis.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 251`** (1 nodes): `dashboardKpis.ts`
+- **Thin community `Community 251`** (1 nodes): `getBoardGroupSnapshotApiV1BoardGroupsGroupIdSnapshotGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 252`** (1 nodes): `getBoardGroupSnapshotApiV1BoardGroupsGroupIdSnapshotGetParams.ts`
+- **Thin community `Community 252`** (1 nodes): `boardGroupBoardSnapshot.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 253`** (1 nodes): `boardGroupBoardSnapshot.ts`
+- **Thin community `Community 253`** (1 nodes): `searchApiV1SoulsDirectorySearchGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 254`** (1 nodes): `searchApiV1SoulsDirectorySearchGetParams.ts`
+- **Thin community `Community 254`** (1 nodes): `soulUpdateRequest.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 255`** (1 nodes): `soulUpdateRequest.ts`
+- **Thin community `Community 255`** (1 nodes): `dashboardSystemMetrics.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 256`** (1 nodes): `polymarketWhaleHookResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
@@ -3477,674 +3632,736 @@ Nodes (1): Run the bridge forever.
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 281`** (1 nodes): `gatewayLeadMessageRequest.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 282`** (1 nodes): `agentNudge.ts`
+- **Thin community `Community 282`** (1 nodes): `getWebhookPayloadApiV1AgentBoardsBoardIdWebhooksWebhookIdPayloadsPayloadIdGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 283`** (1 nodes): `okResponse.ts`
+- **Thin community `Community 283`** (1 nodes): `agentNudge.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 284`** (1 nodes): `readyzReadyzGet200.ts`
+- **Thin community `Community 284`** (1 nodes): `okResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 285`** (1 nodes): `uninstallMarketplaceSkillApiV1SkillsMarketplaceSkillIdUninstallPostParams.ts`
+- **Thin community `Community 285`** (1 nodes): `readyzReadyzGet200.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 286`** (1 nodes): `listBoardsApiV1BoardsGetParams.ts`
+- **Thin community `Community 286`** (1 nodes): `uninstallMarketplaceSkillApiV1SkillsMarketplaceSkillIdUninstallPostParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 287`** (1 nodes): `marketplaceSkillActionResponse.ts`
+- **Thin community `Community 287`** (1 nodes): `listBoardsApiV1BoardsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 288`** (1 nodes): `listBoardMemoryApiV1BoardsBoardIdMemoryGetParams.ts`
+- **Thin community `Community 288`** (1 nodes): `marketplaceSkillActionResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 289`** (1 nodes): `taskCustomFieldDefinitionCreateFieldType.ts`
+- **Thin community `Community 289`** (1 nodes): `listBoardMemoryApiV1BoardsBoardIdMemoryGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 290`** (1 nodes): `listBoardsApiV1AgentBoardsGetParams.ts`
+- **Thin community `Community 290`** (1 nodes): `taskCustomFieldDefinitionCreateFieldType.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 291`** (1 nodes): `streamTasksApiV1BoardsBoardIdTasksStreamGetParams.ts`
+- **Thin community `Community 291`** (1 nodes): `listBoardsApiV1AgentBoardsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 292`** (1 nodes): `boardGroupMemoryRead.ts`
+- **Thin community `Community 292`** (1 nodes): `streamTasksApiV1BoardsBoardIdTasksStreamGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 293`** (1 nodes): `boardOnboardingAnswer.ts`
+- **Thin community `Community 293`** (1 nodes): `boardGroupMemoryRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 294`** (1 nodes): `dashboardWipRangeSeriesRange.ts`
+- **Thin community `Community 294`** (1 nodes): `boardOnboardingAnswer.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 295`** (1 nodes): `boardMemoryRead.ts`
+- **Thin community `Community 295`** (1 nodes): `dashboardWipRangeSeriesRange.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 296`** (1 nodes): `taskCreateStatus.ts`
+- **Thin community `Community 296`** (1 nodes): `boardMemoryRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 297`** (1 nodes): `organizationBoardAccessRead.ts`
+- **Thin community `Community 297`** (1 nodes): `taskCreateStatus.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 298`** (1 nodes): `dashboardWipPoint.ts`
+- **Thin community `Community 298`** (1 nodes): `organizationBoardAccessRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 299`** (1 nodes): `listApprovalsApiV1BoardsBoardIdApprovalsGetParams.ts`
+- **Thin community `Community 299`** (1 nodes): `dashboardWipPoint.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 300`** (1 nodes): `healthStatusResponse.ts`
+- **Thin community `Community 300`** (1 nodes): `listApprovalsApiV1BoardsBoardIdApprovalsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 301`** (1 nodes): `polymarketWhaleHookResponseCaps.ts`
+- **Thin community `Community 301`** (1 nodes): `healthStatusResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 302`** (1 nodes): `limitOffsetPageTypeVarCustomizedBoardGroupRead.ts`
+- **Thin community `Community 302`** (1 nodes): `polymarketWhaleHookResponseCaps.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 303`** (1 nodes): `dashboardMetricsRange.ts`
+- **Thin community `Community 303`** (1 nodes): `limitOffsetPageTypeVarCustomizedBoardGroupRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 304`** (1 nodes): `listTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetParams.ts`
+- **Thin community `Community 304`** (1 nodes): `dashboardMetricsRange.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 305`** (1 nodes): `agentUpdate.ts`
+- **Thin community `Community 305`** (1 nodes): `listTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 306`** (1 nodes): `streamBoardGroupMemoryApiV1BoardGroupsGroupIdMemoryStreamGetParams.ts`
+- **Thin community `Community 306`** (1 nodes): `agentUpdate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 307`** (1 nodes): `tagUpdate.ts`
+- **Thin community `Community 307`** (1 nodes): `streamBoardGroupMemoryApiV1BoardGroupsGroupIdMemoryStreamGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 308`** (1 nodes): `gatewayUsageRemainingWindow.ts`
+- **Thin community `Community 308`** (1 nodes): `tagUpdate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 309`** (1 nodes): `listApprovalsApiV1AgentBoardsBoardIdApprovalsGetParams.ts`
+- **Thin community `Community 309`** (1 nodes): `gatewayUsageRemainingWindow.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 310`** (1 nodes): `dashboardRangeSeriesRange.ts`
+- **Thin community `Community 310`** (1 nodes): `listApprovalsApiV1AgentBoardsBoardIdApprovalsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 311`** (1 nodes): `polymarketPortfolioResponse.ts`
+- **Thin community `Community 311`** (1 nodes): `dashboardRangeSeriesRange.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 312`** (1 nodes): `agentUpdateHeartbeatConfig.ts`
+- **Thin community `Community 312`** (1 nodes): `polymarketPortfolioResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 313`** (1 nodes): `boardOnboardingConfirm.ts`
+- **Thin community `Community 313`** (1 nodes): `agentUpdateHeartbeatConfig.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 314`** (1 nodes): `agentRead.ts`
+- **Thin community `Community 314`** (1 nodes): `boardOnboardingConfirm.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 315`** (1 nodes): `boardOnboardingRead.ts`
+- **Thin community `Community 315`** (1 nodes): `agentRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 316`** (1 nodes): `gatewayRead.ts`
+- **Thin community `Community 316`** (1 nodes): `boardOnboardingRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 317`** (1 nodes): `organizationListItem.ts`
+- **Thin community `Community 317`** (1 nodes): `gatewayRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 318`** (1 nodes): `gatewayMainAskUserResponse.ts`
+- **Thin community `Community 318`** (1 nodes): `organizationListItem.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 319`** (1 nodes): `listBoardGroupMemoryForBoardApiV1BoardsBoardIdGroupMemoryGetParams.ts`
+- **Thin community `Community 319`** (1 nodes): `gatewayMainAskUserResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 320`** (1 nodes): `approvalCreatePayload.ts`
+- **Thin community `Community 320`** (1 nodes): `listBoardGroupMemoryForBoardApiV1BoardsBoardIdGroupMemoryGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 321`** (1 nodes): `validationErrorCtx.ts`
+- **Thin community `Community 321`** (1 nodes): `approvalCreatePayload.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 322`** (1 nodes): `gatewayLeadMessageRequestKind.ts`
+- **Thin community `Community 322`** (1 nodes): `validationErrorCtx.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 323`** (1 nodes): `listAgentsApiV1AgentsGetParams.ts`
+- **Thin community `Community 323`** (1 nodes): `gatewayLeadMessageRequestKind.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 324`** (1 nodes): `dashboardWipRangeSeriesBucket.ts`
+- **Thin community `Community 324`** (1 nodes): `polymarketPortfolioResponseWalletTotal.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 325`** (1 nodes): `validationError.ts`
+- **Thin community `Community 325`** (1 nodes): `listAgentsApiV1AgentsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 326`** (1 nodes): `polymarketSignalsResponse.ts`
+- **Thin community `Community 326`** (1 nodes): `dashboardWipRangeSeriesBucket.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 327`** (1 nodes): `listOrgInvitesApiV1OrganizationsMeInvitesGetParams.ts`
+- **Thin community `Community 327`** (1 nodes): `validationError.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 328`** (1 nodes): `organizationMemberAccessUpdate.ts`
+- **Thin community `Community 328`** (1 nodes): `polymarketSignalsResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 329`** (1 nodes): `taskCustomFieldDefinitionReadFieldType.ts`
+- **Thin community `Community 329`** (1 nodes): `listOrgInvitesApiV1OrganizationsMeInvitesGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 330`** (1 nodes): `approvalReadRubricScores.ts`
+- **Thin community `Community 330`** (1 nodes): `organizationMemberAccessUpdate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 331`** (1 nodes): `polymarketReportFileStatus.ts`
+- **Thin community `Community 331`** (1 nodes): `taskCustomFieldDefinitionReadFieldType.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 332`** (1 nodes): `organizationInviteRead.ts`
+- **Thin community `Community 332`** (1 nodes): `approvalReadRubricScores.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 333`** (1 nodes): `blockedTaskDetail.ts`
+- **Thin community `Community 333`** (1 nodes): `polymarketReportFileStatus.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 334`** (1 nodes): `gatewayCreate.ts`
+- **Thin community `Community 334`** (1 nodes): `dashboardSystemCpu.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 335`** (1 nodes): `polymarketPortfolioResponseSummary.ts`
+- **Thin community `Community 335`** (1 nodes): `organizationInviteRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 336`** (1 nodes): `listTaskCommentFeedApiV1ActivityTaskCommentsGetParams.ts`
+- **Thin community `Community 336`** (1 nodes): `blockedTaskDetail.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 337`** (1 nodes): `taskRead.ts`
+- **Thin community `Community 337`** (1 nodes): `gatewayCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 338`** (1 nodes): `taskCreate.ts`
+- **Thin community `Community 338`** (1 nodes): `polymarketPortfolioResponseSummary.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 339`** (1 nodes): `boardGroupHeartbeatApply.ts`
+- **Thin community `Community 339`** (1 nodes): `listTaskCommentFeedApiV1ActivityTaskCommentsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 340`** (1 nodes): `marketplaceSkillCreate.ts`
+- **Thin community `Community 340`** (1 nodes): `taskRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 341`** (1 nodes): `agentUpdateIdentityProfile.ts`
+- **Thin community `Community 341`** (1 nodes): `taskCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 342`** (1 nodes): `boardUpdate.ts`
+- **Thin community `Community 342`** (1 nodes): `boardGroupHeartbeatApply.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 343`** (1 nodes): `limitOffsetPageTypeVarCustomizedAgentRead.ts`
+- **Thin community `Community 343`** (1 nodes): `marketplaceSkillCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 344`** (1 nodes): `activityEventReadRouteParams.ts`
+- **Thin community `Community 344`** (1 nodes): `agentUpdateIdentityProfile.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 345`** (1 nodes): `polymarketJournalResponseFeedbackSummary.ts`
+- **Thin community `Community 345`** (1 nodes): `boardUpdate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 346`** (1 nodes): `taskReadStatus.ts`
+- **Thin community `Community 346`** (1 nodes): `limitOffsetPageTypeVarCustomizedAgentRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 347`** (1 nodes): `index.ts`
+- **Thin community `Community 347`** (1 nodes): `activityEventReadRouteParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 348`** (1 nodes): `limitOffsetPageTypeVarCustomizedBoardWebhookPayloadRead.ts`
+- **Thin community `Community 348`** (1 nodes): `polymarketJournalResponseFeedbackSummary.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 349`** (1 nodes): `gatewayMainAskUserRequest.ts`
+- **Thin community `Community 349`** (1 nodes): `taskReadStatus.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 350`** (1 nodes): `gatewayCommandsResponse.ts`
+- **Thin community `Community 350`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 351`** (1 nodes): `gatewaysStatusResponse.ts`
+- **Thin community `Community 351`** (1 nodes): `limitOffsetPageTypeVarCustomizedBoardWebhookPayloadRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 352`** (1 nodes): `listGatewaySessionsApiV1GatewaysSessionsGetParams.ts`
+- **Thin community `Community 352`** (1 nodes): `gatewayMainAskUserRequest.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 353`** (1 nodes): `polymarketSignalsResponseExitMonitor.ts`
+- **Thin community `Community 353`** (1 nodes): `gatewayCommandsResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 354`** (1 nodes): `gatewayUpdate.ts`
+- **Thin community `Community 354`** (1 nodes): `gatewaysStatusResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 355`** (1 nodes): `taskCardReadCustomFieldValues.ts`
+- **Thin community `Community 355`** (1 nodes): `listGatewaySessionsApiV1GatewaysSessionsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 356`** (1 nodes): `boardGroupRead.ts`
+- **Thin community `Community 356`** (1 nodes): `polymarketSignalsResponseExitMonitor.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 357`** (1 nodes): `listTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetParams.ts`
+- **Thin community `Community 357`** (1 nodes): `gatewayUpdate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 358`** (1 nodes): `approvalCreateRubricScores.ts`
+- **Thin community `Community 358`** (1 nodes): `taskCardReadCustomFieldValues.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 359`** (1 nodes): `agentCreateHeartbeatConfig.ts`
+- **Thin community `Community 359`** (1 nodes): `polymarketLearnerResponsePaperState.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 360`** (1 nodes): `boardOnboardingReadMessages.ts`
+- **Thin community `Community 360`** (1 nodes): `boardGroupRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 361`** (1 nodes): `agentCreate.ts`
+- **Thin community `Community 361`** (1 nodes): `listTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 362`** (1 nodes): `boardMemoryCreate.ts`
+- **Thin community `Community 362`** (1 nodes): `approvalCreateRubricScores.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 363`** (1 nodes): `taskCustomFieldDefinitionCreate.ts`
+- **Thin community `Community 363`** (1 nodes): `agentCreateHeartbeatConfig.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 364`** (1 nodes): `taskCustomFieldDefinitionUpdate.ts`
+- **Thin community `Community 364`** (1 nodes): `boardOnboardingReadMessages.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 365`** (1 nodes): `polymarketStatusResponse.ts`
+- **Thin community `Community 365`** (1 nodes): `agentCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 366`** (1 nodes): `boardGroupSnapshot.ts`
+- **Thin community `Community 366`** (1 nodes): `boardMemoryCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 367`** (1 nodes): `soulsDirectoryMarkdownResponse.ts`
+- **Thin community `Community 367`** (1 nodes): `polymarketLearnerResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 368`** (1 nodes): `gatewaySessionsResponse.ts`
+- **Thin community `Community 368`** (1 nodes): `dashboardSystemDisk.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 369`** (1 nodes): `polymarketSignalsResponseCommentAnalysis.ts`
+- **Thin community `Community 369`** (1 nodes): `taskCustomFieldDefinitionCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 370`** (1 nodes): `streamAgentsApiV1AgentsStreamGetParams.ts`
+- **Thin community `Community 370`** (1 nodes): `taskCustomFieldDefinitionUpdate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 371`** (1 nodes): `boardOnboardingUserProfile.ts`
+- **Thin community `Community 371`** (1 nodes): `polymarketStatusResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 372`** (1 nodes): `taskCardRead.ts`
+- **Thin community `Community 372`** (1 nodes): `boardGroupSnapshot.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 373`** (1 nodes): `limitOffsetPageTypeVarCustomizedActivityEventRead.ts`
+- **Thin community `Community 373`** (1 nodes): `soulsDirectoryMarkdownResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 374`** (1 nodes): `approvalCreateStatus.ts`
+- **Thin community `Community 374`** (1 nodes): `gatewaySessionsResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 375`** (1 nodes): `boardGroupHeartbeatApplyResult.ts`
+- **Thin community `Community 375`** (1 nodes): `polymarketSignalsResponseCommentAnalysis.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 376`** (1 nodes): `gatewayTemplatesSyncResult.ts`
+- **Thin community `Community 376`** (1 nodes): `streamAgentsApiV1AgentsStreamGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 377`** (1 nodes): `dashboardWipRangeSeries.ts`
+- **Thin community `Community 377`** (1 nodes): `boardOnboardingUserProfile.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 378`** (1 nodes): `polymarketSignalsResponseBankroll.ts`
+- **Thin community `Community 378`** (1 nodes): `taskCardRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 379`** (1 nodes): `dashboardSeriesSet.ts`
+- **Thin community `Community 379`** (1 nodes): `limitOffsetPageTypeVarCustomizedActivityEventRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 380`** (1 nodes): `listTasksApiV1BoardsBoardIdTasksGetParams.ts`
+- **Thin community `Community 380`** (1 nodes): `approvalCreateStatus.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 381`** (1 nodes): `gatewaysStatusApiV1GatewaysStatusGetParams.ts`
+- **Thin community `Community 381`** (1 nodes): `boardGroupHeartbeatApplyResult.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 382`** (1 nodes): `boardGroupBoardSnapshotTaskCounts.ts`
+- **Thin community `Community 382`** (1 nodes): `gatewayTemplatesSyncResult.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 383`** (1 nodes): `boardOnboardingLeadAgentDraftIdentityProfile.ts`
+- **Thin community `Community 383`** (1 nodes): `dashboardWipRangeSeries.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 384`** (1 nodes): `boardOnboardingAgentComplete.ts`
+- **Thin community `Community 384`** (1 nodes): `polymarketSignalsResponseBankroll.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 385`** (1 nodes): `boardOnboardingAgentCompleteSuccessMetrics.ts`
+- **Thin community `Community 385`** (1 nodes): `dashboardSeriesSet.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 386`** (1 nodes): `soulsDirectorySoulRef.ts`
+- **Thin community `Community 386`** (1 nodes): `listTasksApiV1BoardsBoardIdTasksGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 387`** (1 nodes): `boardCreate.ts`
+- **Thin community `Community 387`** (1 nodes): `gatewaysStatusApiV1GatewaysStatusGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 388`** (1 nodes): `agentHeartbeatCreate.ts`
+- **Thin community `Community 388`** (1 nodes): `boardGroupBoardSnapshotTaskCounts.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 389`** (1 nodes): `skillPackCreate.ts`
+- **Thin community `Community 389`** (1 nodes): `boardOnboardingLeadAgentDraftIdentityProfile.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 390`** (1 nodes): `listBoardGroupMemoryApiV1BoardGroupsGroupIdMemoryGetParams.ts`
+- **Thin community `Community 390`** (1 nodes): `boardOnboardingAgentComplete.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 391`** (1 nodes): `agentHeartbeat.ts`
+- **Thin community `Community 391`** (1 nodes): `boardOnboardingAgentCompleteSuccessMetrics.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 392`** (1 nodes): `taskReadCustomFieldValues.ts`
+- **Thin community `Community 392`** (1 nodes): `soulsDirectorySoulRef.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 393`** (1 nodes): `boardCreateSuccessMetrics.ts`
+- **Thin community `Community 393`** (1 nodes): `boardCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 394`** (1 nodes): `gatewayLeadBroadcastRequest.ts`
+- **Thin community `Community 394`** (1 nodes): `agentHeartbeatCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 395`** (1 nodes): `limitOffsetPageTypeVarCustomizedBoardWebhookRead.ts`
+- **Thin community `Community 395`** (1 nodes): `skillPackCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 396`** (1 nodes): `marketplaceSkillReadMetadata.ts`
+- **Thin community `Community 396`** (1 nodes): `listBoardGroupMemoryApiV1BoardGroupsGroupIdMemoryGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 397`** (1 nodes): `hTTPValidationError.ts`
+- **Thin community `Community 397`** (1 nodes): `agentHeartbeat.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 398`** (1 nodes): `limitOffsetPageTypeVarCustomizedTaskCommentRead.ts`
+- **Thin community `Community 398`** (1 nodes): `taskReadCustomFieldValues.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 399`** (1 nodes): `taskCommentRead.ts`
+- **Thin community `Community 399`** (1 nodes): `boardCreateSuccessMetrics.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 400`** (1 nodes): `marketplaceSkillRead.ts`
+- **Thin community `Community 400`** (1 nodes): `gatewayLeadBroadcastRequest.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 401`** (1 nodes): `boardWebhookPayloadReadHeaders.ts`
+- **Thin community `Community 401`** (1 nodes): `limitOffsetPageTypeVarCustomizedBoardWebhookRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 402`** (1 nodes): `organizationMemberUpdate.ts`
+- **Thin community `Community 402`** (1 nodes): `marketplaceSkillReadMetadata.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 403`** (1 nodes): `limitOffsetPageTypeVarCustomizedApprovalRead.ts`
+- **Thin community `Community 403`** (1 nodes): `hTTPValidationError.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 404`** (1 nodes): `listAgentsApiV1AgentAgentsGetParams.ts`
+- **Thin community `Community 404`** (1 nodes): `limitOffsetPageTypeVarCustomizedTaskCommentRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 405`** (1 nodes): `polymarketWhaleHookResponseCapitalAllocator.ts`
+- **Thin community `Community 405`** (1 nodes): `taskCommentRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 406`** (1 nodes): `streamApprovalsApiV1BoardsBoardIdApprovalsStreamGetParams.ts`
+- **Thin community `Community 406`** (1 nodes): `marketplaceSkillRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 407`** (1 nodes): `listBoardGroupsApiV1BoardGroupsGetParams.ts`
+- **Thin community `Community 407`** (1 nodes): `boardWebhookPayloadReadHeaders.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 408`** (1 nodes): `taskCustomFieldDefinitionReadUiVisibility.ts`
+- **Thin community `Community 408`** (1 nodes): `organizationMemberUpdate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 409`** (1 nodes): `boardOnboardingQuestionOption.ts`
+- **Thin community `Community 409`** (1 nodes): `limitOffsetPageTypeVarCustomizedApprovalRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 410`** (1 nodes): `skillPackReadMetadata.ts`
+- **Thin community `Community 410`** (1 nodes): `listAgentsApiV1AgentAgentsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 411`** (1 nodes): `agentCreateIdentityProfile.ts`
+- **Thin community `Community 411`** (1 nodes): `polymarketWhaleHookResponseCapitalAllocator.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 412`** (1 nodes): `boardGroupCreate.ts`
+- **Thin community `Community 412`** (1 nodes): `streamApprovalsApiV1BoardsBoardIdApprovalsStreamGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 413`** (1 nodes): `dashboardPendingApproval.ts`
+- **Thin community `Community 413`** (1 nodes): `listBoardGroupsApiV1BoardGroupsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 414`** (1 nodes): `skillPackCreateMetadata.ts`
+- **Thin community `Community 414`** (1 nodes): `taskCustomFieldDefinitionReadUiVisibility.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 415`** (1 nodes): `approvalRead.ts`
+- **Thin community `Community 415`** (1 nodes): `boardOnboardingQuestionOption.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 416`** (1 nodes): `boardOnboardingConfirmSuccessMetrics.ts`
+- **Thin community `Community 416`** (1 nodes): `skillPackReadMetadata.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 417`** (1 nodes): `gatewayLeadMessageResponse.ts`
+- **Thin community `Community 417`** (1 nodes): `agentCreateIdentityProfile.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 418`** (1 nodes): `gatewaySessionResponse.ts`
+- **Thin community `Community 418`** (1 nodes): `boardGroupCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 419`** (1 nodes): `approvalReadPayload.ts`
+- **Thin community `Community 419`** (1 nodes): `dashboardPendingApproval.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 420`** (1 nodes): `dashboardRangeSeriesBucket.ts`
+- **Thin community `Community 420`** (1 nodes): `skillPackCreateMetadata.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 421`** (1 nodes): `taskCustomFieldDefinitionCreateUiVisibility.ts`
+- **Thin community `Community 421`** (1 nodes): `approvalRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 422`** (1 nodes): `boardWebhookUpdate.ts`
+- **Thin community `Community 422`** (1 nodes): `boardOnboardingConfirmSuccessMetrics.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 423`** (1 nodes): `marketplaceSkillCardReadMetadata.ts`
+- **Thin community `Community 423`** (1 nodes): `deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 424`** (1 nodes): `approvalReadStatus.ts`
+- **Thin community `Community 424`** (1 nodes): `gatewayLeadMessageResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 425`** (1 nodes): `gatewayLeadBroadcastBoardResult.ts`
+- **Thin community `Community 425`** (1 nodes): `gatewaySessionResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 426`** (1 nodes): `streamTaskCommentFeedApiV1ActivityTaskCommentsStreamGetParams.ts`
+- **Thin community `Community 426`** (1 nodes): `approvalReadPayload.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 427`** (1 nodes): `organizationInviteCreate.ts`
+- **Thin community `Community 427`** (1 nodes): `dashboardRangeSeriesBucket.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 428`** (1 nodes): `taskCreateCustomFieldValues.ts`
+- **Thin community `Community 428`** (1 nodes): `taskCustomFieldDefinitionCreateUiVisibility.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 429`** (1 nodes): `boardWebhookIngestResponse.ts`
+- **Thin community `Community 429`** (1 nodes): `boardWebhookUpdate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 430`** (1 nodes): `organizationMemberRead.ts`
+- **Thin community `Community 430`** (1 nodes): `marketplaceSkillCardReadMetadata.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 431`** (1 nodes): `organizationBoardAccessSpec.ts`
+- **Thin community `Community 431`** (1 nodes): `approvalReadStatus.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 432`** (1 nodes): `boardOnboardingLeadAgentDraft.ts`
+- **Thin community `Community 432`** (1 nodes): `gatewayLeadBroadcastBoardResult.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 433`** (1 nodes): `polymarketPortfolioResponseTrends.ts`
+- **Thin community `Community 433`** (1 nodes): `streamTaskCommentFeedApiV1ActivityTaskCommentsStreamGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 434`** (1 nodes): `dashboardPendingApprovals.ts`
+- **Thin community `Community 434`** (1 nodes): `organizationInviteCreate.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 435`** (1 nodes): `listBoardWebhookPayloadsApiV1BoardsBoardIdWebhooksWebhookIdPayloadsGetParams.ts`
+- **Thin community `Community 435`** (1 nodes): `taskCreateCustomFieldValues.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 436`** (1 nodes): `boardRead.ts`
+- **Thin community `Community 436`** (1 nodes): `boardWebhookIngestResponse.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 437`** (1 nodes): `limitOffsetPageTypeVarCustomizedBoardRead.ts`
+- **Thin community `Community 437`** (1 nodes): `organizationMemberRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 438`** (1 nodes): `backoff.test.ts`
+- **Thin community `Community 438`** (1 nodes): `organizationBoardAccessSpec.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 439`** (1 nodes): `agent-emoji.ts`
+- **Thin community `Community 439`** (1 nodes): `boardOnboardingLeadAgentDraft.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 440`** (1 nodes): `agent-templates.ts`
+- **Thin community `Community 440`** (1 nodes): `polymarketPortfolioResponseTrends.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 441`** (1 nodes): `gateway-form.test.ts`
+- **Thin community `Community 441`** (1 nodes): `dashboardPendingApprovals.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 442`** (1 nodes): `formatters.test.ts`
+- **Thin community `Community 442`** (1 nodes): `listBoardWebhookPayloadsApiV1BoardsBoardIdWebhooksWebhookIdPayloadsGetParams.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 443`** (1 nodes): `list-delete.test.ts`
+- **Thin community `Community 443`** (1 nodes): `boardRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 444`** (1 nodes): `use-url-sorting.test.tsx`
+- **Thin community `Community 444`** (1 nodes): `limitOffsetPageTypeVarCustomizedBoardRead.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 445`** (1 nodes): `onboarding.test.ts`
+- **Thin community `Community 445`** (1 nodes): `backoff.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 446`** (1 nodes): `api-base.test.ts`
+- **Thin community `Community 446`** (1 nodes): `agent-emoji.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 447`** (1 nodes): `mode.ts`
+- **Thin community `Community 447`** (1 nodes): `agent-templates.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 448`** (1 nodes): `redirects.test.ts`
+- **Thin community `Community 448`** (1 nodes): `gateway-form.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 449`** (1 nodes): `cliChatUtils.test.ts`
+- **Thin community `Community 449`** (1 nodes): `formatters.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 450`** (1 nodes): `page.tsx`
+- **Thin community `Community 450`** (1 nodes): `list-delete.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 451`** (1 nodes): `page.tsx`
+- **Thin community `Community 451`** (1 nodes): `use-url-sorting.test.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 452`** (1 nodes): `page.test.tsx`
+- **Thin community `Community 452`** (1 nodes): `onboarding.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 453`** (1 nodes): `page.test.tsx`
+- **Thin community `Community 453`** (1 nodes): `api-base.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 454`** (1 nodes): `task-detail-query.test.ts`
+- **Thin community `Community 454`** (1 nodes): `mode.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 455`** (1 nodes): `page.tsx`
+- **Thin community `Community 455`** (1 nodes): `redirects.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 456`** (1 nodes): `DashboardSidebar.tsx`
+- **Thin community `Community 456`** (1 nodes): `cliChatUtils.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 457`** (1 nodes): `LocalAuthLogin.test.tsx`
+- **Thin community `Community 457`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 458`** (1 nodes): `UserMenu.test.tsx`
+- **Thin community `Community 458`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 459`** (1 nodes): `UserMenu.tsx`
+- **Thin community `Community 459`** (1 nodes): `page.test.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 460`** (1 nodes): `command.tsx`
+- **Thin community `Community 460`** (1 nodes): `page.test.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 461`** (1 nodes): `confirm-action-dialog.tsx`
+- **Thin community `Community 461`** (1 nodes): `task-detail-query.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 462`** (1 nodes): `card.tsx`
+- **Thin community `Community 462`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 463`** (1 nodes): `textarea.tsx`
+- **Thin community `Community 463`** (1 nodes): `DashboardSidebar.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 464`** (1 nodes): `button.tsx`
+- **Thin community `Community 464`** (1 nodes): `LocalAuthLogin.test.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 465`** (1 nodes): `tabs.tsx`
+- **Thin community `Community 465`** (1 nodes): `UserMenu.test.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 466`** (1 nodes): `popover.tsx`
+- **Thin community `Community 466`** (1 nodes): `UserMenu.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 467`** (1 nodes): `tooltip.tsx`
+- **Thin community `Community 467`** (1 nodes): `command.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 468`** (1 nodes): `select.tsx`
+- **Thin community `Community 468`** (1 nodes): `confirm-action-dialog.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 469`** (1 nodes): `input.tsx`
+- **Thin community `Community 469`** (1 nodes): `card.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 470`** (1 nodes): `dialog.tsx`
+- **Thin community `Community 470`** (1 nodes): `textarea.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 471`** (1 nodes): `DashboardPageLayout.tsx`
+- **Thin community `Community 471`** (1 nodes): `button.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 472`** (1 nodes): `GatewayForm.tsx`
+- **Thin community `Community 472`** (1 nodes): `tabs.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 473`** (1 nodes): `GatewaysTable.tsx`
+- **Thin community `Community 473`** (1 nodes): `popover.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 474`** (1 nodes): `TaskCard.test.tsx`
+- **Thin community `Community 474`** (1 nodes): `tooltip.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 475`** (1 nodes): `DependencyBanner.tsx`
+- **Thin community `Community 475`** (1 nodes): `select.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 476`** (1 nodes): `SkillPacksTable.tsx`
+- **Thin community `Community 476`** (1 nodes): `input.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 477`** (1 nodes): `SkillInstallDialog.tsx`
+- **Thin community `Community 477`** (1 nodes): `dialog.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 478`** (1 nodes): `custom-field-form-types.ts`
+- **Thin community `Community 478`** (1 nodes): `DashboardPageLayout.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 479`** (1 nodes): `CustomFieldsTable.tsx`
+- **Thin community `Community 479`** (1 nodes): `GatewayForm.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 480`** (1 nodes): `ActivityFeed.test.tsx`
+- **Thin community `Community 480`** (1 nodes): `GatewaysTable.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 481`** (1 nodes): `cell-formatters.test.tsx`
+- **Thin community `Community 481`** (1 nodes): `TaskCard.test.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 482`** (1 nodes): `DataTable.tsx`
+- **Thin community `Community 482`** (1 nodes): `DependencyBanner.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 483`** (1 nodes): `DataTable.test.tsx`
+- **Thin community `Community 483`** (1 nodes): `SkillPacksTable.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 484`** (1 nodes): `BoardsTable.tsx`
+- **Thin community `Community 484`** (1 nodes): `SkillInstallDialog.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 485`** (1 nodes): `Request payload for sending a message into a gateway session.`
+- **Thin community `Community 485`** (1 nodes): `custom-field-form-types.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 486`** (1 nodes): `Query parameters used to resolve which gateway to target.`
+- **Thin community `Community 486`** (1 nodes): `CustomFieldsTable.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 487`** (1 nodes): `Aggregated gateway status response including session metadata.`
+- **Thin community `Community 487`** (1 nodes): `ActivityFeed.test.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 488`** (1 nodes): `Gateway sessions list response payload.`
+- **Thin community `Community 488`** (1 nodes): `cell-formatters.test.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 489`** (1 nodes): `Single gateway session response payload.`
+- **Thin community `Community 489`** (1 nodes): `DataTable.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 490`** (1 nodes): `Gateway session history response payload.`
+- **Thin community `Community 490`** (1 nodes): `DataTable.test.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 491`** (1 nodes): `Gateway command catalog and protocol metadata.`
+- **Thin community `Community 491`** (1 nodes): `BoardsTable.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 492`** (1 nodes): `Resolve watcher root from env override or default path.`
+- **Thin community `Community 492`** (1 nodes): `Paper-trading and learner update snapshot from local artifacts.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 493`** (1 nodes): `Build compact watcher status payload for API consumers.`
+- **Thin community `Community 493`** (1 nodes): `Load trade-journal profile and latest events with bounded output.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 494`** (1 nodes): `Load latest portfolio snapshot from state/portfolio_history if present.`
+- **Thin community `Community 494`** (1 nodes): `Load learner paper-trading and update artifacts for the dashboard.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 495`** (1 nodes): `Load strategy signals explainability with fallback to whale_history JSONL.`
+- **Thin community `Community 495`** (1 nodes): `Build account total view: positions + cash when cash is present in state.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 496`** (1 nodes): `Load whale-hook explainability snapshot with history fallback.`
+- **Thin community `Community 496`** (1 nodes): `Read-only strategy signal summary extracted from watcher reports/history.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 497`** (1 nodes): `Load trade-journal profile and latest events with bounded output.`
+- **Thin community `Community 497`** (1 nodes): `Read-only whale-hook execution and diagnostics summary.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 498`** (1 nodes): `Load config from the systemd environment file.`
+- **Thin community `Community 498`** (1 nodes): `Feedback profile and recent trade journal events.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 499`** (1 nodes): `Load processed board-memory IDs from disk.`
+- **Thin community `Community 499`** (1 nodes): `Load strategy signals explainability with fallback to whale_history JSONL.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 500`** (1 nodes): `Persist processed IDs, keeping only a bounded set.`
+- **Thin community `Community 500`** (1 nodes): `Load whale-hook explainability snapshot with history fallback.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 501`** (1 nodes): `Return the board-chat source label for one CLI runtime.`
+- **Thin community `Community 501`** (1 nodes): `Load trade-journal profile and latest events with bounded output.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 502`** (1 nodes): `Return the board-chat source label for a Codex CLI model.`
+- **Thin community `Community 502`** (1 nodes): `Load learner paper-trading and update artifacts for the dashboard.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 503`** (1 nodes): `Resolve the requested CLI runtime from memory tags.`
+- **Thin community `Community 503`** (1 nodes): `Resolve watcher root from env override or default path.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 504`** (1 nodes): `Return whether a request must run in read-only diagnostic mode.`
+- **Thin community `Community 504`** (1 nodes): `Resolve Polymarket scheduled-agent artifact root from env override.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 505`** (1 nodes): `Prefix prompts with non-destructive diagnostic constraints.`
+- **Thin community `Community 505`** (1 nodes): `Build compact watcher status payload for API consumers.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 506`** (1 nodes): `Resolve a Codex CLI model from memory tags for backward-compatible callers.`
+- **Thin community `Community 506`** (1 nodes): `Load latest portfolio snapshot from state/portfolio_history if present.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 507`** (1 nodes): `Return stable CLI Chat session tags that should follow bridge results.`
+- **Thin community `Community 507`** (1 nodes): `Load strategy signals explainability with fallback to whale_history JSONL.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 508`** (1 nodes): `Append tags without duplicating existing values while preserving order.`
+- **Thin community `Community 508`** (1 nodes): `Load whale-hook explainability snapshot with history fallback.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 509`** (1 nodes): `Return whether a board-chat memory entry is a new CLI runtime request.`
+- **Thin community `Community 509`** (1 nodes): `Load trade-journal profile and latest events with bounded output.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 510`** (1 nodes): `Fetch recent board-chat memory entries.`
+- **Thin community `Community 510`** (1 nodes): `Load learner paper-trading and update artifacts for the dashboard.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 511`** (1 nodes): `Build the non-interactive Codex CLI command.`
+- **Thin community `Community 511`** (1 nodes): `Resolve watcher root from env override or default path.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 512`** (1 nodes): `Extract Markdown image attachments for Codex CLI image input.      The browser c`
+- **Thin community `Community 512`** (1 nodes): `Build compact watcher status payload for API consumers.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 513`** (1 nodes): `Build the non-interactive Claude Code command.      We intentionally do not pass`
+- **Thin community `Community 513`** (1 nodes): `Load latest portfolio snapshot from state/portfolio_history if present.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 514`** (1 nodes): `Result captured from one CLI invocation.`
+- **Thin community `Community 514`** (1 nodes): `Load strategy signals explainability with fallback to whale_history JSONL.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 515`** (1 nodes): `Run Codex CLI once and capture the final assistant message.`
+- **Thin community `Community 515`** (1 nodes): `Load whale-hook explainability snapshot with history fallback.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 516`** (1 nodes): `Run Claude Code once and capture stdout as the final assistant message.`
+- **Thin community `Community 516`** (1 nodes): `Load trade-journal profile and latest events with bounded output.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 517`** (1 nodes): `Run one requested CLI runtime.`
+- **Thin community `Community 517`** (1 nodes): `Request payload for sending a message into a gateway session.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 518`** (1 nodes): `Format one CLI result as a board-chat memory payload.`
+- **Thin community `Community 518`** (1 nodes): `Query parameters used to resolve which gateway to target.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 519`** (1 nodes): `Format one Codex result as a board-chat memory payload.`
+- **Thin community `Community 519`** (1 nodes): `Aggregated gateway status response including session metadata.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 520`** (1 nodes): `Post a bridge response back to board chat.`
+- **Thin community `Community 520`** (1 nodes): `Gateway sessions list response payload.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 521`** (1 nodes): `Run the bridge forever.`
+- **Thin community `Community 521`** (1 nodes): `Single gateway session response payload.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 522`** (1 nodes): `Resolved CLI runtime request from one board-chat memory entry.`
+- **Thin community `Community 522`** (1 nodes): `Gateway session history response payload.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 523`** (1 nodes): `Runtime settings for the CLI bridge loop.      The class name is kept for compat`
+- **Thin community `Community 523`** (1 nodes): `Gateway command catalog and protocol metadata.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 524`** (1 nodes): `Load config from the systemd environment file.`
+- **Thin community `Community 524`** (1 nodes): `Resolve watcher root from env override or default path.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 525`** (1 nodes): `Load processed board-memory IDs from disk.`
+- **Thin community `Community 525`** (1 nodes): `Load latest portfolio snapshot from state/portfolio_history if present.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 526`** (1 nodes): `Persist processed IDs, keeping only a bounded set.`
+- **Thin community `Community 526`** (1 nodes): `Load strategy signals explainability with fallback to whale_history JSONL.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 527`** (1 nodes): `Return the board-chat source label for one CLI runtime.`
+- **Thin community `Community 527`** (1 nodes): `Load whale-hook explainability snapshot with history fallback.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 528`** (1 nodes): `Return the board-chat source label for a Codex CLI model.`
+- **Thin community `Community 528`** (1 nodes): `Load trade-journal profile and latest events with bounded output.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 529`** (1 nodes): `Resolve the requested CLI runtime from memory tags.`
+- **Thin community `Community 529`** (1 nodes): `Load config from the systemd environment file.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 530`** (1 nodes): `Return whether a request must run in read-only diagnostic mode.`
+- **Thin community `Community 530`** (1 nodes): `Load processed board-memory IDs from disk.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 531`** (1 nodes): `Prefix prompts with non-destructive diagnostic constraints.`
+- **Thin community `Community 531`** (1 nodes): `Persist processed IDs, keeping only a bounded set.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 532`** (1 nodes): `Run Codex CLI once and capture the final assistant message.`
+- **Thin community `Community 532`** (1 nodes): `Return the board-chat source label for one CLI runtime.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 533`** (1 nodes): `Return whether a board-chat memory entry is a new CLI runtime request.`
+- **Thin community `Community 533`** (1 nodes): `Return the board-chat source label for a Codex CLI model.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 534`** (1 nodes): `Fetch recent board-chat memory entries.`
+- **Thin community `Community 534`** (1 nodes): `Resolve the requested CLI runtime from memory tags.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 535`** (1 nodes): `Build the non-interactive Codex CLI command.`
+- **Thin community `Community 535`** (1 nodes): `Return whether a request must run in read-only diagnostic mode.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 536`** (1 nodes): `Extract Markdown image attachments for Codex CLI image input.      The browser c`
+- **Thin community `Community 536`** (1 nodes): `Prefix prompts with non-destructive diagnostic constraints.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 537`** (1 nodes): `Build the non-interactive Claude Code command.      We intentionally do not pass`
+- **Thin community `Community 537`** (1 nodes): `Resolve a Codex CLI model from memory tags for backward-compatible callers.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 538`** (1 nodes): `Result captured from one CLI invocation.`
+- **Thin community `Community 538`** (1 nodes): `Return stable CLI Chat session tags that should follow bridge results.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 539`** (1 nodes): `Run Codex CLI once and capture the final assistant message.`
+- **Thin community `Community 539`** (1 nodes): `Append tags without duplicating existing values while preserving order.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 540`** (1 nodes): `Run Claude Code once and capture stdout as the final assistant message.`
+- **Thin community `Community 540`** (1 nodes): `Return whether a board-chat memory entry is a new CLI runtime request.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 541`** (1 nodes): `Run one requested CLI runtime.`
+- **Thin community `Community 541`** (1 nodes): `Fetch recent board-chat memory entries.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 542`** (1 nodes): `Format one CLI result as a board-chat memory payload.`
+- **Thin community `Community 542`** (1 nodes): `Build the non-interactive Codex CLI command.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 543`** (1 nodes): `Run the bridge forever.`
+- **Thin community `Community 543`** (1 nodes): `Extract Markdown image attachments for Codex CLI image input.      The browser c`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 544`** (1 nodes): `Post a bridge response back to board chat.`
+- **Thin community `Community 544`** (1 nodes): `Build the non-interactive Claude Code command.      We intentionally do not pass`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 545`** (1 nodes): `Process pending CLI board-chat requests once.`
+- **Thin community `Community 545`** (1 nodes): `Result captured from one CLI invocation.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 546`** (1 nodes): `Run the bridge forever.`
+- **Thin community `Community 546`** (1 nodes): `Run Codex CLI once and capture the final assistant message.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 547`** (1 nodes): `Resolved CLI runtime request from one board-chat memory entry.`
+- **Thin community `Community 547`** (1 nodes): `Run Claude Code once and capture stdout as the final assistant message.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 548`** (1 nodes): `Runtime settings for the CLI bridge loop.      The class name is kept for compat`
+- **Thin community `Community 548`** (1 nodes): `Run one requested CLI runtime.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 549`** (1 nodes): `Return whether a board-chat memory entry is a new Codex 5.5 request.`
+- **Thin community `Community 549`** (1 nodes): `Format one CLI result as a board-chat memory payload.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 550`** (1 nodes): `Resolve the requested Codex CLI model from memory tags.`
+- **Thin community `Community 550`** (1 nodes): `Format one Codex result as a board-chat memory payload.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 551`** (1 nodes): `Persist processed IDs, keeping only a bounded set.`
+- **Thin community `Community 551`** (1 nodes): `Post a bridge response back to board chat.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 552`** (1 nodes): `Return the board-chat source label for one CLI runtime.`
+- **Thin community `Community 552`** (1 nodes): `Run the bridge forever.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 553`** (1 nodes): `Return the board-chat source label for a Codex CLI model.`
+- **Thin community `Community 553`** (1 nodes): `Resolved CLI runtime request from one board-chat memory entry.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 554`** (1 nodes): `Resolve the requested CLI runtime from memory tags.`
+- **Thin community `Community 554`** (1 nodes): `Runtime settings for the CLI bridge loop.      The class name is kept for compat`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 555`** (1 nodes): `Return whether a request must run in read-only diagnostic mode.`
+- **Thin community `Community 555`** (1 nodes): `Load config from the systemd environment file.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 556`** (1 nodes): `Prefix prompts with non-destructive diagnostic constraints.`
+- **Thin community `Community 556`** (1 nodes): `Load processed board-memory IDs from disk.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 557`** (1 nodes): `Resolve a Codex CLI model from memory tags for backward-compatible callers.`
+- **Thin community `Community 557`** (1 nodes): `Persist processed IDs, keeping only a bounded set.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 558`** (1 nodes): `Fetch recent board-chat memory entries.`
+- **Thin community `Community 558`** (1 nodes): `Return the board-chat source label for one CLI runtime.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 559`** (1 nodes): `Extract Markdown image attachments for Codex CLI image input.      The browser c`
+- **Thin community `Community 559`** (1 nodes): `Return the board-chat source label for a Codex CLI model.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 560`** (1 nodes): `Result captured from one CLI invocation.`
+- **Thin community `Community 560`** (1 nodes): `Resolve the requested CLI runtime from memory tags.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 561`** (1 nodes): `Result captured from one CLI invocation.`
+- **Thin community `Community 561`** (1 nodes): `Return whether a request must run in read-only diagnostic mode.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 562`** (1 nodes): `Run Codex CLI once and capture the final assistant message.`
+- **Thin community `Community 562`** (1 nodes): `Prefix prompts with non-destructive diagnostic constraints.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 563`** (1 nodes): `Run Claude Code once and capture stdout as the final assistant message.`
+- **Thin community `Community 563`** (1 nodes): `Run Codex CLI once and capture the final assistant message.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 564`** (1 nodes): `Run one requested CLI runtime.`
+- **Thin community `Community 564`** (1 nodes): `Return whether a board-chat memory entry is a new CLI runtime request.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 565`** (1 nodes): `Process pending CLI board-chat requests once.`
+- **Thin community `Community 565`** (1 nodes): `Fetch recent board-chat memory entries.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 566`** (1 nodes): `Format one Codex result as a board-chat memory payload.`
+- **Thin community `Community 566`** (1 nodes): `Build the non-interactive Codex CLI command.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 567`** (1 nodes): `Post a bridge response back to board chat.`
+- **Thin community `Community 567`** (1 nodes): `Extract Markdown image attachments for Codex CLI image input.      The browser c`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 568`** (1 nodes): `Process pending CLI board-chat requests once.`
+- **Thin community `Community 568`** (1 nodes): `Build the non-interactive Claude Code command.      We intentionally do not pass`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 569`** (1 nodes): `Run the bridge forever.`
+- **Thin community `Community 569`** (1 nodes): `Result captured from one CLI invocation.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 570`** (1 nodes): `Resolved CLI runtime request from one board-chat memory entry.`
+- **Thin community `Community 570`** (1 nodes): `Run Codex CLI once and capture the final assistant message.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 571`** (1 nodes): `Runtime settings for the CLI bridge loop.      The class name is kept for compat`
+- **Thin community `Community 571`** (1 nodes): `Run Claude Code once and capture stdout as the final assistant message.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 572`** (1 nodes): `Load config from the systemd environment file.`
+- **Thin community `Community 572`** (1 nodes): `Run one requested CLI runtime.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 573`** (1 nodes): `Load processed board-memory IDs from disk.`
+- **Thin community `Community 573`** (1 nodes): `Format one CLI result as a board-chat memory payload.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 574`** (1 nodes): `Persist processed IDs, keeping only a bounded set.`
+- **Thin community `Community 574`** (1 nodes): `Run the bridge forever.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 575`** (1 nodes): `Return whether a board-chat memory entry is a new Codex CLI request.`
+- **Thin community `Community 575`** (1 nodes): `Post a bridge response back to board chat.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 576`** (1 nodes): `Return the board-chat source label for a Codex CLI model.`
+- **Thin community `Community 576`** (1 nodes): `Process pending CLI board-chat requests once.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 577`** (1 nodes): `Resolve the requested CLI runtime from memory tags.`
+- **Thin community `Community 577`** (1 nodes): `Run the bridge forever.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 578`** (1 nodes): `Format one Codex result as a board-chat memory payload.`
+- **Thin community `Community 578`** (1 nodes): `Resolved CLI runtime request from one board-chat memory entry.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 579`** (1 nodes): `Return whether a board-chat memory entry is a new CLI runtime request.`
+- **Thin community `Community 579`** (1 nodes): `Runtime settings for the CLI bridge loop.      The class name is kept for compat`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 580`** (1 nodes): `Fetch recent board-chat memory entries.`
+- **Thin community `Community 580`** (1 nodes): `Return whether a board-chat memory entry is a new Codex 5.5 request.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 581`** (1 nodes): `Build the non-interactive Codex CLI command.`
+- **Thin community `Community 581`** (1 nodes): `Resolve the requested Codex CLI model from memory tags.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 582`** (1 nodes): `Extract Markdown image attachments for Codex CLI image input.      The browser c`
+- **Thin community `Community 582`** (1 nodes): `Persist processed IDs, keeping only a bounded set.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 583`** (1 nodes): `Build the non-interactive Claude Code command.      We intentionally do not pass`
+- **Thin community `Community 583`** (1 nodes): `Return the board-chat source label for one CLI runtime.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 584`** (1 nodes): `Run Codex CLI once and capture the final assistant message.`
+- **Thin community `Community 584`** (1 nodes): `Return the board-chat source label for a Codex CLI model.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 585`** (1 nodes): `Run Claude Code once and capture stdout as the final assistant message.`
+- **Thin community `Community 585`** (1 nodes): `Resolve the requested CLI runtime from memory tags.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 586`** (1 nodes): `Run one requested CLI runtime.`
+- **Thin community `Community 586`** (1 nodes): `Return whether a request must run in read-only diagnostic mode.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 587`** (1 nodes): `Format one CLI result as a board-chat memory payload.`
+- **Thin community `Community 587`** (1 nodes): `Prefix prompts with non-destructive diagnostic constraints.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 588`** (1 nodes): `Format one Codex result as a board-chat memory payload.`
+- **Thin community `Community 588`** (1 nodes): `Resolve a Codex CLI model from memory tags for backward-compatible callers.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 589`** (1 nodes): `Post a bridge response back to board chat.`
+- **Thin community `Community 589`** (1 nodes): `Fetch recent board-chat memory entries.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 590`** (1 nodes): `Runtime settings for the Codex CLI bridge loop.      The class name is kept for`
+- **Thin community `Community 590`** (1 nodes): `Extract Markdown image attachments for Codex CLI image input.      The browser c`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 591`** (1 nodes): `Load config from the systemd environment file.`
+- **Thin community `Community 591`** (1 nodes): `Result captured from one CLI invocation.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 592`** (1 nodes): `Persist processed IDs, keeping only a bounded set.`
+- **Thin community `Community 592`** (1 nodes): `Result captured from one CLI invocation.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 593`** (1 nodes): `Persist processed IDs, keeping only a bounded set.`
+- **Thin community `Community 593`** (1 nodes): `Run Codex CLI once and capture the final assistant message.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 594`** (1 nodes): `Return the board-chat source label for a Codex CLI model.`
+- **Thin community `Community 594`** (1 nodes): `Run Claude Code once and capture stdout as the final assistant message.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 595`** (1 nodes): `Fetch recent board-chat memory entries.`
+- **Thin community `Community 595`** (1 nodes): `Run one requested CLI runtime.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 596`** (1 nodes): `Build the non-interactive Codex CLI command.`
+- **Thin community `Community 596`** (1 nodes): `Process pending CLI board-chat requests once.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 597`** (1 nodes): `Result captured from one Codex CLI invocation.`
+- **Thin community `Community 597`** (1 nodes): `Format one Codex result as a board-chat memory payload.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 598`** (1 nodes): `Format one Codex result as a board-chat memory payload.`
+- **Thin community `Community 598`** (1 nodes): `Post a bridge response back to board chat.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 599`** (1 nodes): `Post a bridge response back to board chat.`
+- **Thin community `Community 599`** (1 nodes): `Process pending CLI board-chat requests once.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 600`** (1 nodes): `Process pending Codex CLI board-chat requests once.`
+- **Thin community `Community 600`** (1 nodes): `Run the bridge forever.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 601`** (1 nodes): `Run the bridge forever.`
+- **Thin community `Community 601`** (1 nodes): `Resolved CLI runtime request from one board-chat memory entry.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 602`** (1 nodes): `Runtime settings for the Codex 5.5 bridge loop.`
+- **Thin community `Community 602`** (1 nodes): `Runtime settings for the CLI bridge loop.      The class name is kept for compat`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 603`** (1 nodes): `Load config from the systemd environment file.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 604`** (1 nodes): `Fetch recent board-chat memory entries.`
+- **Thin community `Community 604`** (1 nodes): `Load processed board-memory IDs from disk.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 605`** (1 nodes): `Build the non-interactive Codex CLI command.`
+- **Thin community `Community 605`** (1 nodes): `Persist processed IDs, keeping only a bounded set.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 606`** (1 nodes): `Result captured from one Codex CLI invocation.`
+- **Thin community `Community 606`** (1 nodes): `Return whether a board-chat memory entry is a new Codex CLI request.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 607`** (1 nodes): `Run Codex CLI once and capture the final assistant message.`
+- **Thin community `Community 607`** (1 nodes): `Return the board-chat source label for a Codex CLI model.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 608`** (1 nodes): `Post a bridge response back to board chat.`
+- **Thin community `Community 608`** (1 nodes): `Resolve the requested CLI runtime from memory tags.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 609`** (1 nodes): `Process pending Codex 5.5 board-chat requests once.`
+- **Thin community `Community 609`** (1 nodes): `Format one Codex result as a board-chat memory payload.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 610`** (1 nodes): `Run the bridge forever.`
+- **Thin community `Community 610`** (1 nodes): `Return whether a board-chat memory entry is a new CLI runtime request.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 611`** (1 nodes): `Fetch recent board-chat memory entries.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 612`** (1 nodes): `Build the non-interactive Codex CLI command.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 613`** (1 nodes): `Extract Markdown image attachments for Codex CLI image input.      The browser c`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 614`** (1 nodes): `Build the non-interactive Claude Code command.      We intentionally do not pass`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 615`** (1 nodes): `Run Codex CLI once and capture the final assistant message.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 616`** (1 nodes): `Run Claude Code once and capture stdout as the final assistant message.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 617`** (1 nodes): `Run one requested CLI runtime.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 618`** (1 nodes): `Format one CLI result as a board-chat memory payload.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 619`** (1 nodes): `Format one Codex result as a board-chat memory payload.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 620`** (1 nodes): `Post a bridge response back to board chat.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 621`** (1 nodes): `Runtime settings for the Codex CLI bridge loop.      The class name is kept for`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 622`** (1 nodes): `Load config from the systemd environment file.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 623`** (1 nodes): `Persist processed IDs, keeping only a bounded set.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 624`** (1 nodes): `Persist processed IDs, keeping only a bounded set.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 625`** (1 nodes): `Return the board-chat source label for a Codex CLI model.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 626`** (1 nodes): `Fetch recent board-chat memory entries.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 627`** (1 nodes): `Build the non-interactive Codex CLI command.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 628`** (1 nodes): `Result captured from one Codex CLI invocation.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 629`** (1 nodes): `Format one Codex result as a board-chat memory payload.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 630`** (1 nodes): `Post a bridge response back to board chat.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 631`** (1 nodes): `Process pending Codex CLI board-chat requests once.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 632`** (1 nodes): `Run the bridge forever.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 633`** (1 nodes): `Runtime settings for the Codex 5.5 bridge loop.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 634`** (1 nodes): `Load config from the systemd environment file.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 635`** (1 nodes): `Fetch recent board-chat memory entries.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 636`** (1 nodes): `Build the non-interactive Codex CLI command.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 637`** (1 nodes): `Result captured from one Codex CLI invocation.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 638`** (1 nodes): `Run Codex CLI once and capture the final assistant message.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 639`** (1 nodes): `Post a bridge response back to board chat.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 640`** (1 nodes): `Process pending Codex 5.5 board-chat requests once.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 641`** (1 nodes): `Run the bridge forever.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `get()` connect `Community 4` to `Community 0`, `Community 2`, `Community 3`, `Community 5`, `Community 6`, `Community 7`, `Community 8`, `Community 9`, `Community 10`, `Community 12`, `Community 13`, `Community 14`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 19`, `Community 20`, `Community 23`, `Community 25`, `Community 27`?**
-  _High betweenness centrality (0.233) - this node is a cross-community bridge._
-- **Why does `customFetch()` connect `Community 2` to `Community 4`, `Community 7`, `Community 8`, `Community 10`, `Community 11`?**
-  _High betweenness centrality (0.172) - this node is a cross-community bridge._
-- **Why does `connect()` connect `Community 8` to `Community 0`, `Community 2`, `Community 3`, `Community 4`, `Community 6`, `Community 10`, `Community 15`, `Community 17`, `Community 24`, `Community 26`?**
-  _High betweenness centrality (0.031) - this node is a cross-community bridge._
+- **Why does `get()` connect `Community 0` to `Community 1`, `Community 2`, `Community 3`, `Community 5`, `Community 6`, `Community 7`, `Community 8`, `Community 9`, `Community 10`, `Community 11`, `Community 12`, `Community 14`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 20`, `Community 21`, `Community 22`, `Community 23`, `Community 25`, `Community 28`, `Community 60`?**
+  _High betweenness centrality (0.258) - this node is a cross-community bridge._
+- **Why does `customFetch()` connect `Community 1` to `Community 0`, `Community 7`, `Community 8`, `Community 9`, `Community 13`?**
+  _High betweenness centrality (0.196) - this node is a cross-community bridge._
+- **Why does `Board` connect `Community 2` to `Community 0`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 11`, `Community 12`, `Community 18`, `Community 20`, `Community 21`, `Community 22`, `Community 23`, `Community 24`, `Community 26`, `Community 27`?**
+  _High betweenness centrality (0.042) - this node is a cross-community bridge._
 - **Are the 371 inferred relationships involving `Board` (e.g. with `RangeSpec` and `Dashboard metrics schemas for KPI and time-series API responses.`) actually correct?**
   _`Board` has 371 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 327 inferred relationships involving `Agent` (e.g. with `RangeSpec` and `Dashboard metrics schemas for KPI and time-series API responses.`) actually correct?**

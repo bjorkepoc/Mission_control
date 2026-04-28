@@ -6,17 +6,19 @@
  */
 import type { PolymarketPortfolioResponseSummary } from "./polymarketPortfolioResponseSummary";
 import type { PolymarketPortfolioResponseTrends } from "./polymarketPortfolioResponseTrends";
+import type { PolymarketPortfolioResponseWalletTotal } from "./polymarketPortfolioResponseWalletTotal";
 
 /**
  * Latest portfolio snapshot summary from local watcher state.
  */
 export interface PolymarketPortfolioResponse {
-  has_snapshot: boolean;
-  source_file?: string | null;
-  generated_at?: string | null;
-  summary?: PolymarketPortfolioResponseSummary;
-  latest_positions?: unknown[];
   closed_positions?: unknown[];
+  generated_at?: string | null;
+  has_snapshot: boolean;
+  latest_positions?: unknown[];
+  source_file?: string | null;
+  summary?: PolymarketPortfolioResponseSummary;
   trends?: PolymarketPortfolioResponseTrends;
+  wallet_total?: PolymarketPortfolioResponseWalletTotal;
   warnings?: string[];
 }

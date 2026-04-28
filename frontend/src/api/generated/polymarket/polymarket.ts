@@ -17,41 +17,44 @@ import type {
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { PolymarketJournalResponse } from "../model/polymarketJournalResponse";
-import type { PolymarketPortfolioResponse } from "../model/polymarketPortfolioResponse";
-import type { PolymarketSignalsResponse } from "../model/polymarketSignalsResponse";
-import type { PolymarketStatusResponse } from "../model/polymarketStatusResponse";
-import type { PolymarketWhaleHookResponse } from "../model/polymarketWhaleHookResponse";
+import type {
+  PolymarketJournalResponse,
+  PolymarketLearnerResponse,
+  PolymarketPortfolioResponse,
+  PolymarketSignalsResponse,
+  PolymarketStatusResponse,
+  PolymarketWhaleHookResponse,
+} from ".././model";
 
 import { customFetch } from "../../mutator";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 /**
- * Return watcher root/state metadata and latest report file status.
- * @summary Get Polymarket Status
+ * Return trade-journal feedback summary and latest events.
+ * @summary Get Polymarket Journal
  */
-export type getPolymarketStatusApiV1PolymarketStatusGetResponse200 = {
-  data: PolymarketStatusResponse;
+export type getPolymarketJournalApiV1PolymarketJournalGetResponse200 = {
+  data: PolymarketJournalResponse;
   status: 200;
 };
 
-export type getPolymarketStatusApiV1PolymarketStatusGetResponseSuccess =
-  getPolymarketStatusApiV1PolymarketStatusGetResponse200 & {
+export type getPolymarketJournalApiV1PolymarketJournalGetResponseSuccess =
+  getPolymarketJournalApiV1PolymarketJournalGetResponse200 & {
     headers: Headers;
   };
-export type getPolymarketStatusApiV1PolymarketStatusGetResponse =
-  getPolymarketStatusApiV1PolymarketStatusGetResponseSuccess;
+export type getPolymarketJournalApiV1PolymarketJournalGetResponse =
+  getPolymarketJournalApiV1PolymarketJournalGetResponseSuccess;
 
-export const getGetPolymarketStatusApiV1PolymarketStatusGetUrl = () => {
-  return `/api/v1/polymarket/status`;
+export const getGetPolymarketJournalApiV1PolymarketJournalGetUrl = () => {
+  return `/api/v1/polymarket/journal`;
 };
 
-export const getPolymarketStatusApiV1PolymarketStatusGet = async (
+export const getPolymarketJournalApiV1PolymarketJournalGet = async (
   options?: RequestInit,
-): Promise<getPolymarketStatusApiV1PolymarketStatusGetResponse> => {
-  return customFetch<getPolymarketStatusApiV1PolymarketStatusGetResponse>(
-    getGetPolymarketStatusApiV1PolymarketStatusGetUrl(),
+): Promise<getPolymarketJournalApiV1PolymarketJournalGetResponse> => {
+  return customFetch<getPolymarketJournalApiV1PolymarketJournalGetResponse>(
+    getGetPolymarketJournalApiV1PolymarketJournalGetUrl(),
     {
       ...options,
       method: "GET",
@@ -59,19 +62,19 @@ export const getPolymarketStatusApiV1PolymarketStatusGet = async (
   );
 };
 
-export const getGetPolymarketStatusApiV1PolymarketStatusGetQueryKey = () => {
-  return [`/api/v1/polymarket/status`] as const;
+export const getGetPolymarketJournalApiV1PolymarketJournalGetQueryKey = () => {
+  return [`/api/v1/polymarket/journal`] as const;
 };
 
-export const getGetPolymarketStatusApiV1PolymarketStatusGetQueryOptions = <
+export const getGetPolymarketJournalApiV1PolymarketJournalGetQueryOptions = <
   TData = Awaited<
-    ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+    ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
   >,
   TError = unknown,
 >(options?: {
   query?: Partial<
     UseQueryOptions<
-      Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>,
+      Awaited<ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>>,
       TError,
       TData
     >
@@ -82,36 +85,41 @@ export const getGetPolymarketStatusApiV1PolymarketStatusGetQueryOptions = <
 
   const queryKey =
     queryOptions?.queryKey ??
-    getGetPolymarketStatusApiV1PolymarketStatusGetQueryKey();
+    getGetPolymarketJournalApiV1PolymarketJournalGetQueryKey();
 
   const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>
+    Awaited<ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>>
   > = ({ signal }) =>
-    getPolymarketStatusApiV1PolymarketStatusGet({ signal, ...requestOptions });
+    getPolymarketJournalApiV1PolymarketJournalGet({
+      signal,
+      ...requestOptions,
+    });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>,
+    Awaited<ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type GetPolymarketStatusApiV1PolymarketStatusGetQueryResult =
+export type GetPolymarketJournalApiV1PolymarketJournalGetQueryResult =
   NonNullable<
-    Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>
+    Awaited<ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>>
   >;
-export type GetPolymarketStatusApiV1PolymarketStatusGetQueryError = unknown;
+export type GetPolymarketJournalApiV1PolymarketJournalGetQueryError = unknown;
 
-export function useGetPolymarketStatusApiV1PolymarketStatusGet<
+export function useGetPolymarketJournalApiV1PolymarketJournalGet<
   TData = Awaited<
-    ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+    ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
   >,
   TError = unknown,
 >(
   options: {
     query: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>,
+        Awaited<
+          ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
+        >,
         TError,
         TData
       >
@@ -119,11 +127,11 @@ export function useGetPolymarketStatusApiV1PolymarketStatusGet<
       Pick<
         DefinedInitialDataOptions<
           Awaited<
-            ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+            ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
           >,
           TError,
           Awaited<
-            ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+            ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
           >
         >,
         "initialData"
@@ -134,16 +142,18 @@ export function useGetPolymarketStatusApiV1PolymarketStatusGet<
 ): DefinedUseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useGetPolymarketStatusApiV1PolymarketStatusGet<
+export function useGetPolymarketJournalApiV1PolymarketJournalGet<
   TData = Awaited<
-    ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+    ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
   >,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>,
+        Awaited<
+          ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
+        >,
         TError,
         TData
       >
@@ -151,11 +161,11 @@ export function useGetPolymarketStatusApiV1PolymarketStatusGet<
       Pick<
         UndefinedInitialDataOptions<
           Awaited<
-            ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+            ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
           >,
           TError,
           Awaited<
-            ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+            ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
           >
         >,
         "initialData"
@@ -166,16 +176,18 @@ export function useGetPolymarketStatusApiV1PolymarketStatusGet<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useGetPolymarketStatusApiV1PolymarketStatusGet<
+export function useGetPolymarketJournalApiV1PolymarketJournalGet<
   TData = Awaited<
-    ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+    ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
   >,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>,
+        Awaited<
+          ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
+        >,
         TError,
         TData
       >
@@ -187,19 +199,21 @@ export function useGetPolymarketStatusApiV1PolymarketStatusGet<
   queryKey: DataTag<QueryKey, TData, TError>;
 };
 /**
- * @summary Get Polymarket Status
+ * @summary Get Polymarket Journal
  */
 
-export function useGetPolymarketStatusApiV1PolymarketStatusGet<
+export function useGetPolymarketJournalApiV1PolymarketJournalGet<
   TData = Awaited<
-    ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+    ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
   >,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>,
+        Awaited<
+          ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
+        >,
         TError,
         TData
       >
@@ -211,7 +225,212 @@ export function useGetPolymarketStatusApiV1PolymarketStatusGet<
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
   const queryOptions =
-    getGetPolymarketStatusApiV1PolymarketStatusGetQueryOptions(options);
+    getGetPolymarketJournalApiV1PolymarketJournalGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Return paper-trading and learner update artifacts for the dashboard.
+ * @summary Get Polymarket Learner
+ */
+export type getPolymarketLearnerApiV1PolymarketLearnerGetResponse200 = {
+  data: PolymarketLearnerResponse;
+  status: 200;
+};
+
+export type getPolymarketLearnerApiV1PolymarketLearnerGetResponseSuccess =
+  getPolymarketLearnerApiV1PolymarketLearnerGetResponse200 & {
+    headers: Headers;
+  };
+export type getPolymarketLearnerApiV1PolymarketLearnerGetResponse =
+  getPolymarketLearnerApiV1PolymarketLearnerGetResponseSuccess;
+
+export const getGetPolymarketLearnerApiV1PolymarketLearnerGetUrl = () => {
+  return `/api/v1/polymarket/learner`;
+};
+
+export const getPolymarketLearnerApiV1PolymarketLearnerGet = async (
+  options?: RequestInit,
+): Promise<getPolymarketLearnerApiV1PolymarketLearnerGetResponse> => {
+  return customFetch<getPolymarketLearnerApiV1PolymarketLearnerGetResponse>(
+    getGetPolymarketLearnerApiV1PolymarketLearnerGetUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetPolymarketLearnerApiV1PolymarketLearnerGetQueryKey = () => {
+  return [`/api/v1/polymarket/learner`] as const;
+};
+
+export const getGetPolymarketLearnerApiV1PolymarketLearnerGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+  >,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetPolymarketLearnerApiV1PolymarketLearnerGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>>
+  > = ({ signal }) =>
+    getPolymarketLearnerApiV1PolymarketLearnerGet({
+      signal,
+      ...requestOptions,
+    });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetPolymarketLearnerApiV1PolymarketLearnerGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>>
+  >;
+export type GetPolymarketLearnerApiV1PolymarketLearnerGetQueryError = unknown;
+
+export function useGetPolymarketLearnerApiV1PolymarketLearnerGet<
+  TData = Awaited<
+    ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetPolymarketLearnerApiV1PolymarketLearnerGet<
+  TData = Awaited<
+    ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetPolymarketLearnerApiV1PolymarketLearnerGet<
+  TData = Awaited<
+    ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get Polymarket Learner
+ */
+
+export function useGetPolymarketLearnerApiV1PolymarketLearnerGet<
+  TData = Awaited<
+    ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof getPolymarketLearnerApiV1PolymarketLearnerGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getGetPolymarketLearnerApiV1PolymarketLearnerGetQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,
@@ -643,6 +862,200 @@ export function useGetPolymarketSignalsApiV1PolymarketSignalsGet<
 }
 
 /**
+ * Return watcher root/state metadata and latest report file status.
+ * @summary Get Polymarket Status
+ */
+export type getPolymarketStatusApiV1PolymarketStatusGetResponse200 = {
+  data: PolymarketStatusResponse;
+  status: 200;
+};
+
+export type getPolymarketStatusApiV1PolymarketStatusGetResponseSuccess =
+  getPolymarketStatusApiV1PolymarketStatusGetResponse200 & {
+    headers: Headers;
+  };
+export type getPolymarketStatusApiV1PolymarketStatusGetResponse =
+  getPolymarketStatusApiV1PolymarketStatusGetResponseSuccess;
+
+export const getGetPolymarketStatusApiV1PolymarketStatusGetUrl = () => {
+  return `/api/v1/polymarket/status`;
+};
+
+export const getPolymarketStatusApiV1PolymarketStatusGet = async (
+  options?: RequestInit,
+): Promise<getPolymarketStatusApiV1PolymarketStatusGetResponse> => {
+  return customFetch<getPolymarketStatusApiV1PolymarketStatusGetResponse>(
+    getGetPolymarketStatusApiV1PolymarketStatusGetUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetPolymarketStatusApiV1PolymarketStatusGetQueryKey = () => {
+  return [`/api/v1/polymarket/status`] as const;
+};
+
+export const getGetPolymarketStatusApiV1PolymarketStatusGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+  >,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetPolymarketStatusApiV1PolymarketStatusGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>
+  > = ({ signal }) =>
+    getPolymarketStatusApiV1PolymarketStatusGet({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetPolymarketStatusApiV1PolymarketStatusGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>
+  >;
+export type GetPolymarketStatusApiV1PolymarketStatusGetQueryError = unknown;
+
+export function useGetPolymarketStatusApiV1PolymarketStatusGet<
+  TData = Awaited<
+    ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetPolymarketStatusApiV1PolymarketStatusGet<
+  TData = Awaited<
+    ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetPolymarketStatusApiV1PolymarketStatusGet<
+  TData = Awaited<
+    ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get Polymarket Status
+ */
+
+export function useGetPolymarketStatusApiV1PolymarketStatusGet<
+  TData = Awaited<
+    ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPolymarketStatusApiV1PolymarketStatusGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getGetPolymarketStatusApiV1PolymarketStatusGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * Return whale-hook selected actions and diagnostics summary.
  * @summary Get Polymarket Whale Hook
  */
@@ -849,211 +1262,6 @@ export function useGetPolymarketWhaleHookApiV1PolymarketWhaleHookGet<
 } {
   const queryOptions =
     getGetPolymarketWhaleHookApiV1PolymarketWhaleHookGetQueryOptions(options);
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-/**
- * Return trade-journal feedback summary and latest events.
- * @summary Get Polymarket Journal
- */
-export type getPolymarketJournalApiV1PolymarketJournalGetResponse200 = {
-  data: PolymarketJournalResponse;
-  status: 200;
-};
-
-export type getPolymarketJournalApiV1PolymarketJournalGetResponseSuccess =
-  getPolymarketJournalApiV1PolymarketJournalGetResponse200 & {
-    headers: Headers;
-  };
-export type getPolymarketJournalApiV1PolymarketJournalGetResponse =
-  getPolymarketJournalApiV1PolymarketJournalGetResponseSuccess;
-
-export const getGetPolymarketJournalApiV1PolymarketJournalGetUrl = () => {
-  return `/api/v1/polymarket/journal`;
-};
-
-export const getPolymarketJournalApiV1PolymarketJournalGet = async (
-  options?: RequestInit,
-): Promise<getPolymarketJournalApiV1PolymarketJournalGetResponse> => {
-  return customFetch<getPolymarketJournalApiV1PolymarketJournalGetResponse>(
-    getGetPolymarketJournalApiV1PolymarketJournalGetUrl(),
-    {
-      ...options,
-      method: "GET",
-    },
-  );
-};
-
-export const getGetPolymarketJournalApiV1PolymarketJournalGetQueryKey = () => {
-  return [`/api/v1/polymarket/journal`] as const;
-};
-
-export const getGetPolymarketJournalApiV1PolymarketJournalGetQueryOptions = <
-  TData = Awaited<
-    ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-  >,
-  TError = unknown,
->(options?: {
-  query?: Partial<
-    UseQueryOptions<
-      Awaited<ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>>,
-      TError,
-      TData
-    >
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ??
-    getGetPolymarketJournalApiV1PolymarketJournalGetQueryKey();
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>>
-  > = ({ signal }) =>
-    getPolymarketJournalApiV1PolymarketJournalGet({
-      signal,
-      ...requestOptions,
-    });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
-
-export type GetPolymarketJournalApiV1PolymarketJournalGetQueryResult =
-  NonNullable<
-    Awaited<ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>>
-  >;
-export type GetPolymarketJournalApiV1PolymarketJournalGetQueryError = unknown;
-
-export function useGetPolymarketJournalApiV1PolymarketJournalGet<
-  TData = Awaited<
-    ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-  >,
-  TError = unknown,
->(
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-        >,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<
-            ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-          >,
-          TError,
-          Awaited<
-            ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-          >
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-export function useGetPolymarketJournalApiV1PolymarketJournalGet<
-  TData = Awaited<
-    ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-  >,
-  TError = unknown,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-        >,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<
-            ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-          >,
-          TError,
-          Awaited<
-            ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-          >
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-export function useGetPolymarketJournalApiV1PolymarketJournalGet<
-  TData = Awaited<
-    ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-  >,
-  TError = unknown,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-        >,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-/**
- * @summary Get Polymarket Journal
- */
-
-export function useGetPolymarketJournalApiV1PolymarketJournalGet<
-  TData = Awaited<
-    ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-  >,
-  TError = unknown,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof getPolymarketJournalApiV1PolymarketJournalGet>
-        >,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
-  const queryOptions =
-    getGetPolymarketJournalApiV1PolymarketJournalGetQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { SignedIn, SignedOut, useAuth } from "@/auth/clerk";
 import {
@@ -11,6 +12,8 @@ import {
   BarChart3,
   BookOpen,
   Network,
+  Search,
+  WalletCards,
   Shield,
 } from "lucide-react";
 
@@ -21,6 +24,7 @@ import {
   useGetPolymarketStatusApiV1PolymarketStatusGet,
   useGetPolymarketWhaleHookApiV1PolymarketWhaleHookGet,
 } from "@/api/generated/polymarket/polymarket";
+import { customFetch } from "@/api/mutator";
 import { SignedOutPanel } from "@/components/auth/SignedOutPanel";
 import { DashboardSidebar } from "@/components/organisms/DashboardSidebar";
 import { DashboardShell } from "@/components/templates/DashboardShell";
@@ -33,6 +37,44 @@ type SummaryItem = {
   title: string;
   details: string;
 };
+
+type ApiResponse<T> = {
+  data: T;
+  status: number;
+  headers: Headers;
+};
+
+type PolymarketLearnerResponse = {
+  root_path: string;
+  root_exists: boolean;
+  paper_trading_path: string;
+  paper_state: Record<string, unknown>;
+  open_positions: unknown[];
+  closed_positions: unknown[];
+  latest_ledger: unknown[];
+  latest_observations: unknown[];
+  hook_candidates: unknown[];
+  latest_research_requests: unknown[];
+  latest_research_reports: unknown[];
+  weekly_report_excerpt: string | null;
+  strategy_playbook_excerpt: string | null;
+  research_policy_excerpt: string | null;
+  source_files: Array<{
+    path: string;
+    exists: boolean;
+    size_bytes?: number | null;
+    modified_at?: string | null;
+  }>;
+  warnings: string[];
+};
+
+const getPolymarketLearner = async (
+  options?: RequestInit,
+): Promise<ApiResponse<PolymarketLearnerResponse>> =>
+  customFetch<ApiResponse<PolymarketLearnerResponse>>("/api/v1/polymarket/learner", {
+    ...options,
+    method: "GET",
+  });
 
 const toRecord = (value: unknown): Record<string, unknown> | null => {
   if (!value || Array.isArray(value) || typeof value !== "object") {
@@ -85,6 +127,20 @@ const safeString = (value: unknown): string => {
   return String(value);
 };
 
+const formatUsd = (value: unknown): string => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `$${value.toFixed(2)}`;
+  }
+  return safeString(value);
+};
+
+const formatPercentValue = (value: unknown): string => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+  }
+  return safeString(value);
+};
+
 const summarizeListItem = (value: unknown): SummaryItem => {
   const record = toRecord(value);
   if (!record) {
@@ -94,22 +150,41 @@ const summarizeListItem = (value: unknown): SummaryItem => {
   const title =
     safeString(
       record.title ??
+        record.market ??
         record.slug ??
         record.outcome ??
         record.action ??
+        record.type ??
+        record.position_id ??
         record.trade_id ??
         record.condition_id ??
+        record.query ??
+        record.question ??
         record.event,
     ) || "Entry";
 
   const details: string[] = [];
   const detailKeys = [
+    "type",
     "action",
+    "market",
     "outcome",
     "stake_usd",
+    "currentValue",
+    "positions_value",
     "entry_price",
+    "mark_price",
+    "exit_price",
+    "realized_pnl_usd",
+    "unrealized_pnl_usd",
+    "equity_usd",
     "pnl",
     "event",
+    "query",
+    "question",
+    "status",
+    "confidence",
+    "decision_relevance",
     "trade_id",
   ];
   for (const key of detailKeys) {
@@ -157,12 +232,20 @@ export default function PolymarketPage() {
   const signalsQuery = useGetPolymarketSignalsApiV1PolymarketSignalsGet(queryOptions);
   const whaleHookQuery = useGetPolymarketWhaleHookApiV1PolymarketWhaleHookGet(queryOptions);
   const journalQuery = useGetPolymarketJournalApiV1PolymarketJournalGet(queryOptions);
+  const learnerQuery = useQuery({
+    queryKey: ["/api/v1/polymarket/learner"],
+    queryFn: ({ signal }) => getPolymarketLearner({ signal, cache: "no-store" }),
+    enabled: Boolean(isSignedIn),
+    refetchInterval: REFRESH_INTERVAL_MS,
+    refetchOnMount: "always" as const,
+  });
 
   const status = statusQuery.data?.data;
   const portfolio = portfolioQuery.data?.data;
   const signals = signalsQuery.data?.data;
   const whaleHook = whaleHookQuery.data?.data;
   const journal = journalQuery.data?.data;
+  const learner = learnerQuery.data?.data;
 
   const allWarnings = useMemo(
     () =>
@@ -172,8 +255,16 @@ export default function PolymarketPage() {
         ...(signals?.warnings ?? []),
         ...(whaleHook?.warnings ?? []),
         ...(journal?.warnings ?? []),
+        ...(learner?.warnings ?? []),
       ]),
-    [journal?.warnings, portfolio?.warnings, signals?.warnings, status?.warnings, whaleHook?.warnings],
+    [
+      journal?.warnings,
+      learner?.warnings,
+      portfolio?.warnings,
+      signals?.warnings,
+      status?.warnings,
+      whaleHook?.warnings,
+    ],
   );
 
   const queryErrors = useMemo(
@@ -184,9 +275,11 @@ export default function PolymarketPage() {
         signalsQuery.error instanceof Error ? signalsQuery.error.message : null,
         whaleHookQuery.error instanceof Error ? whaleHookQuery.error.message : null,
         journalQuery.error instanceof Error ? journalQuery.error.message : null,
+        learnerQuery.error instanceof Error ? learnerQuery.error.message : null,
       ]),
     [
       journalQuery.error,
+      learnerQuery.error,
       portfolioQuery.error,
       signalsQuery.error,
       statusQuery.error,
@@ -195,6 +288,15 @@ export default function PolymarketPage() {
   );
 
   const portfolioSummaryRows = describeEntries(portfolio?.summary, 8);
+  const portfolioRecord = toRecord(portfolio);
+  const walletTotal = toRecord(portfolioRecord?.wallet_total);
+  const walletCashAvailable = walletTotal?.cash_available === true;
+  const walletTotalRows: Array<[string, string]> = [
+    ["Total wallet value", formatUsd(walletTotal?.total_value)],
+    ["Open positions", formatUsd(walletTotal?.positions_value)],
+    ["Cash / USDC", walletCashAvailable ? formatUsd(walletTotal?.cash_value) : "Not in snapshot"],
+    ["Source", safeString(walletTotal?.source)],
+  ];
   const bankrollRows = describeEntries(signals?.bankroll, 8);
   const commentRows = describeEntries(signals?.comment_analysis, 6);
   const protectedRows = describeEntries(signals?.protected_positions, 6);
@@ -203,13 +305,34 @@ export default function PolymarketPage() {
   const whaleCapsRows = describeEntries(whaleHook?.caps, 6);
   const whaleExecutionRows = describeEntries(whaleHook?.execution, 6);
   const feedbackRows = describeEntries(journal?.feedback_summary, 8);
+  const paperState = toRecord(learner?.paper_state);
+  const paperMetrics: Array<[string, string]> = [
+    ["Equity", formatUsd(paperState?.equity_usd)],
+    ["Cash", formatUsd(paperState?.cash_usd)],
+    ["Realized PnL", formatUsd(paperState?.realized_pnl_usd)],
+    ["Unrealized PnL", formatUsd(paperState?.unrealized_pnl_usd)],
+    ["Starting bankroll", formatUsd(paperState?.starting_bankroll_usd)],
+    ["Last mark", formatDateTime(paperState?.last_mark_at as string | null | undefined)],
+  ];
+  const startingBankroll =
+    typeof paperState?.starting_bankroll_usd === "number" ? paperState.starting_bankroll_usd : null;
+  const paperRoi =
+    typeof paperState?.equity_usd === "number" && startingBankroll && startingBankroll > 0
+      ? ((paperState.equity_usd - startingBankroll) / startingBankroll) * 100
+      : null;
 
   const planItems = (signals?.plan ?? []).slice(0, MAX_LIST_ROWS);
   const suggestionItems = (signals?.suggestions ?? []).slice(0, MAX_LIST_ROWS);
+  const whaleItems = (whaleHook?.whales ?? []).slice(0, MAX_LIST_ROWS);
   const actionItems = (whaleHook?.selected_actions ?? []).slice(0, MAX_LIST_ROWS);
   const openPositions = (portfolio?.latest_positions ?? []).slice(0, MAX_LIST_ROWS);
   const closedPositions = (portfolio?.closed_positions ?? []).slice(0, MAX_LIST_ROWS);
   const journalEvents = (journal?.latest_events ?? []).slice(0, MAX_LIST_ROWS);
+  const paperOpenPositions = (learner?.open_positions ?? []).slice(0, MAX_LIST_ROWS);
+  const paperLedgerItems = (learner?.latest_ledger ?? []).slice(-MAX_LIST_ROWS).reverse();
+  const hookCandidateItems = (learner?.hook_candidates ?? []).slice(-MAX_LIST_ROWS).reverse();
+  const researchRequestItems = (learner?.latest_research_requests ?? []).slice(-MAX_LIST_ROWS).reverse();
+  const researchReportItems = (learner?.latest_research_reports ?? []).slice(-MAX_LIST_ROWS).reverse();
 
   return (
     <DashboardShell>
@@ -268,6 +391,201 @@ export default function PolymarketPage() {
                 </ul>
               </section>
             ) : null}
+
+            <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-900">
+                    <WalletCards className="h-4 w-4 text-emerald-600" />
+                    Paper Learner
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Local page updates from the 15-minute learner. Discord delivery is off for this stream.
+                  </p>
+                </div>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+                  Paper only · no live orders
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+                <article className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Fake account
+                    </p>
+                    <span className="text-xs font-medium text-emerald-700">
+                      ROI {formatPercentValue(paperRoi)}
+                    </span>
+                  </div>
+                  <dl className="mt-2 grid grid-cols-1 gap-1 text-sm">
+                    {paperMetrics.map(([label, value]) => (
+                      <div key={label} className="flex items-start justify-between gap-3">
+                        <dt className="text-slate-500">{label}</dt>
+                        <dd className="text-right text-slate-800">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Review: {formatDateTime(paperState?.review_after as string | null | undefined)}
+                  </p>
+                </article>
+
+                <article className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Open paper positions
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {paperOpenPositions.length > 0 ? (
+                      paperOpenPositions.map((item, index) => {
+                        const summary = summarizeListItem(item);
+                        return (
+                          <div key={`${summary.title}-${index}`} className="rounded-md bg-white px-2.5 py-2 text-sm">
+                            <p className="truncate font-medium text-slate-800">{summary.title}</p>
+                            {summary.details ? (
+                              <p className="mt-0.5 truncate text-xs text-slate-600">{summary.details}</p>
+                            ) : null}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-slate-500">No open paper positions.</p>
+                    )}
+                  </div>
+                </article>
+
+                <article className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Latest learner updates
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {paperLedgerItems.length > 0 ? (
+                      paperLedgerItems.map((item, index) => {
+                        const summary = summarizeListItem(item);
+                        return (
+                          <div key={`${summary.title}-${index}`} className="rounded-md bg-white px-2.5 py-2 text-sm">
+                            <p className="truncate font-medium text-slate-800">{summary.title}</p>
+                            {summary.details ? (
+                              <p className="mt-0.5 truncate text-xs text-slate-600">{summary.details}</p>
+                            ) : null}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-slate-500">No paper ledger entries yet.</p>
+                    )}
+                  </div>
+                </article>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <article className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Hook candidates
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {hookCandidateItems.length > 0 ? (
+                      hookCandidateItems.map((item, index) => {
+                        const summary = summarizeListItem(item);
+                        return (
+                          <div key={`${summary.title}-${index}`} className="rounded-md bg-white px-2.5 py-2 text-sm">
+                            <p className="truncate font-medium text-slate-800">{summary.title}</p>
+                            {summary.details ? (
+                              <p className="mt-0.5 truncate text-xs text-slate-600">{summary.details}</p>
+                            ) : null}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-slate-500">No hook candidates recorded yet.</p>
+                    )}
+                  </div>
+                </article>
+                <article className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Weekly report excerpt
+                  </p>
+                  {learner?.weekly_report_excerpt ? (
+                    <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-white p-3 text-xs leading-5 text-slate-700">
+                      {learner.weekly_report_excerpt}
+                    </pre>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-500">No weekly report yet.</p>
+                  )}
+                </article>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                      <Search className="h-4 w-4 text-sky-600" />
+                      News scraper bursts
+                    </p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      The learner may dispatch focused news-scraper agents only when a current or candidate market needs outside evidence. Results stay here, not in Discord.
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700">
+                    Controlled research · capped
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <article>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Research requests
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      {researchRequestItems.length > 0 ? (
+                        researchRequestItems.map((item, index) => {
+                          const summary = summarizeListItem(item);
+                          return (
+                            <div key={`${summary.title}-${index}`} className="rounded-md bg-white px-2.5 py-2 text-sm">
+                              <p className="truncate font-medium text-slate-800">{summary.title}</p>
+                              {summary.details ? (
+                                <p className="mt-0.5 truncate text-xs text-slate-600">{summary.details}</p>
+                              ) : null}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-slate-500">No scraper requests recorded yet.</p>
+                      )}
+                    </div>
+                  </article>
+
+                  <article>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Research reports
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      {researchReportItems.length > 0 ? (
+                        researchReportItems.map((item, index) => {
+                          const summary = summarizeListItem(item);
+                          return (
+                            <div key={`${summary.title}-${index}`} className="rounded-md bg-white px-2.5 py-2 text-sm">
+                              <p className="truncate font-medium text-slate-800">{summary.title}</p>
+                              {summary.details ? (
+                                <p className="mt-0.5 truncate text-xs text-slate-600">{summary.details}</p>
+                              ) : null}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-slate-500">No scraper reports recorded yet.</p>
+                      )}
+                    </div>
+                  </article>
+                </div>
+
+                {learner?.research_policy_excerpt ? (
+                  <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-white p-3 text-xs leading-5 text-slate-700">
+                    {learner.research_policy_excerpt}
+                  </pre>
+                ) : null}
+              </div>
+            </section>
 
             <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
               <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
@@ -343,6 +661,35 @@ export default function PolymarketPage() {
 
                 {portfolio?.has_snapshot ? (
                   <>
+                    <article className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                            Wallet total
+                          </p>
+                          <p className="mt-1 text-2xl font-semibold text-slate-900">
+                            {formatUsd(walletTotal?.total_value)}
+                          </p>
+                        </div>
+                        <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-xs font-medium text-emerald-700">
+                          {walletCashAvailable ? "Positions + cash" : "Positions only"}
+                        </span>
+                      </div>
+                      <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                        {walletTotalRows.map(([label, value]) => (
+                          <div key={label} className="flex items-start justify-between gap-3 rounded-md bg-white px-2.5 py-2">
+                            <dt className="text-slate-500">{label}</dt>
+                            <dd className="text-right font-medium text-slate-800">{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                      {walletTotal?.address ? (
+                        <p className="mt-2 break-all font-mono text-xs text-slate-500">
+                          {safeString(walletTotal.address)}
+                        </p>
+                      ) : null}
+                    </article>
+
                     <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                       {portfolioSummaryRows.length > 0 ? (
                         portfolioSummaryRows.map(([label, value]) => (
@@ -525,6 +872,24 @@ export default function PolymarketPage() {
                 <p className="text-xs text-slate-500">Source: {whaleHook?.source_file ?? DASH}</p>
 
                 <div className="mt-3 space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Watched whales</p>
+                    <div className="mt-1 grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
+                      {whaleItems.length > 0 ? (
+                        whaleItems.map((wallet, index) => (
+                          <div
+                            key={`${wallet}-${index}`}
+                            className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 font-mono text-xs text-slate-700"
+                          >
+                            {safeString(wallet)}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-slate-500">No watched whale addresses in latest snapshot.</p>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Selected actions</p>
                     <div className="mt-1 space-y-1">

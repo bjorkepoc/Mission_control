@@ -23,9 +23,11 @@ import type {
 import type {
   BoardMemoryCreate,
   BoardMemoryRead,
+  DeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteParams,
   HTTPValidationError,
   LimitOffsetPageTypeVarCustomizedBoardMemoryRead,
   ListBoardMemoryApiV1BoardsBoardIdMemoryGetParams,
+  OkResponse,
   StreamBoardMemoryApiV1BoardsBoardIdMemoryStreamGetParams,
 } from ".././model";
 
@@ -406,6 +408,187 @@ export const useCreateBoardMemoryApiV1BoardsBoardIdMemoryPost = <
 > => {
   return useMutation(
     getCreateBoardMemoryApiV1BoardsBoardIdMemoryPostMutationOptions(options),
+    queryClient,
+  );
+};
+/**
+ * Delete board-chat history for the selected board.
+
+``cli_only`` is kept for safer maintenance scripts, while the console UI uses
+the default to clear the full visible chat history for that board.
+ * @summary Delete Board Chat Memory
+ */
+export type deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteResponse200 =
+  {
+    data: OkResponse;
+    status: 200;
+  };
+
+export type deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteResponse422 =
+  {
+    data: HTTPValidationError;
+    status: 422;
+  };
+
+export type deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteResponseSuccess =
+  deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteResponse200 & {
+    headers: Headers;
+  };
+export type deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteResponseError =
+  deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteResponse422 & {
+    headers: Headers;
+  };
+
+export type deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteResponse =
+  | deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteResponseSuccess
+  | deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteResponseError;
+
+export const getDeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteUrl = (
+  boardId: string,
+  params?: DeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/boards/${boardId}/memory/chat?${stringifiedParams}`
+    : `/api/v1/boards/${boardId}/memory/chat`;
+};
+
+export const deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDelete = async (
+  boardId: string,
+  params?: DeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteParams,
+  options?: RequestInit,
+): Promise<deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteResponse> => {
+  return customFetch<deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteResponse>(
+    getDeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteUrl(
+      boardId,
+      params,
+    ),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getDeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteMutationOptions =
+  <TError = HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDelete
+        >
+      >,
+      TError,
+      {
+        boardId: string;
+        params?: DeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteParams;
+      },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDelete>
+    >,
+    TError,
+    {
+      boardId: string;
+      params?: DeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteParams;
+    },
+    TContext
+  > => {
+    const mutationKey = [
+      "deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDelete",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDelete
+        >
+      >,
+      {
+        boardId: string;
+        params?: DeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteParams;
+      }
+    > = (props) => {
+      const { boardId, params } = props ?? {};
+
+      return deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDelete(
+        boardId,
+        params,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type DeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDelete>
+    >
+  >;
+
+export type DeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteMutationError =
+  HTTPValidationError;
+
+/**
+ * @summary Delete Board Chat Memory
+ */
+export const useDeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDelete = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDelete
+        >
+      >,
+      TError,
+      {
+        boardId: string;
+        params?: DeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteParams;
+      },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof deleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDelete>
+  >,
+  TError,
+  {
+    boardId: string;
+    params?: DeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteParams;
+  },
+  TContext
+> => {
+  return useMutation(
+    getDeleteBoardChatMemoryApiV1BoardsBoardIdMemoryChatDeleteMutationOptions(
+      options,
+    ),
     queryClient,
   );
 };
