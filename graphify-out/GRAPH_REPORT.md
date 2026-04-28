@@ -1,7 +1,7 @@
 # Graph Report - /home/clawd/.openclaw/workspace/mission-control  (2026-04-28)
 
 ## Corpus Check
-- 736 files · ~406,146 words
+- 736 files · ~406,158 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -4357,11 +4357,11 @@ Nodes (1): Run the bridge forever.
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `get()` connect `Community 0` to `Community 1`, `Community 2`, `Community 3`, `Community 5`, `Community 6`, `Community 7`, `Community 8`, `Community 9`, `Community 10`, `Community 11`, `Community 12`, `Community 14`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 20`, `Community 21`, `Community 22`, `Community 23`, `Community 25`, `Community 28`, `Community 60`?**
-  _High betweenness centrality (0.258) - this node is a cross-community bridge._
+  _High betweenness centrality (0.239) - this node is a cross-community bridge._
 - **Why does `customFetch()` connect `Community 1` to `Community 0`, `Community 7`, `Community 8`, `Community 9`, `Community 13`?**
-  _High betweenness centrality (0.196) - this node is a cross-community bridge._
+  _High betweenness centrality (0.201) - this node is a cross-community bridge._
 - **Why does `Board` connect `Community 2` to `Community 0`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 11`, `Community 12`, `Community 18`, `Community 20`, `Community 21`, `Community 22`, `Community 23`, `Community 24`, `Community 26`, `Community 27`?**
-  _High betweenness centrality (0.042) - this node is a cross-community bridge._
+  _High betweenness centrality (0.036) - this node is a cross-community bridge._
 - **Are the 371 inferred relationships involving `Board` (e.g. with `RangeSpec` and `Dashboard metrics schemas for KPI and time-series API responses.`) actually correct?**
   _`Board` has 371 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 327 inferred relationships involving `Agent` (e.g. with `RangeSpec` and `Dashboard metrics schemas for KPI and time-series API responses.`) actually correct?**
