@@ -10,7 +10,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { Mic, RefreshCcw, Send, Sparkles } from "lucide-react";
+import { Mic, RefreshCcw, Send, Sparkles, VolumeX } from "lucide-react";
 
 import { SignedIn, SignedOut, useAuth } from "@/auth/clerk";
 import {
@@ -35,6 +35,7 @@ type SpeechRecognitionResultLike = {
   readonly isFinal?: boolean;
 };
 type SpeechRecognitionEventLike = Event & {
+  resultIndex?: number;
   results: ArrayLike<SpeechRecognitionResultLike>;
 };
 type SpeechRecognitionInstance = {
@@ -52,6 +53,7 @@ type SpeechWindow = Window &
   typeof globalThis & {
     SpeechRecognition?: SpeechRecognitionConstructor;
     webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    webkitAudioContext?: typeof AudioContext;
   };
 
 type StreamStatus = "idle" | "connecting" | "live" | "fallback";
@@ -62,10 +64,10 @@ type CallModeStatus =
   | "idle"
   | "unsupported";
 type VoiceRouteId =
-  | "browser-call"
+  | "browser-live"
   | "local-stack"
   | "cloud-realtime"
-  | "phone-bridge";
+  | "external-audio-bridge";
 type VoiceRouteOption = {
   id: VoiceRouteId;
   label: string;
@@ -88,14 +90,19 @@ type ExperimentTrackCard = {
 
 const BOARD_CHAT_PAGE_LIMIT = 200;
 const STREAM_FALLBACK_POLL_MS = 15_000;
-const JARVIS_SOURCE = "Jarvis Live Talk";
+const JARVIS_SOURCE = "Jarvis Voice Room";
+const JARVIS_SOURCE_ALIASES = ["jarvis live talk", "jarvis voice room"];
 const QUICK_INSERT_CHIPS = ["@lead ", "@all ", "/pause", "/resume"];
 const CALL_MODE_DUPLICATE_GUARD_MS = 2_000;
 const CALL_MODE_RESTART_DELAY_MS = 220;
+const BARGE_IN_RMS_THRESHOLD = 0.06;
+const BARGE_IN_TRIGGER_MS = 520;
+const BARGE_IN_CANCEL_COOLDOWN_MS = 1_500;
+const MIC_LEVEL_UI_UPDATE_MS = 90;
 const VOICE_ROUTE_OPTIONS: VoiceRouteOption[] = [
   {
-    id: "browser-call",
-    label: "Browser call mode",
+    id: "browser-live",
+    label: "Browser live voice",
     state: "live-now",
     summary: "Current MVP path. Browser STT/TTS + board-memory chat route.",
     architecture:
@@ -119,13 +126,13 @@ const VOICE_ROUTE_OPTIONS: VoiceRouteOption[] = [
       "Cloud realtime audio bridge -> board-memory chat context sync -> cloud or browser TTS.",
   },
   {
-    id: "phone-bridge",
-    label: "Phone bridge",
+    id: "external-audio-bridge",
+    label: "External audio bridge (later)",
     state: "prototype",
     summary:
-      "Research route for PSTN-like phone conversation without implementing it yet.",
+      "Future route for external audio systems while preserving board-memory chat safety.",
     architecture:
-      "Phone gateway/PSTN bridge -> board-memory chat context -> realtime voice relay.",
+      "External audio ingress/egress -> board-memory chat context -> realtime voice relay.",
   },
 ];
 const EXPERIMENT_TRACK_CARDS: ExperimentTrackCard[] = [
@@ -338,10 +345,28 @@ function JarvisLiveContent() {
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [callModeEnabled, setCallModeEnabled] = useState(false);
   const [activeVoiceRouteId, setActiveVoiceRouteId] =
-    useState<VoiceRouteId>("browser-call");
+    useState<VoiceRouteId>("browser-live");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const [lastFinalTranscript, setLastFinalTranscript] = useState("");
+  const [micLevel, setMicLevel] = useState(0);
+  const [bargeInMonitorReady, setBargeInMonitorReady] = useState(false);
+  const [bargeInMonitorError, setBargeInMonitorError] = useState<string | null>(
+    null,
+  );
+  const [bargeInTriggeredAt, setBargeInTriggeredAt] = useState<number | null>(
+    null,
+  );
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const micLevelAnimationFrameRef = useRef<number | null>(null);
+  const micLevelStreamRef = useRef<MediaStream | null>(null);
+  const micLevelAnalyserRef = useRef<AnalyserNode | null>(null);
+  const micLevelSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const micLevelAudioContextRef = useRef<AudioContext | null>(null);
+  const bargeInAccumulatedMsRef = useRef(0);
+  const bargeInCooldownUntilRef = useRef(0);
+  const micLevelUiUpdatedAtRef = useRef(0);
   const latestSeenRef = useRef<string | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
   const postSendRefreshTimersRef = useRef<number[]>([]);
@@ -368,14 +393,14 @@ function JarvisLiveContent() {
       VOICE_ROUTE_OPTIONS[0],
     [activeVoiceRouteId],
   );
-  const isBrowserVoiceRoute = activeVoiceRoute.id === "browser-call";
+  const isBrowserVoiceRoute = activeVoiceRoute.id === "browser-live";
 
   const assistantMessages = useMemo(
     () =>
       messages.filter((message) => {
         if (!(message.tags ?? []).includes("chat")) return false;
         if (locallySentIdsRef.current.has(message.id)) return false;
-        if (normalizeSource(message.source) === normalizeSource(JARVIS_SOURCE)) {
+        if (JARVIS_SOURCE_ALIASES.includes(normalizeSource(message.source))) {
           return false;
         }
         return true;
@@ -429,14 +454,43 @@ function JarvisLiveContent() {
 
   const callModeStatusText = useMemo(() => {
     if (!isBrowserVoiceRoute) {
-      return "Call status: Browser route required";
+      return "Voice room status: Browser route required";
     }
-    if (callModeStatus === "unsupported") return "Call status: Unsupported";
-    if (callModeStatus === "listening") return "Call status: Listening";
-    if (callModeStatus === "thinking") return "Call status: Thinking";
-    if (callModeStatus === "speaking") return "Call status: Speaking";
-    return "Call status: Idle";
+    if (callModeStatus === "unsupported") return "Voice room status: Unsupported";
+    if (callModeStatus === "listening") return "Voice room status: Listening";
+    if (callModeStatus === "thinking") return "Voice room status: Thinking";
+    if (callModeStatus === "speaking") return "Voice room status: Elli speaking";
+    return "Voice room status: Idle";
   }, [callModeStatus, isBrowserVoiceRoute]);
+
+  const bargeInStatusText = useMemo(() => {
+    if (!isBrowserVoiceRoute) {
+      return "Barge-in: external route is simulation only.";
+    }
+    if (!callModeEnabled) {
+      return "Barge-in: off until voice room is started.";
+    }
+    if (bargeInMonitorError) {
+      return "Barge-in: unavailable (manual Stop button still works).";
+    }
+    if (!bargeInMonitorReady) {
+      return "Barge-in: initializing microphone monitor...";
+    }
+    if (isSpeaking) {
+      return "Barge-in: armed. Speak clearly to interrupt Elli.";
+    }
+    if (bargeInTriggeredAt && Date.now() - bargeInTriggeredAt < 4_000) {
+      return "Barge-in: interrupted Elli and resumed listening.";
+    }
+    return "Barge-in: ready.";
+  }, [
+    bargeInMonitorError,
+    bargeInMonitorReady,
+    bargeInTriggeredAt,
+    callModeEnabled,
+    isBrowserVoiceRoute,
+    isSpeaking,
+  ]);
 
   const loadBoards = useCallback(async () => {
     if (!isSignedIn) return;
@@ -634,6 +688,169 @@ function JarvisLiveContent() {
     isSpeakingRef.current = isSpeaking;
   }, [isSpeaking]);
 
+  const stopSpeakingNow = useCallback((reason: "manual" | "barge-in") => {
+    if (typeof window === "undefined") return;
+    if (!("speechSynthesis" in window)) return;
+    speechPauseRef.current = false;
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    if (callModeEnabledRef.current && speechRecognitionSupported) {
+      window.setTimeout(() => {
+        if (!callModeEnabledRef.current || isSpeakingRef.current) return;
+        startSpeechInputRef.current(true);
+      }, CALL_MODE_RESTART_DELAY_MS);
+    }
+    if (reason === "manual") {
+      setNotice(
+        "Elli speech stopped. Voice room listening will resume automatically.",
+      );
+    }
+  }, [speechRecognitionSupported]);
+
+  const stopMicLevelMonitor = useCallback(() => {
+    if (typeof window !== "undefined" && micLevelAnimationFrameRef.current) {
+      window.cancelAnimationFrame(micLevelAnimationFrameRef.current);
+    }
+    micLevelAnimationFrameRef.current = null;
+    micLevelAnalyserRef.current?.disconnect();
+    micLevelAnalyserRef.current = null;
+    micLevelSourceRef.current?.disconnect();
+    micLevelSourceRef.current = null;
+    for (const track of micLevelStreamRef.current?.getTracks() ?? []) {
+      track.stop();
+    }
+    micLevelStreamRef.current = null;
+    const context = micLevelAudioContextRef.current;
+    micLevelAudioContextRef.current = null;
+    if (context) {
+      void context.close().catch(() => undefined);
+    }
+    bargeInAccumulatedMsRef.current = 0;
+    bargeInCooldownUntilRef.current = 0;
+    micLevelUiUpdatedAtRef.current = 0;
+    setBargeInMonitorReady(false);
+    setMicLevel(0);
+  }, []);
+
+  useEffect(() => {
+    if (!isBrowserVoiceRoute || !callModeEnabled) {
+      stopMicLevelMonitor();
+      setBargeInMonitorError(null);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setBargeInMonitorError("Browser does not support microphone monitoring.");
+      return;
+    }
+    let cancelled = false;
+    const startMonitor = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+        if (cancelled) {
+          for (const track of stream.getTracks()) {
+            track.stop();
+          }
+          return;
+        }
+        const speechWindow = window as SpeechWindow;
+        const AudioCtx =
+          speechWindow.AudioContext ?? speechWindow.webkitAudioContext;
+        if (!AudioCtx) {
+          for (const track of stream.getTracks()) {
+            track.stop();
+          }
+          setBargeInMonitorError("AudioContext is unavailable for barge-in.");
+          return;
+        }
+        const audioContext = new AudioCtx();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 1_024;
+        analyser.smoothingTimeConstant = 0.65;
+        source.connect(analyser);
+        const samples = new Uint8Array(analyser.frequencyBinCount);
+        let smoothedRms = 0;
+        let lastTick = performance.now();
+
+        micLevelStreamRef.current = stream;
+        micLevelAudioContextRef.current = audioContext;
+        micLevelSourceRef.current = source;
+        micLevelAnalyserRef.current = analyser;
+        setBargeInMonitorReady(true);
+        setBargeInMonitorError(null);
+
+        const tick = (now: number) => {
+          if (cancelled) return;
+          analyser.getByteTimeDomainData(samples);
+          let sum = 0;
+          for (const sample of samples) {
+            const centered = (sample - 128) / 128;
+            sum += centered * centered;
+          }
+          const rms = Math.sqrt(sum / samples.length);
+          smoothedRms = smoothedRms * 0.84 + rms * 0.16;
+          const deltaMs = Math.max(0, now - lastTick);
+          lastTick = now;
+
+          if (now - micLevelUiUpdatedAtRef.current >= MIC_LEVEL_UI_UPDATE_MS) {
+            micLevelUiUpdatedAtRef.current = now;
+            setMicLevel(Math.min(1, smoothedRms * 10));
+          }
+
+          if (callModeEnabledRef.current && isSpeakingRef.current) {
+            if (smoothedRms >= BARGE_IN_RMS_THRESHOLD) {
+              bargeInAccumulatedMsRef.current += deltaMs;
+            } else {
+              bargeInAccumulatedMsRef.current = Math.max(
+                0,
+                bargeInAccumulatedMsRef.current - deltaMs * 1.2,
+              );
+            }
+            const readyForCancel = Date.now() >= bargeInCooldownUntilRef.current;
+            if (
+              readyForCancel &&
+              bargeInAccumulatedMsRef.current >= BARGE_IN_TRIGGER_MS
+            ) {
+              bargeInAccumulatedMsRef.current = 0;
+              bargeInCooldownUntilRef.current =
+                Date.now() + BARGE_IN_CANCEL_COOLDOWN_MS;
+              setBargeInTriggeredAt(Date.now());
+              setNotice(
+                "Barge-in detected: Elli speech stopped and listening resumed.",
+              );
+              stopSpeakingNow("barge-in");
+            }
+          } else {
+            bargeInAccumulatedMsRef.current = 0;
+          }
+
+          micLevelAnimationFrameRef.current = window.requestAnimationFrame(tick);
+        };
+
+        micLevelAnimationFrameRef.current = window.requestAnimationFrame(tick);
+      } catch {
+        if (cancelled) return;
+        setBargeInMonitorError(
+          "Mic permission unavailable for barge-in monitor on this browser.",
+        );
+        setBargeInMonitorReady(false);
+      }
+    };
+    void startMonitor();
+
+    return () => {
+      cancelled = true;
+      stopMicLevelMonitor();
+    };
+  }, [callModeEnabled, isBrowserVoiceRoute, stopMicLevelMonitor, stopSpeakingNow]);
+
   useEffect(() => {
     if (isBrowserVoiceRoute) {
       setNotice((current) =>
@@ -652,6 +869,7 @@ function JarvisLiveContent() {
     speechPauseRef.current = false;
     recognitionRef.current?.stop();
     setIsListening(false);
+    setInterimTranscript("");
     if (callModeEnabled) {
       setCallModeEnabled(false);
     }
@@ -672,8 +890,9 @@ function JarvisLiveContent() {
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
+      stopMicLevelMonitor();
     },
-    [],
+    [stopMicLevelMonitor],
   );
 
   useEffect(() => {
@@ -791,6 +1010,7 @@ function JarvisLiveContent() {
         preventAutoRestartRef.current = true;
         recognitionRef.current?.stop();
         setIsListening(false);
+        setInterimTranscript("");
         return;
       }
 
@@ -798,18 +1018,32 @@ function JarvisLiveContent() {
       recognitionRef.current?.stop();
       const recognition = new Recognition();
       recognition.lang = "nb-NO";
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      const liveVoiceRoom = callModeEnabledRef.current;
+      recognition.continuous = liveVoiceRoom;
+      recognition.interimResults = liveVoiceRoom;
       recognition.onresult = (event) => {
         let finalTranscript = "";
+        let interim = "";
+        const startIndex = Math.max(0, event.resultIndex ?? 0);
         for (let index = 0; index < event.results.length; index += 1) {
+          const transcript = event.results[index]?.[0]?.transcript ?? "";
+          const isFinal = event.results[index]?.isFinal ?? true;
+          if (!transcript.trim()) continue;
+          if (!isFinal) {
+            interim = appendText(interim, transcript);
+          }
+        }
+        for (let index = startIndex; index < event.results.length; index += 1) {
           const transcript = event.results[index]?.[0]?.transcript ?? "";
           const isFinal = event.results[index]?.isFinal ?? true;
           if (!isFinal || !transcript.trim()) continue;
           finalTranscript = appendText(finalTranscript, transcript);
         }
+        setInterimTranscript(interim.trim());
         const transcript = finalTranscript.trim();
         if (!transcript) return;
+        setLastFinalTranscript(transcript);
+        setInterimTranscript("");
 
         if (!callModeEnabledRef.current) {
           setPrompt((current) => appendText(current, transcript));
@@ -832,9 +1066,11 @@ function JarvisLiveContent() {
       recognition.onerror = () => {
         setError("Speech input stopped before it produced text.");
         setIsListening(false);
+        setInterimTranscript("");
       };
       recognition.onend = () => {
         setIsListening(false);
+        setInterimTranscript("");
         if (!callModeEnabledRef.current || preventAutoRestartRef.current) return;
         if (speechPauseRef.current || isSpeakingRef.current) return;
         window.setTimeout(() => {
@@ -867,20 +1103,21 @@ function JarvisLiveContent() {
       speechPauseRef.current = false;
       recognitionRef.current?.stop();
       setIsListening(false);
+      setInterimTranscript("");
       setNotice((current) =>
-        current?.startsWith("Call mode active:") ? null : current,
+        current?.startsWith("Voice room active:") ? null : current,
       );
       return;
     }
     if (!isBrowserVoiceRoute) {
       setCallModeEnabled(false);
       setNotice(
-        "Call mode only runs on Browser call mode. Prototype routes stay in simulation mode.",
+        "Voice room runs only on Browser live voice. Prototype routes stay in simulation mode.",
       );
       return;
     }
     setNotice(
-      "Call mode active: final speech transcripts auto-send through board-memory chat.",
+      "Voice room active: final speech transcripts auto-send through board-memory chat.",
     );
     if (!speechRecognitionSupported || !speechSynthesisSupported) return;
     if (isSpeakingRef.current) return;
@@ -916,6 +1153,7 @@ function JarvisLiveContent() {
       preventAutoRestartRef.current = true;
       recognitionRef.current?.stop();
       setIsListening(false);
+      setInterimTranscript("");
     }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(content);
@@ -945,6 +1183,10 @@ function JarvisLiveContent() {
     speechRecognitionSupported,
     speechSynthesisSupported,
   ]);
+
+  const handleManualSpeechInterrupt = useCallback(() => {
+    stopSpeakingNow("manual");
+  }, [stopSpeakingNow]);
 
   const sendPrompt = useCallback(async () => {
     const content = prompt.trim();
@@ -983,10 +1225,10 @@ function JarvisLiveContent() {
               </span>
               <div>
                 <p className="mc-eyebrow text-[10px] font-semibold uppercase tracking-[0.28em]">
-                  Live Talk MVP
+                  Live Voice Cockpit MVP
                 </p>
                 <h1 className="mc-title-text text-xl font-semibold tracking-tight md:text-2xl">
-                  Jarvis Live Talk
+                  Jarvis Voice Room
                 </h1>
               </div>
             </div>
@@ -1004,7 +1246,9 @@ function JarvisLiveContent() {
                 Text fallback always on
               </span>
               <span className="mc-status-pill rounded-full border px-3 py-1">
-                {isBrowserVoiceRoute ? "Live browser route" : "Prototype simulation"}
+                {isBrowserVoiceRoute
+                  ? "Live voice route"
+                  : "Prototype simulation"}
               </span>
             </div>
           </div>
@@ -1034,10 +1278,10 @@ function JarvisLiveContent() {
             </div>
 
             <div className="mc-panel-muted-surface mt-5 rounded-2xl border p-3 text-xs leading-5">
-              <p className="mc-title-text font-semibold">Experiment mode</p>
+              <p className="mc-title-text font-semibold">Voice room routes</p>
               <p className="mc-muted-text mt-1">
-                Compare two safe routes side-by-side while keeping board-memory
-                chat as the common send path.
+                Route experiments stay safe: all sends still go through
+                board-memory chat.
               </p>
               <div className="mt-3 space-y-2">
                 {EXPERIMENT_TRACK_CARDS.map((track) => (
@@ -1100,7 +1344,7 @@ function JarvisLiveContent() {
               <p className="mc-title-text font-semibold">Voice controls</p>
               <p className="mc-muted-text mt-1">
                 {isBrowserVoiceRoute
-                  ? "Call mode keeps speech input and reply audio active while using board-memory chat as the single route."
+                  ? "Voice room keeps speech input and reply audio active while using board-memory chat as the single route."
                   : "Prototype route selected. Voice controls stay in planning/simulation mode; manual send remains active."}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -1112,7 +1356,7 @@ function JarvisLiveContent() {
                   disabled={!selectedBoardId || !isBrowserVoiceRoute}
                 >
                   <Mic className="h-4 w-4" />
-                  {callModeEnabled ? "End call mode" : "Start call mode"}
+                  {callModeEnabled ? "Stop voice room" : "Start voice room"}
                 </Button>
                 <Button
                   type="button"
@@ -1138,19 +1382,54 @@ function JarvisLiveContent() {
                   <Sparkles className="h-4 w-4" />
                   {effectiveTtsEnabled ? "TTS on" : "TTS off"}
                 </Button>
+                {isSpeaking ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleManualSpeechInterrupt}
+                  >
+                    <VolumeX className="h-4 w-4" />
+                    Stop Elli speaking
+                  </Button>
+                ) : null}
               </div>
               <p className="mc-muted-text mt-2 text-[11px]">
                 {callModeStatusText}
               </p>
               {callModeEnabled ? (
                 <p className="mc-muted-text mt-1 text-[11px]">
-                  Push-to-talk is paused while call mode handles listening.
+                  Push-to-talk is paused while voice room handles listening.
                 </p>
               ) : null}
               <div className="mt-2 rounded-xl border border-dashed px-2.5 py-2 text-[11px] leading-5">
+                <p className="font-semibold">Live transcript</p>
+                <p className="mc-muted-text mt-1">
+                  I hear... {interimTranscript || "(waiting for speech)"}
+                </p>
+                <p className="mc-muted-text mt-1">
+                  Last heard... {lastFinalTranscript || "(nothing final yet)"}
+                </p>
+              </div>
+              <div className="mt-2 rounded-xl border border-dashed px-2.5 py-2 text-[11px] leading-5">
+                <p className="font-semibold">{bargeInStatusText}</p>
+                <div className="mt-2 h-2 overflow-hidden rounded-full border">
+                  <div
+                    className="h-full bg-cyan-300/70 transition-[width]"
+                    style={{ width: `${Math.max(0, Math.min(100, micLevel * 100))}%` }}
+                  />
+                </div>
+                <p className="mc-muted-text mt-1">
+                  Mic level: {Math.round(Math.max(0, Math.min(100, micLevel * 100)))}%
+                </p>
+                {bargeInMonitorError ? (
+                  <p className="mt-1 text-amber-300">{bargeInMonitorError}</p>
+                ) : null}
+              </div>
+              <div className="mt-2 rounded-xl border border-dashed px-2.5 py-2 text-[11px] leading-5">
                 {isBrowserVoiceRoute
                   ? "Safety note: this mode uses browser STT/TTS. Voice text is sent through board-memory chat, and manual text fallback remains available."
-                  : "Safety note: prototype routes are simulated only. Messages still go through board-memory chat, and no live phone/cloud bridge is activated."}
+                  : "Safety note: prototype routes are simulated only. Messages still go through board-memory chat, and no autonomous external audio actions are activated."}
               </div>
               {isBrowserVoiceRoute && !speechRecognitionSupported ? (
                 <p className="mt-2 text-[11px] text-amber-300">
@@ -1163,6 +1442,16 @@ function JarvisLiveContent() {
                   SpeechSynthesis unavailable in this browser.
                 </p>
               ) : null}
+            </div>
+
+            <div className="mc-panel-muted-surface mt-4 rounded-2xl border p-3 text-xs leading-5">
+              <p className="mc-title-text font-semibold">How to use</p>
+              <ol className="mc-muted-text mt-2 list-decimal space-y-1 pl-4">
+                <li>Start voice room and allow microphone access.</li>
+                <li>Speak naturally. Elli answers aloud and subtitles stay visible.</li>
+                <li>Interrupt by speaking (barge-in) or pressing Stop Elli speaking.</li>
+                <li>Use text input + Send anytime if STT or TTS is unavailable.</li>
+              </ol>
             </div>
 
             <div className="mc-panel-muted-surface mt-4 rounded-2xl border p-3 text-xs leading-5">
@@ -1244,7 +1533,7 @@ function JarvisLiveContent() {
               ) : null}
               {!isLoadingMessages && assistantMessages.length === 0 ? (
                 <div className="mc-empty-state rounded-2xl border border-dashed px-4 py-8 text-center text-sm">
-                  No assistant replies yet. Send a message to start live talk.
+                  No assistant replies yet. Send a message to start voice room.
                 </div>
               ) : null}
               <div className="space-y-3">
@@ -1312,7 +1601,7 @@ export default function JarvisLivePage() {
       </SignedIn>
       <SignedOut>
         <SignedOutPanel
-          message="Sign in to use Jarvis Live Talk."
+          message="Sign in to use Jarvis Voice Room."
           forceRedirectUrl="/jarvis-live"
           signUpForceRedirectUrl="/jarvis-live"
         />
