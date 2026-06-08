@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.schemas.polymarket import (
     PolymarketCopyConfigResponse,
     PolymarketCopyConfigUpdateRequest,
+    PolymarketBenchWalletResponse,
     PolymarketFollowWalletRequest,
     PolymarketFollowWalletResponse,
     PolymarketFollowedWalletPositionsResponse,
@@ -28,6 +29,7 @@ from app.schemas.polymarket import (
 from app.services.organizations import OrganizationContext
 from app.services.polymarket import (
     add_manual_follow_wallet,
+    bench_follow_wallet,
     build_followed_wallet_positions_payload,
     build_journal_payload,
     build_learner_payload,
@@ -173,6 +175,32 @@ async def remove_polymarket_followed_wallet(
     _org_ctx: OrganizationContext = POLYMARKET_ACCESS_DEP,
 ) -> PolymarketRemoveWalletResponse:
     """Remove a wallet from the follow list without placing trades."""
+    try:
+        payload = remove_follow_wallet(wallet)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return PolymarketRemoveWalletResponse.model_validate(payload)
+
+
+@router.post("/v2/followed-wallets/{wallet}/bench", response_model=PolymarketBenchWalletResponse)
+async def bench_polymarket_followed_wallet(
+    wallet: str,
+    _org_ctx: OrganizationContext = POLYMARKET_ACCESS_DEP,
+) -> PolymarketBenchWalletResponse:
+    """Move a followed wallet to the bench without blocking future restore."""
+    try:
+        payload = bench_follow_wallet(wallet)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return PolymarketBenchWalletResponse.model_validate(payload)
+
+
+@router.delete("/v2/benched-wallets/{wallet}", response_model=PolymarketRemoveWalletResponse)
+async def remove_polymarket_benched_wallet(
+    wallet: str,
+    _org_ctx: OrganizationContext = POLYMARKET_ACCESS_DEP,
+) -> PolymarketRemoveWalletResponse:
+    """Remove a benched wallet and block automatic re-add."""
     try:
         payload = remove_follow_wallet(wallet)
     except ValueError as exc:

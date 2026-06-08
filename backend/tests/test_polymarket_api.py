@@ -358,6 +358,22 @@ async def test_polymarket_router_v2_ops_returns_read_only_payload(
         "0x1111111111111111111111111111111111111111\n",
         encoding="utf-8",
     )
+    _write_json(
+        agents_root / "elite-whales/benched_wallets.json",
+        {
+            "wallets": [
+                {
+                    "wallet": "0x2222222222222222222222222222222222222222",
+                    "benched_at": "2026-06-08T00:00:00Z",
+                    "reason": "test bench",
+                    "week_realized_pnl": -1.0,
+                    "week_winrate": 0.5,
+                    "week_wins": 1,
+                    "week_losses": 1,
+                }
+            ]
+        },
+    )
     (watcher_root / "state/whale_roster").mkdir(parents=True, exist_ok=True)
     (watcher_root / "state/whale_roster/pinned_wallets.txt").write_text(
         "0x1111111111111111111111111111111111111111",
@@ -366,7 +382,14 @@ async def test_polymarket_router_v2_ops_returns_read_only_payload(
     monkeypatch.setattr(
         polymarket_reader,
         "_fetch_data_api_list",
-        lambda path, _params: [{"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0}]
+        lambda path, _params: [
+            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 2596.0},
+            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
+            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
+            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
+            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
+            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
+        ]
         if path == "/closed-positions"
         else [],
     )
@@ -387,6 +410,14 @@ async def test_polymarket_router_v2_ops_returns_read_only_payload(
     assert payload["followed_wallets"][0]["source"] == "manual"
     assert payload["followed_wallets"][0]["week_winrate"] == 1.0
     assert payload["followed_wallets"][0]["address_key"] == "1111111111111111111111111111111111111111"
+    assert payload["overview"]["benched_wallet_count"] == 1
+    assert payload["benched_wallets"][0]["follow_order_label"] == "#01"
+    assert payload["benched_wallets"][0]["week_window_days"] == 7
+    assert payload["benched_wallets"][0]["week_winrate"] == 1.0
+    assert payload["benched_wallets"][0]["week_realized_pnl"] == 2601.0
+    assert payload["benched_wallets"][0]["recent_window_days"] == 30
+    assert payload["benched_wallets"][0]["recent_winrate"] == 1.0
+    assert payload["benched_wallets"][0]["recent_realized_pnl"] == 2601.0
 
 
 @pytest.mark.asyncio
@@ -483,6 +514,38 @@ async def test_polymarket_router_remove_followed_wallet_blocks_readd(
     assert "0x1111111111111111111111111111111111111111" in (
         agents_root / "elite-whales/blocked_wallets.txt"
     ).read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
+async def test_polymarket_router_benches_followed_wallet_without_blocking(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    watcher_root = tmp_path / "watcher"
+    agents_root = tmp_path / "agents"
+    manual_path = agents_root / "elite-whales/manual_wallets.txt"
+    pinned_path = watcher_root / "state/whale_roster/pinned_wallets.txt"
+    blocked_path = agents_root / "elite-whales/blocked_wallets.txt"
+    manual_path.parent.mkdir(parents=True, exist_ok=True)
+    pinned_path.parent.mkdir(parents=True, exist_ok=True)
+    manual_path.write_text("0x1111111111111111111111111111111111111111\n", encoding="utf-8")
+    pinned_path.write_text("0x1111111111111111111111111111111111111111\n", encoding="utf-8")
+    blocked_path.write_text("", encoding="utf-8")
+    monkeypatch.setenv(polymarket_reader.WATCHER_ROOT_ENV, str(watcher_root))
+    monkeypatch.setenv(polymarket_reader.AGENTS_ROOT_ENV, str(agents_root))
+    app = _build_test_app()
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.post(
+            "/api/v1/polymarket/v2/followed-wallets/1111111111111111111111111111111111111111/bench",
+        )
+
+    assert response.status_code == 200
+    assert response.json()["benched"] is True
+    assert "0x1111111111111111111111111111111111111111" not in blocked_path.read_text(encoding="utf-8")
 
 
 @pytest.mark.asyncio

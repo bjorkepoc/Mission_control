@@ -2,6 +2,7 @@
 
 from app.services.polymarket.reader import (
     add_manual_follow_wallet,
+    bench_follow_wallet,
     build_journal_payload,
     build_learner_payload,
     build_followed_wallet_positions_payload,
@@ -19,6 +20,7 @@ from app.services.polymarket.reader import (
 
 __all__ = [
     "add_manual_follow_wallet",
+    "bench_follow_wallet",
     "build_journal_payload",
     "build_learner_payload",
     "build_followed_wallet_positions_payload",

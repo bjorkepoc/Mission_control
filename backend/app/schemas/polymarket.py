@@ -156,6 +156,16 @@ class PolymarketRemoveWalletResponse(SQLModel):
     blocked_wallet_count: int
 
 
+class PolymarketBenchWalletResponse(SQLModel):
+    """Manual bench result."""
+
+    wallet: str
+    benched: bool
+    manual_wallet_count: int
+    pinned_wallet_count: int
+    benched_wallet_count: int
+
+
 class PolymarketRestoreBenchedWalletResponse(SQLModel):
     """Benched wallet restore result."""
 

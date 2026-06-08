@@ -40,12 +40,44 @@ import { DashboardShell } from "@/components/templates/DashboardShell";
 const DASH = "-";
 const REFRESH_INTERVAL_MS = 15_000;
 const MAX_ROWS = 12;
+const NORWEGIAN_TIME_ZONE = "Europe/Oslo";
+const FOLLOWED_WINRATE_GREEN_MIN = 0.82;
+const FOLLOWED_WINRATE_ORANGE_MIN = 0.77;
+const EMPTY_ROWS: Array<Record<string, unknown>> = [];
 const PNL_LOOKBACK_OPTIONS = [
   { label: "7D", days: 7 },
   { label: "30D", days: 30 },
   { label: "90D", days: 90 },
   { label: "All", days: null },
 ] as const;
+
+type SortDirection = "asc" | "desc";
+type SortState<Key extends string> = {
+  key: Key;
+  direction: SortDirection;
+};
+
+type FollowedWalletSortKey =
+  | "order"
+  | "wallet"
+  | "source"
+  | "winrate30d"
+  | "pnl30d"
+  | "ourBets"
+  | "ourOpen"
+  | "ourPct"
+  | "ourPnl"
+  | "status";
+
+type BenchedWalletSortKey =
+  | "order"
+  | "wallet"
+  | "pnl7d"
+  | "winrate7d"
+  | "pnl30d"
+  | "winrate30d"
+  | "reason"
+  | "benchedAt";
 
 type ApiResponse<T> = {
   data: T;
@@ -98,8 +130,13 @@ const addFollowedWallet = async (wallet: string): Promise<ApiResponse<Record<str
     },
   });
 
-const removeFollowedWallet = async (wallet: string): Promise<ApiResponse<Record<string, unknown>>> =>
-  customFetch<ApiResponse<Record<string, unknown>>>(`/api/v1/polymarket/v2/followed-wallets/${encodeURIComponent(wallet)}`, {
+const benchFollowedWallet = async (wallet: string): Promise<ApiResponse<Record<string, unknown>>> =>
+  customFetch<ApiResponse<Record<string, unknown>>>(`/api/v1/polymarket/v2/followed-wallets/${encodeURIComponent(wallet)}/bench`, {
+    method: "POST",
+  });
+
+const removeBenchedWallet = async (wallet: string): Promise<ApiResponse<Record<string, unknown>>> =>
+  customFetch<ApiResponse<Record<string, unknown>>>(`/api/v1/polymarket/v2/benched-wallets/${encodeURIComponent(wallet)}`, {
     method: "DELETE",
   });
 
@@ -134,11 +171,62 @@ const textValue = (value: unknown): string => {
 const numberValue = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
+    const parsed = Number(value.replace(/[$,%\s]/g, ""));
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
 };
+
+const dateValue = (value: unknown): number | null => {
+  const text = textValue(value);
+  if (text === DASH) return null;
+  const parsed = new Date(text).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const followOrderValue = (wallet: Record<string, unknown>, fallbackIndex: number): number => {
+  const direct = numberValue(wallet.follow_order);
+  if (direct !== null) return direct;
+  const label = textValue(wallet.follow_order_label);
+  const match = label.match(/\d+/);
+  if (match) return Number(match[0]);
+  return fallbackIndex + 1;
+};
+
+const compareValues = (left: unknown, right: unknown, direction: SortDirection): number => {
+  const sign = direction === "asc" ? 1 : -1;
+  const leftMissing = left === null || left === undefined || left === DASH || left === "";
+  const rightMissing = right === null || right === undefined || right === DASH || right === "";
+  if (leftMissing && rightMissing) return 0;
+  if (leftMissing) return 1;
+  if (rightMissing) return -1;
+
+  if (typeof left === "number" && typeof right === "number") {
+    return (left - right) * sign;
+  }
+
+  return String(left).localeCompare(String(right), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  }) * sign;
+};
+
+const sortedRows = <Key extends string>(
+  rows: Array<Record<string, unknown>>,
+  sort: SortState<Key>,
+  valueFor: (row: Record<string, unknown>, key: Key, index: number) => unknown,
+): Array<Record<string, unknown>> =>
+  rows
+    .map((row, index) => ({ row, index }))
+    .sort((left, right) => {
+      const compared = compareValues(
+        valueFor(left.row, sort.key, left.index),
+        valueFor(right.row, sort.key, right.index),
+        sort.direction,
+      );
+      return compared === 0 ? left.index - right.index : compared;
+    })
+    .map(({ row }) => row);
 
 const formatUsd = (value: unknown): string => {
   const number = numberValue(value);
@@ -167,7 +255,27 @@ const formatDate = (value: unknown): string => {
   if (text === DASH) return DASH;
   const parsed = new Date(text);
   if (Number.isNaN(parsed.getTime())) return text;
-  return parsed.toLocaleString();
+  return new Intl.DateTimeFormat("nb-NO", {
+    timeZone: NORWEGIAN_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
+};
+
+const formatShortDate = (value: unknown): string => {
+  const text = textValue(value);
+  if (text === DASH) return DASH;
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return text;
+  return new Intl.DateTimeFormat("nb-NO", {
+    timeZone: NORWEGIAN_TIME_ZONE,
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(parsed);
 };
 
 const formatAge = (value: unknown): string => {
@@ -237,16 +345,46 @@ const walletRecentLosses = (wallet: Record<string, unknown>): unknown =>
 const walletRecentPnl = (wallet: Record<string, unknown>): unknown =>
   wallet.recent_realized_pnl ?? wallet.week_realized_pnl ?? wallet.realized_pnl;
 
+const walletWeekWinrate = (wallet: Record<string, unknown>): unknown =>
+  wallet.week_winrate ?? wallet.recent_winrate;
+
+const walletWeekWins = (wallet: Record<string, unknown>): unknown =>
+  wallet.week_wins ?? wallet.recent_wins;
+
+const walletWeekLosses = (wallet: Record<string, unknown>): unknown =>
+  wallet.week_losses ?? wallet.recent_losses;
+
+const walletWeekPnl = (wallet: Record<string, unknown>): unknown =>
+  wallet.week_realized_pnl ?? wallet.recent_realized_pnl ?? wallet.realized_pnl;
+
+const winrateToneClass = (value: unknown): string => {
+  const winrate = numberValue(value);
+  if (winrate === null) return "border-slate-200 bg-slate-50 text-slate-600";
+  if (winrate >= FOLLOWED_WINRATE_GREEN_MIN) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+  if (winrate >= FOLLOWED_WINRATE_ORANGE_MIN) {
+    return "border-orange-200 bg-orange-50 text-orange-800";
+  }
+  return "border-rose-200 bg-rose-50 text-rose-700";
+};
+
 const walletCopyStats = (wallet: Record<string, unknown>): Record<string, unknown> =>
   asRecord(wallet.copy_stats);
 
+const walletHasCopiedExposure = (copyStats: Record<string, unknown>): boolean =>
+  [copyStats.total_bet_usd, copyStats.open_value_usd].some((value) => {
+    const number = numberValue(value);
+    return number !== null && Math.abs(number) > 0;
+  });
+
 const walletWinrateLow = (wallet: Record<string, unknown>): boolean => {
   const winrate = numberValue(walletRecentWinrate(wallet));
-  return winrate !== null && winrate < 0.8;
+  return winrate !== null && winrate < FOLLOWED_WINRATE_ORANGE_MIN;
 };
 
 const walletWinrateClass = (wallet: Record<string, unknown>): string =>
-  walletWinrateLow(wallet) ? "font-semibold text-rose-700" : "text-slate-600";
+  `inline-flex min-w-16 justify-center rounded-md border px-2 py-1 text-xs font-semibold ${winrateToneClass(walletRecentWinrate(wallet))}`;
 
 function KpiCard({
   label,
@@ -257,18 +395,21 @@ function KpiCard({
   label: string;
   value: string;
   helper: string;
-  tone?: "neutral" | "good" | "warn";
+  tone?: "neutral" | "good" | "warn" | "bad";
 }) {
   const toneClass =
     tone === "good"
       ? "border-emerald-200 bg-emerald-50"
+      : tone === "bad"
+        ? "border-rose-200 bg-rose-50"
       : tone === "warn"
         ? "border-amber-200 bg-amber-50"
         : "border-slate-200 bg-white";
+  const valueClass = tone === "good" ? "text-emerald-800" : tone === "bad" ? "text-rose-800" : "text-slate-950";
   return (
     <article className={`rounded-lg border p-3 ${toneClass}`}>
       <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
-      <p className="mt-1 truncate text-xl font-semibold text-slate-950">{value}</p>
+      <p className={`mt-1 truncate text-xl font-semibold ${valueClass}`}>{value}</p>
       <p className="mt-1 truncate text-xs text-slate-500">{helper}</p>
     </article>
   );
@@ -276,6 +417,35 @@ function KpiCard({
 
 function EmptyState({ label }: { label: string }) {
   return <p className="px-3 py-4 text-sm text-slate-500">{label}</p>;
+}
+
+function SortHeader<Key extends string>({
+  label,
+  sortKey,
+  sort,
+  align = "left",
+  onSort,
+}: {
+  label: string;
+  sortKey: Key;
+  sort: SortState<Key>;
+  align?: "left" | "right";
+  onSort: (key: Key) => void;
+}) {
+  const active = sort.key === sortKey;
+  const indicator = active ? (sort.direction === "asc" ? "↑" : "↓") : "↕";
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      className={`inline-flex min-h-8 w-full items-center gap-1 ${
+        align === "right" ? "justify-end text-right" : "justify-start text-left"
+      } transition hover:text-slate-950`}
+    >
+      <span>{label}</span>
+      <span className={active ? "text-slate-900" : "text-slate-300"}>{indicator}</span>
+    </button>
+  );
 }
 
 function AddWalletForm({
@@ -421,7 +591,7 @@ function RemoveWalletDialog({
         </div>
         <div className="space-y-3 px-4 py-4">
           <p className="text-sm text-slate-600">
-            Fjerner wallet fra follow-listen og blokkerer automatisk re-add.
+            Fjerner wallet fra benched-listen og blokkerer automatisk re-add.
           </p>
           <div className="rounded-md bg-slate-50 px-3 py-2">
             <p className="text-sm font-medium text-slate-900">{textValue(wallet.label)}</p>
@@ -714,8 +884,17 @@ export default function PolymarketPage() {
   const [pnlLookbackDays, setPnlLookbackDays] = useState<number | null>(30);
   const [walletToRemove, setWalletToRemove] = useState<Record<string, unknown> | null>(null);
   const [selectedWallet, setSelectedWallet] = useState<Record<string, unknown> | null>(null);
+  const [benchWalletError, setBenchWalletError] = useState<string | null>(null);
   const [removeWalletError, setRemoveWalletError] = useState<string | null>(null);
   const [restoreWalletError, setRestoreWalletError] = useState<string | null>(null);
+  const [followedWalletSort, setFollowedWalletSort] = useState<SortState<FollowedWalletSortKey>>({
+    key: "order",
+    direction: "asc",
+  });
+  const [benchedWalletSort, setBenchedWalletSort] = useState<SortState<BenchedWalletSortKey>>({
+    key: "order",
+    direction: "asc",
+  });
   const opsQuery = useQuery({
     queryKey: ["/api/v1/polymarket/v2/ops"],
     queryFn: ({ signal }) => getPolymarketOps({ signal, cache: "no-store" }),
@@ -754,8 +933,18 @@ export default function PolymarketPage() {
       setOrderSizeError(error instanceof Error ? error.message : "Could not update order size.");
     },
   });
+  const benchWalletMutation = useMutation({
+    mutationFn: (wallet: string) => benchFollowedWallet(wallet),
+    onSuccess: async () => {
+      setBenchWalletError(null);
+      await queryClient.invalidateQueries({ queryKey: ["/api/v1/polymarket/v2/ops"] });
+    },
+    onError: (error) => {
+      setBenchWalletError(error instanceof Error ? error.message : "Could not bench wallet.");
+    },
+  });
   const removeWalletMutation = useMutation({
-    mutationFn: (wallet: string) => removeFollowedWallet(wallet),
+    mutationFn: (wallet: string) => removeBenchedWallet(wallet),
     onSuccess: async () => {
       setWalletToRemove(null);
       setRemoveWalletError(null);
@@ -783,11 +972,11 @@ export default function PolymarketPage() {
   const performance = asRecord(payload?.performance);
   const copyConfig = asRecord(payload?.copy_config);
   const performancePoints = asList(performance.points);
-  const followedWallets = payload?.followed_wallets ?? [];
-  const benchedWallets = payload?.benched_wallets ?? [];
-  const positions = payload?.positions ?? [];
-  const mirrorFeed = payload?.mirror_feed ?? [];
-  const riskFlags = payload?.risk_flags ?? [];
+  const followedWallets = payload?.followed_wallets ?? EMPTY_ROWS;
+  const benchedWallets = payload?.benched_wallets ?? EMPTY_ROWS;
+  const positions = payload?.positions ?? EMPTY_ROWS;
+  const mirrorFeed = payload?.mirror_feed ?? EMPTY_ROWS;
+  const riskFlags = payload?.risk_flags ?? EMPTY_ROWS;
   const warnings = payload?.warnings ?? [];
 
   const currentOrderUsd = numberValue(copyConfig.order_usd ?? overview.order_usd);
@@ -797,11 +986,25 @@ export default function PolymarketPage() {
   const totalValue = walletTotal.total_value;
   const positionsValue = walletTotal.positions_value;
   const cashValue = walletTotal.cash_value;
+  const bankrollValue = numberValue(overview.bankroll);
+  const positionsValueNumber = numberValue(positionsValue);
+  const showBankrollCard =
+    bankrollValue === null ||
+    positionsValueNumber === null ||
+    Math.abs(bankrollValue - positionsValueNumber) >= 0.01;
   const latestPoint = asRecord(performance.latest);
   const previousPoint = asRecord(performance.previous);
   const latestPnl = numberValue(latestPoint.total_pnl);
   const previousPnl = numberValue(previousPoint.total_pnl);
   const pnlDelta = latestPnl !== null && previousPnl !== null ? latestPnl - previousPnl : null;
+  const recentAttemptedCount = mirrorFeed.filter((event) => {
+    const status = textValue(event.status).toLowerCase();
+    return ["executed", "matched", "filled", "failed"].some((value) => status.includes(value));
+  }).length;
+  const recentExecutedCount = mirrorFeed.filter((event) => {
+    const status = textValue(event.status).toLowerCase();
+    return ["executed", "matched", "filled"].some((value) => status.includes(value));
+  }).length;
   const serviceRows: Array<{ label: string; value: unknown }> = [
     { label: "Mode", value: service.mode },
     { label: "Live enabled", value: service.execute_live_enabled },
@@ -816,6 +1019,72 @@ export default function PolymarketPage() {
     if (opsQuery.error instanceof Error) return [opsQuery.error.message];
     return [];
   }, [opsQuery.error]);
+
+  const handleFollowedWalletSort = (key: FollowedWalletSortKey) => {
+    setFollowedWalletSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+  const handleBenchedWalletSort = (key: BenchedWalletSortKey) => {
+    setBenchedWalletSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+  const sortedFollowedWallets = useMemo(
+    () =>
+      sortedRows(followedWallets, followedWalletSort, (wallet, key, index) => {
+        const copyStats = walletCopyStats(wallet);
+        switch (key) {
+          case "order":
+            return followOrderValue(wallet, index);
+          case "wallet":
+            return `${textValue(wallet.label)} ${textValue(wallet.address)}`;
+          case "source":
+            return textValue(wallet.source);
+          case "winrate30d":
+            return numberValue(walletRecentWinrate(wallet));
+          case "pnl30d":
+            return numberValue(walletRecentPnl(wallet));
+          case "ourBets":
+            return numberValue(copyStats.total_bet_usd);
+          case "ourOpen":
+            return numberValue(copyStats.open_value_usd);
+          case "ourPct":
+            return numberValue(copyStats.open_account_pct);
+          case "ourPnl":
+            return numberValue(copyStats.total_pnl_usd);
+          case "status":
+            return textValue(wallet.status);
+        }
+      }),
+    [followedWalletSort, followedWallets],
+  );
+  const sortedBenchedWallets = useMemo(
+    () =>
+      sortedRows(benchedWallets, benchedWalletSort, (wallet, key, index) => {
+        switch (key) {
+          case "order":
+            return followOrderValue(wallet, index);
+          case "wallet":
+            return `${textValue(wallet.label)} ${textValue(wallet.wallet ?? wallet.address)}`;
+          case "pnl7d":
+            return numberValue(walletWeekPnl(wallet));
+          case "winrate7d":
+            return numberValue(walletWeekWinrate(wallet));
+          case "pnl30d":
+            return numberValue(walletRecentPnl(wallet));
+          case "winrate30d":
+            return numberValue(walletRecentWinrate(wallet));
+          case "reason":
+            return textValue(wallet.reason);
+          case "benchedAt":
+            return dateValue(wallet.benched_at);
+        }
+      }),
+    [benchedWalletSort, benchedWallets],
+  );
   const handleAddWallet = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const wallet = walletInput.trim();
@@ -831,6 +1100,12 @@ export default function PolymarketPage() {
     const wallet = textValue(walletToRemove?.address_key ?? walletToRemove?.address);
     if (wallet === DASH) return;
     removeWalletMutation.mutate(wallet);
+  };
+  const handleBenchWallet = (wallet: Record<string, unknown>) => {
+    const address = textValue(wallet.address_key ?? wallet.wallet ?? wallet.address);
+    if (address === DASH) return;
+    setBenchWalletError(null);
+    benchWalletMutation.mutate(address);
   };
   const handleRestoreWallet = (wallet: Record<string, unknown>) => {
     const address = textValue(wallet.address_key ?? wallet.wallet ?? wallet.address);
@@ -920,7 +1195,9 @@ export default function PolymarketPage() {
               <KpiCard label="Wallet" value={formatUsd(totalValue)} helper={textValue(walletTotal.source)} tone="good" />
               <KpiCard label="Cash" value={formatUsd(cashValue)} helper={walletTotal.cash_available ? textValue(walletTotal.cash_source) : "not captured"} />
               <KpiCard label="Positions" value={formatUsd(positionsValue)} helper={`${formatNumber(overview.open_position_count)} open`} />
-              <KpiCard label="Bankroll" value={formatUsd(overview.bankroll)} helper={textValue(overview.bankroll_source)} />
+              {showBankrollCard ? (
+                <KpiCard label="Bankroll" value={formatUsd(overview.bankroll)} helper={textValue(overview.bankroll_source)} />
+              ) : null}
               <KpiCard label="Followed" value={formatNumber(overview.followed_wallet_count)} helper={`${formatNumber(overview.manual_wallet_count)} manual`} />
               <KpiCard label="Benched" value={formatNumber(overview.benched_wallet_count)} helper="auto-paused whales" tone={numberValue(overview.benched_wallet_count) ? "warn" : "neutral"} />
               <div className="min-w-0">
@@ -938,12 +1215,17 @@ export default function PolymarketPage() {
                   onSubmit={handleOrderSizeSubmit}
                 />
               </div>
-              <KpiCard label="Executed" value={formatNumber(overview.executed_count)} helper={`${formatNumber(overview.attempted_count)} attempted`} />
+              <KpiCard
+                label="Recent Executed"
+                value={formatNumber(recentExecutedCount)}
+                helper={`${formatNumber(recentAttemptedCount)} attempted · 72h`}
+                tone={recentExecutedCount > 0 ? "good" : "neutral"}
+              />
               <KpiCard
                 label="PnL"
                 value={latestPnl === null ? DASH : formatUsd(latestPnl)}
                 helper={`${performancePoints.length} history points`}
-                tone={latestPnl !== null && latestPnl >= 0 ? "good" : latestPnl !== null ? "warn" : "neutral"}
+                tone={latestPnl !== null && latestPnl >= 0 ? "good" : latestPnl !== null ? "bad" : "neutral"}
               />
             </section>
 
@@ -960,43 +1242,90 @@ export default function PolymarketPage() {
                   <table className="min-w-full text-left text-sm">
                     <thead className="bg-amber-100/70 text-xs uppercase text-amber-900">
                       <tr>
-                        <th className="px-3 py-2">Wallet</th>
-                        <th className="px-3 py-2">7d PnL</th>
-                        <th className="px-3 py-2">7d Winrate</th>
-                        <th className="px-3 py-2">Reason</th>
-                        <th className="px-3 py-2">Benched</th>
+                        <th className="px-3 py-2">
+                          <SortHeader label="#" sortKey="order" sort={benchedWalletSort} onSort={handleBenchedWalletSort} />
+                        </th>
+                        <th className="px-3 py-2">
+                          <SortHeader label="Wallet" sortKey="wallet" sort={benchedWalletSort} onSort={handleBenchedWalletSort} />
+                        </th>
+                        <th className="px-3 py-2">
+                          <SortHeader label="7d PnL" sortKey="pnl7d" sort={benchedWalletSort} onSort={handleBenchedWalletSort} />
+                        </th>
+                        <th className="px-3 py-2">
+                          <SortHeader label="7d Winrate" sortKey="winrate7d" sort={benchedWalletSort} onSort={handleBenchedWalletSort} />
+                        </th>
+                        <th className="px-3 py-2">
+                          <SortHeader label="30d PnL" sortKey="pnl30d" sort={benchedWalletSort} onSort={handleBenchedWalletSort} />
+                        </th>
+                        <th className="px-3 py-2">
+                          <SortHeader label="30d Winrate" sortKey="winrate30d" sort={benchedWalletSort} onSort={handleBenchedWalletSort} />
+                        </th>
+                        <th className="px-3 py-2">
+                          <SortHeader label="Reason" sortKey="reason" sort={benchedWalletSort} onSort={handleBenchedWalletSort} />
+                        </th>
+                        <th className="px-3 py-2">
+                          <SortHeader label="Benched" sortKey="benchedAt" sort={benchedWalletSort} onSort={handleBenchedWalletSort} />
+                        </th>
                         <th className="px-3 py-2 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {benchedWallets.slice(0, MAX_ROWS).map((wallet, index) => (
+                      {sortedBenchedWallets.slice(0, MAX_ROWS).map((wallet, index) => (
                         <tr key={`${textValue(wallet.wallet ?? wallet.address)}-${index}`} className="border-t border-amber-200/70">
+                          <td className="px-3 py-2 align-top">
+                            <span className="rounded border border-amber-300 bg-white px-1.5 py-0.5 font-mono text-[11px] font-semibold text-amber-700">
+                              {textValue(wallet.follow_order_label)}
+                            </span>
+                          </td>
                           <td className="px-3 py-2">
                             <div className="font-medium text-amber-950">{textValue(wallet.label)}</div>
                             <div className="font-mono text-xs text-amber-800">{textValue(wallet.wallet ?? wallet.address)}</div>
                           </td>
-                          <td className={`px-3 py-2 font-medium ${pnlClass(wallet.week_realized_pnl)}`}>
-                            {formatUsd(wallet.week_realized_pnl)}
+                          <td className={`px-3 py-2 font-medium ${pnlClass(walletWeekPnl(wallet))}`}>
+                            {formatUsd(walletWeekPnl(wallet))}
                           </td>
                           <td className="px-3 py-2 text-amber-900">
-                            <div>{formatPercent(wallet.week_winrate)}</div>
+                            <div>{formatPercent(walletWeekWinrate(wallet))}</div>
                             <div className="text-xs text-amber-800">
-                              {formatNumber(wallet.week_wins)}-{formatNumber(wallet.week_losses)}
+                              {formatNumber(walletWeekWins(wallet))}-{formatNumber(walletWeekLosses(wallet))}
+                            </div>
+                          </td>
+                          <td className={`px-3 py-2 font-medium ${pnlClass(walletRecentPnl(wallet))}`}>
+                            {formatUsd(walletRecentPnl(wallet))}
+                          </td>
+                          <td className="px-3 py-2 text-amber-900">
+                            <div>{formatPercent(walletRecentWinrate(wallet))}</div>
+                            <div className="text-xs text-amber-800">
+                              {formatNumber(walletRecentWins(wallet))}-{formatNumber(walletRecentLosses(wallet))}
                             </div>
                           </td>
                           <td className="max-w-md px-3 py-2 text-amber-900">{textValue(wallet.reason)}</td>
                           <td className="px-3 py-2 text-amber-900">{formatDate(wallet.benched_at)}</td>
                           <td className="px-3 py-2 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleRestoreWallet(wallet)}
-                              disabled={restoreWalletMutation.isPending}
-                              className="inline-flex min-h-8 items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-1 text-xs font-medium text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
-                              aria-label={`Move ${textValue(wallet.label)} back in play`}
-                            >
-                              <RotateCcw className="h-3.5 w-3.5" />
-                              I spill
-                            </button>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleRestoreWallet(wallet)}
+                                disabled={restoreWalletMutation.isPending}
+                                className="inline-flex min-h-8 items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-1 text-xs font-medium text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                aria-label={`Move ${textValue(wallet.label)} back in play`}
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                I spill
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWalletToRemove(wallet);
+                                  setRemoveWalletError(null);
+                                }}
+                                className="inline-flex min-h-8 items-center gap-1 rounded-md border border-rose-200 bg-white px-2 py-1 text-xs font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-50"
+                                aria-label={`Fjern ${textValue(wallet.label)}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Fjern
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1064,64 +1393,64 @@ export default function PolymarketPage() {
               <article className="rounded-lg border border-slate-200 bg-white">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
                   <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                    <Eye className="h-4 w-4 text-slate-600" />
-                    Service Snapshot
+                    <LineChart className="h-4 w-4 text-emerald-600" />
+                    PnL View
                   </h2>
-                </div>
-                <dl className="grid grid-cols-1 gap-2 p-4 text-sm">
-                  {serviceRows.map(({ label, value }) => (
-                    <div key={label} className="flex items-start justify-between gap-3 rounded-md bg-slate-50 px-3 py-2">
-                      <dt className="text-slate-500">{label}</dt>
-                      <dd className="text-right font-medium text-slate-800">{textValue(value)}</dd>
+                  <div className="flex items-center gap-2">
+                    <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
+                      {PNL_LOOKBACK_OPTIONS.map((option) => (
+                        <button
+                          key={option.label}
+                          type="button"
+                          onClick={() => setPnlLookbackDays(option.days)}
+                          className={`min-h-8 px-2.5 text-xs font-medium transition ${
+                            pnlLookbackDays === option.days
+                              ? "rounded bg-slate-900 text-white"
+                              : "text-slate-600 hover:text-slate-950"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
                     </div>
-                  ))}
-                </dl>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <PortfolioPnlChart points={performancePoints} lookbackDays={pnlLookbackDays} />
+                  <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-slate-500">
+                    <div className="rounded-md bg-slate-50 px-3 py-2">
+                      <span className="font-medium text-slate-700">Total PnL</span>{" "}
+                      {latestPnl === null ? DASH : formatUsd(latestPnl)}
+                    </div>
+                    <div className="rounded-md bg-slate-50 px-3 py-2">
+                      <span className="font-medium text-slate-700">Latest value</span>{" "}
+                      {formatUsd(latestPoint.total_value)}
+                    </div>
+                    <div className="rounded-md bg-slate-50 px-3 py-2">
+                      <span className="font-medium text-slate-700">Latest change</span>{" "}
+                      {pnlDelta === null ? DASH : formatUsd(pnlDelta)}
+                    </div>
+                  </div>
+                  <div className="mt-2 text-xs text-slate-500">{formatNumber(performancePoints.length)} points</div>
+                </div>
               </article>
             </section>
 
             <section className="mt-4 rounded-lg border border-slate-200 bg-white">
               <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
                 <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                  <LineChart className="h-4 w-4 text-emerald-600" />
-                  PnL View
+                  <Eye className="h-4 w-4 text-slate-600" />
+                  Service Snapshot
                 </h2>
-                <div className="flex items-center gap-2">
-                  <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
-                    {PNL_LOOKBACK_OPTIONS.map((option) => (
-                      <button
-                        key={option.label}
-                        type="button"
-                        onClick={() => setPnlLookbackDays(option.days)}
-                        className={`min-h-8 px-2.5 text-xs font-medium transition ${
-                          pnlLookbackDays === option.days
-                            ? "rounded bg-slate-900 text-white"
-                            : "text-slate-600 hover:text-slate-950"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                  <span className="text-xs text-slate-500">{formatNumber(performancePoints.length)} points</span>
-                </div>
               </div>
-              <div className="p-4">
-                <PortfolioPnlChart points={performancePoints} lookbackDays={pnlLookbackDays} />
-                <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-slate-500 md:grid-cols-3">
-                  <div className="rounded-md bg-slate-50 px-3 py-2">
-                    <span className="font-medium text-slate-700">Total PnL</span>{" "}
-                    {latestPnl === null ? DASH : formatUsd(latestPnl)}
+              <dl className="grid grid-cols-1 gap-2 p-4 text-sm md:grid-cols-2 xl:grid-cols-3">
+                {serviceRows.map(({ label, value }) => (
+                  <div key={label} className="flex items-start justify-between gap-3 rounded-md bg-slate-50 px-3 py-2">
+                    <dt className="text-slate-500">{label}</dt>
+                    <dd className="text-right font-medium text-slate-800">{textValue(value)}</dd>
                   </div>
-                  <div className="rounded-md bg-slate-50 px-3 py-2">
-                    <span className="font-medium text-slate-700">Latest value</span>{" "}
-                    {formatUsd(latestPoint.total_value)}
-                  </div>
-                  <div className="rounded-md bg-slate-50 px-3 py-2">
-                    <span className="font-medium text-slate-700">Latest change</span>{" "}
-                    {pnlDelta === null ? DASH : formatUsd(pnlDelta)}
-                  </div>
-                </div>
-              </div>
+                ))}
+              </dl>
             </section>
 
             <section className="mt-4 rounded-lg border border-slate-200 bg-white">
@@ -1142,62 +1471,92 @@ export default function PolymarketPage() {
                 <table className="min-w-full text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
-                      <th className="px-3 py-2">Wallet</th>
-                      <th className="px-3 py-2">Source</th>
-                      <th className="px-3 py-2">30d Winrate</th>
-                      <th className="px-3 py-2">30d PnL</th>
-                      <th className="px-3 py-2">Our Bets</th>
-                      <th className="px-3 py-2">Our Open</th>
-                      <th className="px-3 py-2">Our %</th>
-                      <th className="px-3 py-2">Our PnL</th>
-                      <th className="px-3 py-2">Status</th>
+                      <th className="px-3 py-2">
+                        <SortHeader label="#" sortKey="order" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
+                      </th>
+                      <th className="px-3 py-2">
+                        <SortHeader label="Wallet" sortKey="wallet" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
+                      </th>
+                      <th className="px-3 py-2">
+                        <SortHeader label="Source" sortKey="source" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
+                      </th>
+                      <th className="px-3 py-2">
+                        <SortHeader label="30d Winrate" sortKey="winrate30d" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
+                      </th>
+                      <th className="px-3 py-2">
+                        <SortHeader label="30d PnL" sortKey="pnl30d" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
+                      </th>
+                      <th className="px-3 py-2">
+                        <SortHeader label="Our Bets" sortKey="ourBets" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
+                      </th>
+                      <th className="px-3 py-2">
+                        <SortHeader label="Our Open" sortKey="ourOpen" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
+                      </th>
+                      <th className="px-3 py-2">
+                        <SortHeader label="Our %" sortKey="ourPct" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
+                      </th>
+                      <th className="px-3 py-2">
+                        <SortHeader label="Our PnL" sortKey="ourPnl" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
+                      </th>
+                      <th className="px-3 py-2">
+                        <SortHeader label="Status" sortKey="status" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
+                      </th>
                       <th className="px-3 py-2 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {followedWallets.length > 0 ? (
-                      followedWallets.slice(0, MAX_ROWS).map((wallet, index) => {
+                    {sortedFollowedWallets.length > 0 ? (
+                      sortedFollowedWallets.slice(0, MAX_ROWS).map((wallet, index) => {
                         const isLowWinrate = walletWinrateLow(wallet);
                         const copyStats = walletCopyStats(wallet);
+                        const hasCopiedExposure = walletHasCopiedExposure(copyStats);
+                        const primaryTextClass = hasCopiedExposure ? "pm-money-text" : "pm-watch-text";
+                        const secondaryTextClass = hasCopiedExposure ? "pm-money-muted" : "pm-watch-muted";
+                        const valueTextClass = hasCopiedExposure ? "font-semibold pm-money-text" : "font-medium pm-watch-text";
                         return (
                         <tr
                           key={`${textValue(wallet.address)}-${index}`}
-                          className={`border-t border-slate-100 ${isLowWinrate ? "bg-rose-50/70" : ""}`}
+                          className={`border-t border-slate-100 ${hasCopiedExposure ? "pm-money-row bg-slate-50/60" : ""} ${isLowWinrate ? "bg-rose-50/70" : ""}`}
                         >
-                          <td className="px-3 py-2">
-                            <div className="flex items-center gap-2">
-                              <span className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-500">
+                          <td className="px-3 py-2 align-top">
+                            <div className="inline-flex flex-col items-start gap-1">
+                              <span className={`rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold ${secondaryTextClass}`}>
                                 {textValue(wallet.follow_order_label)}
                               </span>
-                              <span className="font-medium text-slate-900">{textValue(wallet.label)}</span>
+                              <span className={`font-mono text-[10px] leading-none ${secondaryTextClass}`}>
+                                {formatShortDate(wallet.follow_added_at)}
+                              </span>
                             </div>
-                            <div className="font-mono text-xs text-slate-500">{textValue(wallet.address)}</div>
                           </td>
-                          <td className="px-3 py-2 text-slate-600">{textValue(wallet.source)}</td>
-                          <td className={`px-3 py-2 ${walletWinrateClass(wallet)}`}>
-                            <div>{formatPercent(walletRecentWinrate(wallet))}</div>
-                            <div className="text-xs font-normal text-slate-500">
+                          <td className="px-3 py-2">
+                            <div className={`font-semibold ${primaryTextClass}`}>{textValue(wallet.label)}</div>
+                            <div className={`font-mono text-xs ${secondaryTextClass}`}>{textValue(wallet.address)}</div>
+                          </td>
+                          <td className={`px-3 py-2 ${hasCopiedExposure ? primaryTextClass : secondaryTextClass}`}>{textValue(wallet.source)}</td>
+                          <td className="px-3 py-2">
+                            <div className={walletWinrateClass(wallet)}>{formatPercent(walletRecentWinrate(wallet))}</div>
+                            <div className={`text-xs font-normal ${secondaryTextClass}`}>
                               {formatNumber(walletRecentWins(wallet))}-{formatNumber(walletRecentLosses(wallet))}
                             </div>
                           </td>
                           <td className={`px-3 py-2 font-medium ${pnlClass(walletRecentPnl(wallet))}`}>
                             {formatUsd(walletRecentPnl(wallet))}
                           </td>
-                          <td className="px-3 py-2 text-slate-600">
-                            <div>{formatUsd(copyStats.total_bet_usd)}</div>
-                            <div className="text-xs text-slate-500">{formatNumber(copyStats.bet_count)} buys</div>
+                          <td className={`px-3 py-2 ${secondaryTextClass}`}>
+                            <div className={valueTextClass}>{formatUsd(copyStats.total_bet_usd)}</div>
+                            <div className={`text-xs ${secondaryTextClass}`}>{formatNumber(copyStats.bet_count)} buys</div>
                           </td>
-                          <td className="px-3 py-2 text-slate-600">
-                            <div>{formatUsd(copyStats.open_value_usd)}</div>
-                            <div className="text-xs text-slate-500">{formatNumber(copyStats.open_position_count)} open</div>
+                          <td className={`px-3 py-2 ${secondaryTextClass}`}>
+                            <div className={valueTextClass}>{formatUsd(copyStats.open_value_usd)}</div>
+                            <div className={`text-xs ${secondaryTextClass}`}>{formatNumber(copyStats.open_position_count)} open</div>
                           </td>
-                          <td className="px-3 py-2 text-slate-600">
-                            <div className="font-medium text-slate-900">{formatPercent(copyStats.open_account_pct)}</div>
-                            <div className="text-xs text-slate-500">of account</div>
+                          <td className={`px-3 py-2 ${secondaryTextClass}`}>
+                            <div className={valueTextClass}>{formatPercent(copyStats.open_account_pct)}</div>
+                            <div className={`text-xs ${secondaryTextClass}`}>of account</div>
                           </td>
                           <td className={`px-3 py-2 font-medium ${pnlClass(copyStats.total_pnl_usd)}`}>
                             <div>{formatUsd(copyStats.total_pnl_usd)}</div>
-                            <div className="text-xs font-normal text-slate-500">
+                            <div className={`text-xs font-normal ${secondaryTextClass}`}>
                               {formatUsd(copyStats.realized_pnl_usd)} realized / {formatUsd(copyStats.open_unrealized_pnl_usd)} open
                             </div>
                           </td>
@@ -1223,15 +1582,13 @@ export default function PolymarketPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setWalletToRemove(wallet);
-                                  setRemoveWalletError(null);
-                                }}
-                                className="inline-flex min-h-8 items-center gap-1 rounded-md border border-rose-200 bg-white px-2 py-1 text-xs font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-50"
-                                aria-label={`Fjern ${textValue(wallet.label)}`}
+                                onClick={() => handleBenchWallet(wallet)}
+                                disabled={benchWalletMutation.isPending}
+                                className="inline-flex min-h-8 items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-1 text-xs font-medium text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                aria-label={`Bench ${textValue(wallet.label)}`}
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                Fjern
+                                <PauseCircle className="h-3.5 w-3.5" />
+                                Bench
                               </button>
                             </div>
                           </td>
@@ -1239,11 +1596,17 @@ export default function PolymarketPage() {
                         );
                       })
                     ) : (
-                      <tr><td colSpan={10}><EmptyState label="No followed wallets found." /></td></tr>
+                      <tr><td colSpan={11}><EmptyState label="No followed wallets found." /></td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
+              {benchWalletError ? (
+                <p className="flex items-center gap-1 px-4 py-3 text-xs text-rose-700">
+                  <XCircle className="h-3.5 w-3.5" />
+                  {benchWalletError}
+                </p>
+              ) : null}
               <WalletPositionsPanel
                 wallet={selectedWallet}
                 payload={walletPositionsQuery.data?.data}
@@ -1263,22 +1626,37 @@ export default function PolymarketPage() {
                 </div>
                 <div className="max-h-[520px] divide-y divide-slate-100 overflow-auto">
                   {mirrorFeed.length > 0 ? (
-                    mirrorFeed.slice().reverse().map((event, index) => (
-                      <div key={`${textValue(event.time)}-${index}`} className="px-4 py-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-slate-900">{textValue(event.market)}</p>
-                            <p className="mt-0.5 truncate text-xs text-slate-500">
-                              {textValue(event.type)} · {textValue(event.outcome)} · {textValue(event.wallet)}
-                            </p>
+                    mirrorFeed.slice().reverse().map((event, index) => {
+                      const accountLabel = [event.follow_order_label, event.wallet_label].map(textValue).filter((value) => value !== DASH).join(" ");
+                      const walletLine = accountLabel || textValue(event.wallet_short ?? event.wallet);
+                      const tradeMeta = [
+                        textValue(event.type),
+                        textValue(event.outcome),
+                        formatUsd(event.amount),
+                        textValue(event.shares) !== DASH ? `${formatNumber(event.shares)} sh` : DASH,
+                        textValue(event.entry_price) !== DASH ? `entry ${formatNumber(event.entry_price)}` : DASH,
+                      ].filter((value) => value !== DASH);
+                      return (
+                        <div key={`${textValue(event.time)}-${index}`} className="px-4 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-slate-900">{textValue(event.market)}</p>
+                              <p className="mt-0.5 truncate text-xs font-medium text-slate-600">{walletLine}</p>
+                              <p className="mt-0.5 truncate text-xs text-slate-500">{tradeMeta.join(" · ")}</p>
+                              <p className="mt-0.5 truncate text-xs text-slate-400">
+                                {formatDate(event.time)} · {textValue(event.wallet_short ?? event.wallet)}
+                              </p>
+                            </div>
+                            <span className={`shrink-0 rounded-full border px-2 py-1 text-xs ${statusClass(event.status)}`}>
+                              {textValue(event.status)}
+                            </span>
                           </div>
-                          <span className={`shrink-0 rounded-full border px-2 py-1 text-xs ${statusClass(event.status)}`}>
-                            {textValue(event.status)}
-                          </span>
+                          {textValue(event.reason) !== DASH ? (
+                            <p className="mt-1 text-xs text-slate-500">{textValue(event.reason)}</p>
+                          ) : null}
                         </div>
-                        <p className="mt-1 truncate text-xs text-slate-500">{textValue(event.reason)}</p>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <EmptyState label="No copied, selected, or attempted wallet trades in the current log window." />
                   )}

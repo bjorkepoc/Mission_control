@@ -329,6 +329,31 @@ body::before {
     color: var(--text-muted);
   }
 
+  .pm-money-text {
+    color: var(--text) !important;
+  }
+
+  .pm-money-muted {
+    color: color-mix(in srgb, var(--text) 92%, var(--text-muted)) !important;
+  }
+
+  .pm-money-row .text-slate-700,
+  .pm-money-row .text-slate-600,
+  .pm-money-row .text-slate-500,
+  .pm-money-row .text-amber-700,
+  .pm-money-row .text-amber-800,
+  .pm-money-row .text-amber-900 {
+    color: color-mix(in srgb, var(--text) 92%, var(--text-muted)) !important;
+  }
+
+  .pm-watch-text {
+    color: color-mix(in srgb, var(--text) 86%, var(--text-muted)) !important;
+  }
+
+  .pm-watch-muted {
+    color: color-mix(in srgb, var(--text) 58%, var(--text-muted)) !important;
+  }
+
   .mc-markdown {
     color: var(--text);
   }
@@ -495,6 +520,18 @@ body::before {
 .text-amber-900,
 .text-amber-950 {
   color: var(--warning) !important;
+}
+
+.bg-orange-50 {
+  background-color: var(--surface) !important;
+}
+
+.border-orange-200 {
+  border-color: color-mix(in srgb, var(--warning) 58%, var(--border)) !important;
+}
+
+.text-orange-800 {
+  color: color-mix(in srgb, var(--warning) 88%, var(--danger)) !important;
 }
 
 .bg-rose-50,

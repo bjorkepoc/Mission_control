@@ -31,11 +31,11 @@ _MAX_OPS_FEED_EVENTS = 60
 _MAX_OPS_TIMESERIES = 80
 _MAX_WALLET_POSITIONS = 80
 _OPS_FEED_LOOKBACK_HOURS = 72
-_MAX_OPS_LEDGER_WINDOW_ROWS = 400
+_MAX_OPS_LEDGER_WINDOW_ROWS = 100000
 _MAX_COPY_STATS_LEDGER_ROWS = 10000
 _MAX_TEXT_EXCERPT = 6000
 _MAX_JSON_DEPTH = 5
-_MAX_DICT_ITEMS = 48
+_MAX_DICT_ITEMS = 64
 _MAX_LIST_ITEMS = 20
 _MAX_STRING_LENGTH = 220
 _LIVE_REQUEST_TIMEOUT_SECONDS = 6
@@ -69,9 +69,13 @@ _MIN_COPY_ORDER_USD = 0.01
 _MAX_COPY_ORDER_USD = 100.0
 _BENCH_LOOKBACK_DAYS = 7
 _FOLLOWED_WALLET_STATS_DAYS = 30
-_BENCH_LOSS_USD_THRESHOLD = -25.0
-_BENCH_LOSS_COUNT_THRESHOLD = 3
-_BENCH_WINRATE_THRESHOLD = 0.50
+_BENCH_MIN_30D_REALIZED_PNL_USD = 100.0
+_BENCH_MIN_30D_WINRATE = 0.75
+_BENCH_LOW_30D_PNL_USD = 500.0
+_BENCH_LOW_30D_PNL_MIN_WINRATE = 0.83
+_BENCH_MIN_LIFETIME_CLOSED_BETS = 6
+_BENCH_MIN_LIFETIME_WINRATE = _BENCH_MIN_30D_WINRATE
+_MAX_WALLET_CLOSED_POSITION_ROWS = 1000
 
 
 def resolve_watcher_root() -> Path:
@@ -563,8 +567,19 @@ def build_v2_ops_payload() -> dict[str, Any]:
         warnings=warnings,
         label="blocked_wallets",
     )
-    benched_wallets = _read_benched_wallets(agents_root=agents_root)
     hook_whales = [wallet for wallet in hook_latest.get("whales", []) if isinstance(wallet, str)]
+    benched_wallets = _read_benched_wallets(agents_root=agents_root)
+    wallet_order, wallet_added_at = _ensure_wallet_order_registry(
+        agents_root=agents_root,
+        candidate_wallets=[*manual_wallets, *pinned_wallets, *hook_whales],
+        benched_wallets=benched_wallets,
+        warnings=warnings,
+    )
+    benched_wallets = _apply_wallet_order_to_rows(
+        benched_wallets,
+        wallet_order=wallet_order,
+        source="chronological_wallet_order",
+    )
     followed_wallets = _build_followed_wallets(
         manual_wallets=manual_wallets,
         pinned_wallets=pinned_wallets,
@@ -572,6 +587,8 @@ def build_v2_ops_payload() -> dict[str, Any]:
         blocked_wallets=blocked_wallets,
         benched_wallets=benched_wallets,
         hook_latest=hook_latest,
+        wallet_order=wallet_order,
+        wallet_added_at=wallet_added_at,
         warnings=warnings,
     )
     newly_benched = _bench_losing_wallets(
@@ -587,6 +604,17 @@ def build_v2_ops_payload() -> dict[str, Any]:
             label="pinned_wallets",
         )
         benched_wallets = _read_benched_wallets(agents_root=agents_root)
+        wallet_order, wallet_added_at = _ensure_wallet_order_registry(
+            agents_root=agents_root,
+            candidate_wallets=[*manual_wallets, *pinned_wallets, *hook_whales],
+            benched_wallets=benched_wallets,
+            warnings=warnings,
+        )
+        benched_wallets = _apply_wallet_order_to_rows(
+            benched_wallets,
+            wallet_order=wallet_order,
+            source="chronological_wallet_order",
+        )
         followed_wallets = _build_followed_wallets(
             manual_wallets=manual_wallets,
             pinned_wallets=pinned_wallets,
@@ -594,9 +622,15 @@ def build_v2_ops_payload() -> dict[str, Any]:
             blocked_wallets=blocked_wallets,
             benched_wallets=benched_wallets,
             hook_latest=hook_latest,
+            wallet_order=wallet_order,
+            wallet_added_at=wallet_added_at,
             warnings=warnings,
-    )
+        )
 
+    benched_wallets = _attach_recent_stats_to_benched_wallets(
+        benched_wallets,
+        warnings=warnings,
+    )
     positions = _normalize_positions(portfolio.get("latest_positions", []), limit=_MAX_PORTFOLIO_POSITIONS)
     wallet_total = portfolio.get("wallet_total") if isinstance(portfolio.get("wallet_total"), dict) else {}
     account_total_value = _coerce_float(wallet_total.get("total_value")) or _coerce_float(hook_latest.get("bankroll"))
@@ -619,6 +653,7 @@ def build_v2_ops_payload() -> dict[str, Any]:
         agents_root=agents_root,
         watcher_root=watcher_root,
         hook_latest=hook_latest,
+        wallet_order=wallet_order,
         warnings=warnings,
     )
     performance = _build_ops_performance(
@@ -851,6 +886,60 @@ def remove_follow_wallet(address: str) -> dict[str, Any]:
     }
 
 
+def bench_follow_wallet(address: str) -> dict[str, Any]:
+    """Move a followed wallet to the benched list without blocking re-add."""
+    normalized = _normalize_wallet_identifier(address)
+
+    agents_root = resolve_agents_root()
+    watcher_root = resolve_watcher_root()
+    manual_path = agents_root / "elite-whales" / "manual_wallets.txt"
+    benched_path = _benched_wallets_path(agents_root)
+    pinned_path = watcher_root / STATE_DIRNAME / "whale_roster" / "pinned_wallets.txt"
+
+    manual_wallets = _read_wallets_for_update(manual_path)
+    pinned_wallets = _read_wallets_for_update(pinned_path)
+    benched_wallets = _read_benched_wallets_for_update(benched_path)
+    was_followed = normalized in manual_wallets or normalized in pinned_wallets
+    was_benched = normalized in benched_wallets
+
+    wallet_order, _wallet_added_at = _ensure_wallet_order_registry(
+        agents_root=agents_root,
+        candidate_wallets=[*manual_wallets, *pinned_wallets, normalized],
+        benched_wallets=list(benched_wallets.values()),
+        warnings=[],
+    )
+    follow_order = wallet_order.get(normalized)
+
+    manual_wallets = [wallet for wallet in manual_wallets if wallet != normalized]
+    pinned_wallets = [wallet for wallet in pinned_wallets if wallet != normalized]
+    now = datetime.now(tz=UTC).isoformat()
+    benched_wallets[normalized] = {
+        **benched_wallets.get(normalized, {}),
+        "wallet": normalized,
+        "address": _short_wallet(normalized),
+        "address_key": normalized.removeprefix("0x"),
+        "label": _known_wallet_label(normalized),
+        "reason": "Manually benched.",
+        "benched_at": benched_wallets.get(normalized, {}).get("benched_at") or now,
+        "status": "benched",
+        "follow_order": follow_order,
+        "follow_order_label": f"#{follow_order:02d}" if follow_order is not None else None,
+        "follow_order_source": "manual_bench",
+    }
+
+    _write_wallets_for_update(manual_path, manual_wallets, separator="\n")
+    _write_wallets_for_update(pinned_path, pinned_wallets, separator=",")
+    _write_benched_wallets(benched_path, benched_wallets)
+
+    return {
+        "wallet": normalized,
+        "benched": was_followed or was_benched,
+        "manual_wallet_count": len(manual_wallets),
+        "pinned_wallet_count": len(pinned_wallets),
+        "benched_wallet_count": len(benched_wallets),
+    }
+
+
 def restore_benched_wallet(address: str) -> dict[str, Any]:
     """Move a benched wallet back into active manual follow."""
     normalized = _normalize_wallet_identifier(address)
@@ -903,6 +992,10 @@ def _copy_config_path(agents_root: Path) -> Path:
 
 def _benched_wallets_path(agents_root: Path) -> Path:
     return agents_root / "elite-whales" / "benched_wallets.json"
+
+
+def _wallet_order_path(agents_root: Path) -> Path:
+    return agents_root / "elite-whales" / "wallet_order.json"
 
 
 def _validate_copy_order_usd(value: Any) -> float:
@@ -1025,9 +1118,171 @@ def _write_wallets_for_update(path: Path, wallets: list[str], *, separator: str)
     path.write_text(f"{raw}\n" if raw else "", encoding="utf-8")
 
 
+def _ensure_wallet_order_registry(
+    *,
+    agents_root: Path,
+    candidate_wallets: list[str],
+    benched_wallets: list[dict[str, Any]],
+    warnings: list[str],
+) -> tuple[dict[str, int], dict[str, str]]:
+    path = _wallet_order_path(agents_root)
+    records, added_at, registry_updated_at, changed = _read_wallet_order_registry(path, warnings=warnings)
+    assigned_orders = set(records.values())
+    now_iso = datetime.now(tz=UTC).isoformat()
+    default_added_at = registry_updated_at or now_iso
+
+    def assign(wallet: str, preferred_order: int | None = None) -> None:
+        nonlocal changed
+        normalized = wallet.lower()
+        if not _ADDRESS_RE.fullmatch(normalized) or normalized in records:
+            return
+        if preferred_order is not None and preferred_order > 0 and preferred_order not in assigned_orders:
+            follow_order = preferred_order
+        else:
+            follow_order = max(assigned_orders, default=0) + 1
+        records[normalized] = follow_order
+        added_at[normalized] = now_iso
+        assigned_orders.add(follow_order)
+        changed = True
+
+    hinted_benched = sorted(
+        (
+            (order, str(row.get("wallet") or row.get("address") or ""))
+            for row in benched_wallets
+            if (order := _coerce_int(row.get("follow_order"))) is not None
+        ),
+        key=lambda item: item[0],
+    )
+    for order, wallet in hinted_benched:
+        assign(wallet, order)
+
+    for wallet in candidate_wallets:
+        assign(wallet)
+    for row in benched_wallets:
+        assign(str(row.get("wallet") or row.get("address") or ""))
+
+    for wallet in records:
+        if not added_at.get(wallet):
+            added_at[wallet] = default_added_at
+            changed = True
+
+    if changed:
+        _write_wallet_order_registry(path, records, added_at=added_at)
+    return records, added_at
+
+
+def _read_wallet_order_registry(path: Path, *, warnings: list[str]) -> tuple[dict[str, int], dict[str, str], str | None, bool]:
+    if not path.exists():
+        return {}, {}, None, False
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        warnings.append(f"wallet_order: unable to read wallet order registry ({exc}).")
+        return {}, {}, None, False
+
+    items: list[Any]
+    registry_updated_at: str | None = None
+    if isinstance(raw, dict):
+        items = raw.get("wallets") if isinstance(raw.get("wallets"), list) else []
+        raw_updated_at = raw.get("updated_at")
+        registry_updated_at = raw_updated_at if isinstance(raw_updated_at, str) and raw_updated_at.strip() else None
+    elif isinstance(raw, list):
+        items = raw
+    else:
+        items = []
+
+    records: dict[str, int] = {}
+    added_at: dict[str, str] = {}
+    changed = False
+    for item in items:
+        if not isinstance(item, dict):
+            changed = True
+            continue
+        wallet = str(item.get("wallet") or item.get("address") or "").strip().lower()
+        follow_order = _coerce_int(item.get("follow_order"))
+        if not _ADDRESS_RE.fullmatch(wallet) or follow_order is None or follow_order <= 0:
+            changed = True
+            continue
+        if wallet in records or follow_order in records.values():
+            changed = True
+            continue
+        records[wallet] = follow_order
+        raw_added_at = item.get("added_at") or item.get("created_at") or item.get("follow_added_at")
+        if isinstance(raw_added_at, str) and raw_added_at.strip():
+            added_at[wallet] = raw_added_at.strip()
+    return records, added_at, registry_updated_at, changed
+
+
+def _write_wallet_order_registry(path: Path, records: dict[str, int], *, added_at: dict[str, str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "updated_at": datetime.now(tz=UTC).isoformat(),
+        "wallets": [
+            {
+                "wallet": wallet,
+                "address": wallet,
+                "address_key": wallet.removeprefix("0x"),
+                "follow_order": follow_order,
+                "follow_order_label": f"#{follow_order:02d}",
+                "added_at": added_at.get(wallet),
+            }
+            for wallet, follow_order in sorted(records.items(), key=lambda item: item[1])
+        ],
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _apply_wallet_order_to_rows(
+    rows: list[dict[str, Any]],
+    *,
+    wallet_order: dict[str, int],
+    source: str,
+) -> list[dict[str, Any]]:
+    ordered_rows: list[dict[str, Any]] = []
+    for row in rows:
+        normalized = str(row.get("wallet") or row.get("address") or "").lower()
+        follow_order = wallet_order.get(normalized) or _coerce_int(row.get("follow_order"))
+        if follow_order is None:
+            ordered_rows.append(row)
+            continue
+        ordered_rows.append(
+            {
+                **row,
+                "follow_order": follow_order,
+                "follow_order_label": f"#{follow_order:02d}",
+                "follow_order_source": source,
+            }
+        )
+    return ordered_rows
+
+
 def _read_benched_wallets(*, agents_root: Path) -> list[dict[str, Any]]:
     records = _read_benched_wallets_for_update(_benched_wallets_path(agents_root))
-    return sorted(records.values(), key=lambda row: str(row.get("benched_at") or ""), reverse=True)
+    rows: list[dict[str, Any]] = []
+    for bench_order, row in enumerate(
+        sorted(records.values(), key=lambda item: str(item.get("benched_at") or ""), reverse=True),
+        start=1,
+    ):
+        follow_order = _coerce_int(row.get("follow_order"))
+        if follow_order is not None:
+            rows.append(
+                {
+                    **row,
+                    "follow_order": follow_order,
+                    "follow_order_label": row.get("follow_order_label") or f"#{follow_order:02d}",
+                    "follow_order_source": row.get("follow_order_source") or "original_follow_order",
+                }
+            )
+            continue
+        rows.append(
+            {
+                **row,
+                "follow_order": bench_order,
+                "follow_order_label": f"#{bench_order:02d}",
+                "follow_order_source": "benched_order",
+            }
+        )
+    return rows
 
 
 def _read_benched_wallets_for_update(path: Path) -> dict[str, dict[str, Any]]:
@@ -1072,6 +1327,77 @@ def _write_benched_wallets(path: Path, records: dict[str, dict[str, Any]]) -> No
     path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def _attach_recent_stats_to_benched_wallets(
+    wallets: list[dict[str, Any]],
+    *,
+    warnings: list[str],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for wallet in wallets:
+        normalized = _normalize_wallet_optional(wallet.get("wallet") or wallet.get("address"))
+        if normalized is None:
+            rows.append(wallet)
+            continue
+        closed_rows = _fetch_wallet_closed_position_rows(
+            wallet=normalized,
+            warnings=warnings,
+        )
+        week_stats = _summarize_recent_wallet_stats(
+            closed_rows,
+            window_days=_BENCH_LOOKBACK_DAYS,
+        )
+        recent_stats = _summarize_recent_wallet_stats(
+            closed_rows,
+            window_days=_FOLLOWED_WALLET_STATS_DAYS,
+        )
+        lifetime_stats = _summarize_lifetime_wallet_stats(closed_rows)
+        recent_winrate = recent_stats.get("winrate")
+        week_winrate = week_stats.get("winrate")
+        stats_row = {
+            **wallet,
+            "week_realized_pnl": week_stats.get("realized_pnl"),
+            "recent_winrate": recent_winrate,
+            "recent_closed_count": recent_stats.get("closed_count"),
+            "recent_realized_pnl": recent_stats.get("realized_pnl"),
+            "lifetime_winrate": lifetime_stats.get("winrate"),
+            "lifetime_closed_count": lifetime_stats.get("closed_count"),
+        }
+        current_reason = _bench_decision(stats_row)
+        rows.append(
+            {
+                **wallet,
+                "reason": current_reason or wallet.get("reason"),
+                "week_winrate": week_winrate,
+                "week_closed_count": week_stats.get("closed_count"),
+                "week_wins": week_stats.get("wins"),
+                "week_losses": week_stats.get("losses"),
+                "week_realized_pnl": week_stats.get("realized_pnl"),
+                "week_window_days": _BENCH_LOOKBACK_DAYS,
+                "week_winrate_status": "low"
+                if _coerce_float(week_winrate) is not None and (_coerce_float(week_winrate) or 0) < _BENCH_MIN_30D_WINRATE
+                else "ok",
+                "week_stats_source": week_stats.get("source"),
+                "recent_winrate": recent_winrate,
+                "recent_closed_count": recent_stats.get("closed_count"),
+                "recent_wins": recent_stats.get("wins"),
+                "recent_losses": recent_stats.get("losses"),
+                "recent_realized_pnl": recent_stats.get("realized_pnl"),
+                "recent_window_days": _FOLLOWED_WALLET_STATS_DAYS,
+                "recent_winrate_status": "low"
+                if _coerce_float(recent_winrate) is not None and (_coerce_float(recent_winrate) or 0) < _BENCH_MIN_30D_WINRATE
+                else "ok",
+                "recent_stats_source": recent_stats.get("source"),
+                "lifetime_winrate": lifetime_stats.get("winrate"),
+                "lifetime_closed_count": lifetime_stats.get("closed_count"),
+                "lifetime_wins": lifetime_stats.get("wins"),
+                "lifetime_losses": lifetime_stats.get("losses"),
+                "lifetime_realized_pnl": lifetime_stats.get("realized_pnl"),
+                "lifetime_stats_source": lifetime_stats.get("source"),
+            }
+        )
+    return rows
+
+
 def _bench_losing_wallets(
     *,
     followed_wallets: list[dict[str, Any]],
@@ -1094,6 +1420,9 @@ def _bench_losing_wallets(
             "address": normalized,
             "address_key": normalized.removeprefix("0x"),
             "label": wallet.get("label") or _known_wallet_label(normalized),
+            "follow_order": wallet.get("follow_order"),
+            "follow_order_label": wallet.get("follow_order_label"),
+            "follow_order_source": "original_follow_order",
             "source": wallet.get("source"),
             "benched_at": datetime.now(tz=UTC).isoformat(),
             "reason": decision,
@@ -1103,6 +1432,17 @@ def _bench_losing_wallets(
             "week_losses": wallet.get("week_losses"),
             "week_closed_count": wallet.get("week_closed_count"),
             "week_realized_pnl": wallet.get("week_realized_pnl"),
+            "recent_window_days": _FOLLOWED_WALLET_STATS_DAYS,
+            "recent_winrate": wallet.get("recent_winrate"),
+            "recent_wins": wallet.get("recent_wins"),
+            "recent_losses": wallet.get("recent_losses"),
+            "recent_closed_count": wallet.get("recent_closed_count"),
+            "recent_realized_pnl": wallet.get("recent_realized_pnl"),
+            "lifetime_winrate": wallet.get("lifetime_winrate"),
+            "lifetime_wins": wallet.get("lifetime_wins"),
+            "lifetime_losses": wallet.get("lifetime_losses"),
+            "lifetime_closed_count": wallet.get("lifetime_closed_count"),
+            "lifetime_realized_pnl": wallet.get("lifetime_realized_pnl"),
             "status": "benched",
         }
         newly_benched.append(normalized)
@@ -1122,19 +1462,34 @@ def _bench_losing_wallets(
 
 
 def _bench_decision(wallet: dict[str, Any]) -> str | None:
-    realized_pnl = _coerce_float(wallet.get("week_realized_pnl"))
-    losses = _coerce_int(wallet.get("week_losses")) or 0
-    winrate = _coerce_float(wallet.get("week_winrate"))
-    if realized_pnl is not None and realized_pnl <= _BENCH_LOSS_USD_THRESHOLD:
-        return f"7d realized PnL {realized_pnl:.2f} <= {_BENCH_LOSS_USD_THRESHOLD:.2f}."
+    week_realized_pnl = _coerce_float(wallet.get("week_realized_pnl"))
+    realized_pnl = _coerce_float(wallet.get("recent_realized_pnl"))
+    winrate = _coerce_float(wallet.get("recent_winrate"))
+    lifetime_closed_count = _coerce_float(wallet.get("lifetime_closed_count"))
+    lifetime_winrate = _coerce_float(wallet.get("lifetime_winrate"))
+    lifetime_realized_pnl = _coerce_float(wallet.get("lifetime_realized_pnl"))
+    if week_realized_pnl is not None and week_realized_pnl < 0:
+        return f"7d realized PnL {week_realized_pnl:.2f} < 0.00."
+    if realized_pnl is not None and realized_pnl < _BENCH_MIN_30D_REALIZED_PNL_USD:
+        return f"30d realized PnL {realized_pnl:.2f} < {_BENCH_MIN_30D_REALIZED_PNL_USD:.2f}."
     if (
         realized_pnl is not None
-        and realized_pnl < 0
-        and losses >= _BENCH_LOSS_COUNT_THRESHOLD
+        and realized_pnl < _BENCH_LOW_30D_PNL_USD
         and winrate is not None
-        and winrate < _BENCH_WINRATE_THRESHOLD
+        and winrate < _BENCH_LOW_30D_PNL_MIN_WINRATE
     ):
-        return f"7d losses {losses} with winrate {winrate:.1%} and negative realized PnL."
+        return (
+            f"30d realized PnL {realized_pnl:.2f} < {_BENCH_LOW_30D_PNL_USD:.2f} "
+            f"requires 30d winrate >= {_BENCH_LOW_30D_PNL_MIN_WINRATE:.1%} ({winrate:.1%})."
+        )
+    if winrate is not None and winrate < _BENCH_MIN_30D_WINRATE:
+        return f"30d winrate {winrate:.1%} < {_BENCH_MIN_30D_WINRATE:.1%}."
+    if lifetime_closed_count is not None and lifetime_closed_count < _BENCH_MIN_LIFETIME_CLOSED_BETS:
+        return f"lifetime closed bets {lifetime_closed_count:.0f} < {_BENCH_MIN_LIFETIME_CLOSED_BETS}."
+    if lifetime_winrate is not None and lifetime_winrate < _BENCH_MIN_LIFETIME_WINRATE:
+        return f"lifetime winrate {lifetime_winrate:.1%} < {_BENCH_MIN_LIFETIME_WINRATE:.1%}."
+    if lifetime_realized_pnl is not None and lifetime_realized_pnl <= 0:
+        return f"lifetime realized PnL {lifetime_realized_pnl:.2f} <= 0.00."
     return None
 
 
@@ -1150,6 +1505,8 @@ def _build_followed_wallets(
     blocked_wallets: list[str],
     benched_wallets: list[dict[str, Any]],
     hook_latest: dict[str, Any],
+    wallet_order: dict[str, int],
+    wallet_added_at: dict[str, str],
     warnings: list[str],
 ) -> list[dict[str, Any]]:
     blocked_set = {wallet.lower() for wallet in blocked_wallets}
@@ -1176,17 +1533,31 @@ def _build_followed_wallets(
     pinned_set = {wallet.lower() for wallet in pinned_wallets}
 
     rows: list[dict[str, Any]] = []
-    for follow_order, wallet in enumerate(ordered, start=1):
+    for wallet in ordered:
         normalized = wallet.lower()
+        follow_order = wallet_order.get(normalized)
+        if follow_order is None:
+            follow_order = len(rows) + 1
         stats = wallet_stats.get(normalized, {})
-        recent_stats = _build_recent_wallet_stats(
+        closed_rows = _fetch_wallet_closed_position_rows(
             wallet=normalized,
-            window_days=_FOLLOWED_WALLET_STATS_DAYS,
             warnings=warnings,
         )
+        week_stats = _summarize_recent_wallet_stats(
+            closed_rows,
+            window_days=_BENCH_LOOKBACK_DAYS,
+        )
+        recent_stats = _summarize_recent_wallet_stats(
+            closed_rows,
+            window_days=_FOLLOWED_WALLET_STATS_DAYS,
+        )
+        lifetime_stats = _summarize_lifetime_wallet_stats(closed_rows)
         source = "manual" if normalized in manual_set else "auto"
         recent_winrate = recent_stats.get("winrate")
         recent_realized_pnl = recent_stats.get("realized_pnl")
+        week_winrate = week_stats.get("winrate")
+        week_realized_pnl = week_stats.get("realized_pnl")
+        lifetime_winrate = lifetime_stats.get("winrate")
         rows.append(
             {
                 "address": wallet,
@@ -1194,6 +1565,8 @@ def _build_followed_wallets(
                 "label": _known_wallet_label(wallet),
                 "follow_order": follow_order,
                 "follow_order_label": f"#{follow_order:02d}",
+                "follow_order_source": "chronological_wallet_order" if normalized in wallet_order else "display_order",
+                "follow_added_at": wallet_added_at.get(normalized),
                 "source": source,
                 "status": "missing_recent_trade" if normalized in missing else "active",
                 "is_manual": normalized in manual_set,
@@ -1206,18 +1579,25 @@ def _build_followed_wallets(
                 "recent_losses": recent_stats.get("losses"),
                 "recent_realized_pnl": recent_realized_pnl,
                 "recent_window_days": _FOLLOWED_WALLET_STATS_DAYS,
-                "recent_winrate_status": "low" if _coerce_float(recent_winrate) is not None and (_coerce_float(recent_winrate) or 0) < 0.8 else "ok",
+                "recent_winrate_status": "low" if _coerce_float(recent_winrate) is not None and (_coerce_float(recent_winrate) or 0) < _BENCH_MIN_30D_WINRATE else "ok",
                 "recent_stats_source": recent_stats.get("source"),
-                "week_winrate": recent_winrate,
-                "week_closed_count": recent_stats.get("closed_count"),
-                "week_wins": recent_stats.get("wins"),
-                "week_losses": recent_stats.get("losses"),
-                "week_realized_pnl": recent_realized_pnl,
-                "week_window_days": _FOLLOWED_WALLET_STATS_DAYS,
-                "week_winrate_status": "low" if _coerce_float(recent_winrate) is not None and (_coerce_float(recent_winrate) or 0) < 0.8 else "ok",
-                "week_stats_source": recent_stats.get("source"),
+                "week_winrate": week_winrate,
+                "week_closed_count": week_stats.get("closed_count"),
+                "week_wins": week_stats.get("wins"),
+                "week_losses": week_stats.get("losses"),
+                "week_realized_pnl": week_realized_pnl,
+                "week_window_days": _BENCH_LOOKBACK_DAYS,
+                "week_winrate_status": "low" if _coerce_float(week_winrate) is not None and (_coerce_float(week_winrate) or 0) < _BENCH_MIN_30D_WINRATE else "ok",
+                "week_stats_source": week_stats.get("source"),
                 "realized_pnl": recent_realized_pnl,
-                "lifetime_realized_pnl": stats.get("realized_pnl") or stats.get("realized_pnl_usd"),
+                "lifetime_winrate": lifetime_winrate,
+                "lifetime_closed_count": lifetime_stats.get("closed_count"),
+                "lifetime_wins": lifetime_stats.get("wins"),
+                "lifetime_losses": lifetime_stats.get("losses"),
+                "lifetime_realized_pnl": lifetime_stats.get("realized_pnl")
+                if lifetime_stats.get("realized_pnl") is not None
+                else stats.get("realized_pnl") or stats.get("realized_pnl_usd"),
+                "lifetime_stats_source": lifetime_stats.get("source"),
                 "last_trade_at": stats.get("last_trade_at") or stats.get("last_seen_at"),
                 "recommendation": "watch" if normalized in missing else "keep",
             }
@@ -1225,33 +1605,68 @@ def _build_followed_wallets(
     return rows
 
 
-def _build_recent_wallet_stats(*, wallet: str, window_days: int, warnings: list[str]) -> dict[str, Any]:
-    cutoff = datetime.now(tz=UTC).timestamp() - (max(1, window_days) * 24 * 60 * 60)
+def _fetch_wallet_closed_position_rows(*, wallet: str, warnings: list[str]) -> list[dict[str, Any]] | None:
     try:
-        rows = _fetch_data_api_list(
-            "/closed-positions",
-            {
-                "user": wallet,
-                "limit": 200,
-                "sortBy": "REALIZEDPNL",
-                "sortDirection": "DESC",
-            },
-        )
+        page_size = 200
+        rows: list[dict[str, Any]] = []
+        seen_pages: set[str] = set()
+        for offset in range(0, _MAX_WALLET_CLOSED_POSITION_ROWS, page_size):
+            page = _fetch_data_api_list(
+                "/closed-positions",
+                {
+                    "user": wallet,
+                    "limit": page_size,
+                    "offset": offset,
+                    "sortBy": "TIMESTAMP",
+                    "sortDirection": "DESC",
+                },
+            )
+            if not page:
+                break
+            page_fingerprint = json.dumps(page, ensure_ascii=True, sort_keys=True)
+            if page_fingerprint in seen_pages:
+                break
+            seen_pages.add(page_fingerprint)
+            rows.extend(page)
+            if len(page) < page_size:
+                break
+        return rows
     except Exception as exc:  # noqa: BLE001
         warnings.append(f"weekly_wallet_stats:{wallet}: {exc.__class__.__name__}")
+        return None
+
+
+def _build_recent_wallet_stats(*, wallet: str, window_days: int, warnings: list[str]) -> dict[str, Any]:
+    rows = _fetch_wallet_closed_position_rows(wallet=wallet, warnings=warnings)
+    return _summarize_recent_wallet_stats(rows, window_days=window_days)
+
+
+def _summarize_recent_wallet_stats(
+    rows: list[dict[str, Any]] | None,
+    *,
+    window_days: int,
+) -> dict[str, Any]:
+    if rows is None:
         return {"source": "unavailable", "closed_count": 0, "wins": 0, "losses": 0, "winrate": None}
 
-    recent: list[dict[str, Any]] = []
-    for row in rows:
-        ts = _position_time(row)
-        if ts is None or ts < cutoff:
-            continue
-        recent.append(row)
+    cutoff = datetime.now(tz=UTC).timestamp() - (max(1, window_days) * 24 * 60 * 60)
+    return _summarize_wallet_stats(
+        [row for row in rows if (ts := _position_time(row)) is not None and ts >= cutoff],
+        source="data_api_closed_positions_timestamp",
+    )
 
+
+def _summarize_lifetime_wallet_stats(rows: list[dict[str, Any]] | None) -> dict[str, Any]:
+    if rows is None:
+        return {"source": "unavailable", "closed_count": 0, "wins": 0, "losses": 0, "winrate": None}
+    return _summarize_wallet_stats(rows, source="data_api_closed_positions_lifetime")
+
+
+def _summarize_wallet_stats(rows: list[dict[str, Any]], *, source: str) -> dict[str, Any]:
     wins = 0
     losses = 0
     realized_pnl = 0.0
-    for row in recent:
+    for row in rows:
         pnl = _coerce_float(
             row.get("realizedPnl")
             or row.get("realized_pnl")
@@ -1268,8 +1683,8 @@ def _build_recent_wallet_stats(*, wallet: str, window_days: int, warnings: list[
 
     total = wins + losses
     return {
-        "source": "data_api_closed_positions",
-        "closed_count": len(recent),
+        "source": source,
+        "closed_count": len(rows),
         "wins": wins,
         "losses": losses,
         "realized_pnl": round(realized_pnl, 4),
@@ -1324,18 +1739,18 @@ def _wallet_stats_by_address(hook_latest: dict[str, Any]) -> dict[str, dict[str,
 
 def _known_wallet_label(address: str) -> str:
     labels = {
-        "0xe6caba8578c6c2d53cf31f283601888adc92b27a": "Backfill Alpha",
-        "0x0dba1031b49144fc304ceb51b1b4ffbf955371e9": "Core Alpha 1",
-        "0xb2a3623364c33561d8312e1edb79eb941c798510": "Core Alpha 2",
+        "0xe6caba8578c6c2d53cf31f283601888adc92b27a": "Pog Mirror",
+        "0x0dba1031b49144fc304ceb51b1b4ffbf955371e9": "Dzibra Dental",
+        "0xb2a3623364c33561d8312e1edb79eb941c798510": "aekghas Debtor",
         "0x048215305cbcf7cc790735bf00119551d75c6b0a": "Liquidity Alpha",
-        "0x9d84ce0306f8551e02efef1680475fc0f1dc1344": "Core Alpha 3",
-        "0xd1c769317bd15de7768a70d0214cf0bbcc531d2b": "Research Alpha 1",
+        "0x9d84ce0306f8551e02efef1680475fc0f1dc1344": "ImJustKen Edge",
+        "0xd1c769317bd15de7768a70d0214cf0bbcc531d2b": "033 Oracle",
         "0x204f72f35326db932158cba6adff0b9a1da95e14": "Fast Tony",
-        "0xcbab47f889ffffbb603f600a5feeb0eca0cc9a8a": "Research Alpha 2",
-        "0x97d37d16d1774785197bfa23ffed625a8e493f3c": "Research Alpha 3",
+        "0xcbab47f889ffffbb603f600a5feeb0eca0cc9a8a": "ameame Toolsmith",
+        "0x97d37d16d1774785197bfa23ffed625a8e493f3c": "Glucky Motion",
         "0x0c3c6cedfc55e5977fd9ad1221b75d25c62a5eea": "Research Alpha 4",
-        "0xff928ebc0d161b965f2ff00ee07ad2c18dccd07c": "Research Alpha 5",
-        "0x7750f616763150cd5388abdd2ce3700b8d7e5226": "Research Alpha 6",
+        "0xff928ebc0d161b965f2ff00ee07ad2c18dccd07c": "strawberrypig Diam",
+        "0x7750f616763150cd5388abdd2ce3700b8d7e5226": "Paltry Escalator",
         "0xbd920bf7859cd3ceb4f55d223a56d4cee8783482": "Research Alpha 7",
         "0x88aa565554ca0d3f2d5c9be4f8e0b9d8b8c6ea6f": "Research Alpha 8",
         "0xbea2145ea711825e4f26759355e08f527ea4eb63": "Benched Alpha",
@@ -1599,6 +2014,7 @@ def _build_mirror_feed(
     agents_root: Path,
     watcher_root: Path,
     hook_latest: dict[str, Any],
+    wallet_order: dict[str, int],
     warnings: list[str],
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -1617,16 +2033,22 @@ def _build_mirror_feed(
             _coerce_int(row.get(key)) for key in ("source_actions_count", "selected_actions_count", "attempted_count", "executed_count", "failed_count")
         ):
             continue
+        wallet = row.get("source_wallet") or row.get("wallet")
         rows.append(
             {
                 "time": row.get("created_at") or row.get("timestamp") or row.get("generated_at"),
                 "type": row.get("type") or row.get("action") or row.get("event_type") or "ledger",
                 "market": row.get("market") or row.get("title") or row.get("question"),
                 "outcome": row.get("outcome"),
-                "wallet": row.get("source_wallet") or row.get("wallet"),
+                "wallet": wallet,
+                **_wallet_display_fields(wallet, wallet_order=wallet_order),
                 "amount": row.get("amount_usd") or row.get("notional_usd") or row.get("stake_usd") or row.get("order_usd"),
                 "status": row.get("status") or row.get("result") or row.get("execution_mode"),
-                "reason": row.get("reason") or row.get("skip_reason") or row.get("failure_reason"),
+                "reason": row.get("reason") or row.get("skip_reason") or row.get("failure_reason") or row.get("error_detail") or row.get("error"),
+                "shares": row.get("shares"),
+                "entry_price": row.get("entry_price"),
+                "order_price": row.get("order_price"),
+                "source_notional_usd": row.get("source_notional_usd"),
                 "source_timestamp": row.get("source_timestamp"),
                 "source_time": _iso_from_epoch(_coerce_float(row.get("source_timestamp"))) if _coerce_float(row.get("source_timestamp")) is not None else None,
                 "source": "trade_ledger_72h",
@@ -1637,16 +2059,22 @@ def _build_mirror_feed(
     if isinstance(selected_actions, list):
         for action in selected_actions[:_MAX_LIST_ITEMS]:
             if isinstance(action, dict):
+                wallet = action.get("source_wallet") or action.get("wallet")
                 rows.append(
                     {
                         "time": hook_latest.get("generated_at"),
                         "type": action.get("action") or action.get("side") or "selected",
                         "market": action.get("market") or action.get("title") or action.get("question"),
                         "outcome": action.get("outcome"),
-                        "wallet": action.get("source_wallet") or action.get("wallet"),
+                        "wallet": wallet,
+                        **_wallet_display_fields(wallet, wallet_order=wallet_order),
                         "amount": action.get("order_usd") or action.get("amount_usd"),
                         "status": "selected",
                         "reason": None,
+                        "shares": action.get("shares"),
+                        "entry_price": action.get("entry_price"),
+                        "order_price": action.get("order_price"),
+                        "source_notional_usd": action.get("source_notional_usd"),
                         "source_timestamp": action.get("source_timestamp"),
                         "source_time": _iso_from_epoch(_coerce_float(action.get("source_timestamp"))) if _coerce_float(action.get("source_timestamp")) is not None else None,
                         "source": "latest_hook",
@@ -1659,6 +2087,24 @@ def _build_mirror_feed(
         if row.get("market") or row.get("wallet") or row.get("status") not in (None, "", "live")
     ]
     return sorted(visible_rows, key=lambda row: _activity_timestamp(row) or 0)[-_MAX_OPS_FEED_EVENTS:]
+
+
+def _wallet_display_fields(wallet: Any, *, wallet_order: dict[str, int]) -> dict[str, Any]:
+    normalized = _normalize_wallet_optional(wallet)
+    if normalized is None:
+        return {
+            "wallet_label": None,
+            "wallet_short": wallet,
+            "follow_order": None,
+            "follow_order_label": None,
+        }
+    follow_order = wallet_order.get(normalized)
+    return {
+        "wallet_label": _known_wallet_label(normalized),
+        "wallet_short": _short_wallet(normalized),
+        "follow_order": follow_order,
+        "follow_order_label": f"#{follow_order:02d}" if follow_order is not None else None,
+    }
 
 
 def _build_ops_performance(
@@ -1812,13 +2258,13 @@ def _build_risk_flags(
             )
         winrate = _coerce_float(wallet.get("recent_winrate") or wallet.get("week_winrate"))
         window_days = _coerce_int(wallet.get("recent_window_days") or wallet.get("week_window_days")) or _FOLLOWED_WALLET_STATS_DAYS
-        if winrate is not None and winrate < 0.8:
+        if winrate is not None and winrate < _BENCH_MIN_30D_WINRATE:
             flags.append(
                 {
                     "severity": "warning",
                     "wallet": wallet.get("address"),
                     "label": wallet.get("label"),
-                    "reason": f"{window_days}-day winrate below 80% ({winrate:.2%}).",
+                    "reason": f"{window_days}-day winrate below {_BENCH_MIN_30D_WINRATE:.0%} ({winrate:.2%}).",
                     "recommendation": "review before further copying",
                 }
             )
@@ -2558,6 +3004,10 @@ def _sanitize_text_excerpt(value: str, *, limit: int) -> str:
 def _mask_address_match(match: re.Match[str]) -> str:
     address = match.group(0)
     return f"{address[:6]}...{address[-4:]}"
+
+
+def _short_wallet(address: str) -> str:
+    return f"{address[:6]}...{address[-4:]}" if _ADDRESS_RE.fullmatch(address) else address
 
 
 def _relative_path(path: Path, root: Path) -> str:
