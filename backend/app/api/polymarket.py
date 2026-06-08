@@ -10,21 +10,35 @@ from app.api.deps import SESSION_DEP, require_org_member, require_user_auth
 from app.core.auth import AuthContext
 from app.core.config import settings
 from app.schemas.polymarket import (
+    PolymarketCopyConfigResponse,
+    PolymarketCopyConfigUpdateRequest,
+    PolymarketFollowWalletRequest,
+    PolymarketFollowWalletResponse,
+    PolymarketFollowedWalletPositionsResponse,
     PolymarketJournalResponse,
     PolymarketLearnerResponse,
     PolymarketPortfolioResponse,
+    PolymarketRemoveWalletResponse,
+    PolymarketRestoreBenchedWalletResponse,
     PolymarketSignalsResponse,
     PolymarketStatusResponse,
+    PolymarketV2OpsResponse,
     PolymarketWhaleHookResponse,
 )
 from app.services.organizations import OrganizationContext
 from app.services.polymarket import (
+    add_manual_follow_wallet,
+    build_followed_wallet_positions_payload,
     build_journal_payload,
     build_learner_payload,
     build_portfolio_payload,
     build_signals_payload,
     build_status_payload,
+    build_v2_ops_payload,
     build_whale_hook_payload,
+    remove_follow_wallet,
+    restore_benched_wallet,
+    update_copy_config_order_usd,
 )
 
 if TYPE_CHECKING:
@@ -117,3 +131,76 @@ async def get_polymarket_learner(
 ) -> PolymarketLearnerResponse:
     """Return paper-trading and learner update artifacts for the dashboard."""
     return PolymarketLearnerResponse.model_validate(build_learner_payload())
+
+
+@router.get("/v2/ops", response_model=PolymarketV2OpsResponse)
+async def get_polymarket_v2_ops(
+    _org_ctx: OrganizationContext = POLYMARKET_ACCESS_DEP,
+) -> PolymarketV2OpsResponse:
+    """Return the read-only Polymarket operations dashboard v2 payload."""
+    return PolymarketV2OpsResponse.model_validate(build_v2_ops_payload())
+
+
+@router.get("/v2/followed-wallets/{wallet}/positions", response_model=PolymarketFollowedWalletPositionsResponse)
+async def get_polymarket_followed_wallet_positions(
+    wallet: str,
+    _org_ctx: OrganizationContext = POLYMARKET_ACCESS_DEP,
+) -> PolymarketFollowedWalletPositionsResponse:
+    """Fetch current public positions for one followed wallet."""
+    try:
+        payload = build_followed_wallet_positions_payload(wallet)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return PolymarketFollowedWalletPositionsResponse.model_validate(payload)
+
+
+@router.post("/v2/followed-wallets", response_model=PolymarketFollowWalletResponse)
+async def add_polymarket_followed_wallet(
+    request: PolymarketFollowWalletRequest,
+    _org_ctx: OrganizationContext = POLYMARKET_ACCESS_DEP,
+) -> PolymarketFollowWalletResponse:
+    """Add a wallet to the manual follow list without placing trades."""
+    try:
+        payload = add_manual_follow_wallet(request.wallet)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return PolymarketFollowWalletResponse.model_validate(payload)
+
+
+@router.delete("/v2/followed-wallets/{wallet}", response_model=PolymarketRemoveWalletResponse)
+async def remove_polymarket_followed_wallet(
+    wallet: str,
+    _org_ctx: OrganizationContext = POLYMARKET_ACCESS_DEP,
+) -> PolymarketRemoveWalletResponse:
+    """Remove a wallet from the follow list without placing trades."""
+    try:
+        payload = remove_follow_wallet(wallet)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return PolymarketRemoveWalletResponse.model_validate(payload)
+
+
+@router.post("/v2/benched-wallets/{wallet}/restore", response_model=PolymarketRestoreBenchedWalletResponse)
+async def restore_polymarket_benched_wallet(
+    wallet: str,
+    _org_ctx: OrganizationContext = POLYMARKET_ACCESS_DEP,
+) -> PolymarketRestoreBenchedWalletResponse:
+    """Move a benched wallet back into active manual follow."""
+    try:
+        payload = restore_benched_wallet(wallet)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return PolymarketRestoreBenchedWalletResponse.model_validate(payload)
+
+
+@router.post("/v2/copy-config", response_model=PolymarketCopyConfigResponse)
+async def update_polymarket_copy_config(
+    request: PolymarketCopyConfigUpdateRequest,
+    _org_ctx: OrganizationContext = POLYMARKET_ACCESS_DEP,
+) -> PolymarketCopyConfigResponse:
+    """Update local copy-trading config used by the next follow cycle."""
+    try:
+        payload = update_copy_config_order_usd(request.order_usd)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return PolymarketCopyConfigResponse.model_validate(payload)

@@ -440,6 +440,10 @@ def _matches_local_password(token: str) -> bool:
     return compare_digest(digest, expected_hash)
 
 
+def _constant_time_text_equals(left: str, right: str) -> bool:
+    return compare_digest(left.encode("utf-8"), right.encode("utf-8"))
+
+
 async def _resolve_local_auth_context(
     *,
     request: Request,
@@ -452,7 +456,7 @@ async def _resolve_local_auth_context(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         return None
     expected = settings.local_auth_token.strip()
-    token_matches = bool(expected and compare_digest(token, expected))
+    token_matches = bool(expected and _constant_time_text_equals(token, expected))
     password_matches = _matches_local_password(token)
     if not token_matches and not password_matches:
         if required:

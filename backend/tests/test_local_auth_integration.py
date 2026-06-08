@@ -80,6 +80,12 @@ async def test_local_auth_users_me_requires_and_accepts_valid_token(
             )
             assert invalid.status_code == 401
 
+            invalid_unicode = await client.get(
+                "/api/v1/users/me",
+                headers={"Authorization": b"Bearer feil-token-\xc3\xa6"},
+            )
+            assert invalid_unicode.status_code == 401
+
             authorized = await client.get(
                 "/api/v1/users/me",
                 headers={"Authorization": "Bearer integration-token"},

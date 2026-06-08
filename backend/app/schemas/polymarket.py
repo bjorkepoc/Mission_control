@@ -101,3 +101,80 @@ class PolymarketLearnerResponse(SQLModel):
     research_policy_excerpt: str | None = None
     source_files: list[PolymarketReportFileStatus] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+class PolymarketV2OpsResponse(SQLModel):
+    """Purpose-built read-only Polymarket operations dashboard payload."""
+
+    generated_at: str
+    overview: dict[str, Any] = Field(default_factory=dict)
+    service: dict[str, Any] = Field(default_factory=dict)
+    followed_wallets: list[Any] = Field(default_factory=list)
+    benched_wallets: list[Any] = Field(default_factory=list)
+    positions: list[Any] = Field(default_factory=list)
+    mirror_feed: list[Any] = Field(default_factory=list)
+    risk_flags: list[Any] = Field(default_factory=list)
+    performance: dict[str, Any] = Field(default_factory=dict)
+    source_files: list[PolymarketReportFileStatus] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PolymarketFollowedWalletPositionsResponse(SQLModel):
+    """On-demand public position snapshot for a followed wallet."""
+
+    generated_at: str
+    wallet: str
+    label: str
+    summary: dict[str, Any] = Field(default_factory=dict)
+    positions: list[Any] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PolymarketFollowWalletRequest(SQLModel):
+    """Request to add a manually followed Polymarket wallet."""
+
+    wallet: str
+
+
+class PolymarketFollowWalletResponse(SQLModel):
+    """Manual follow-list update result."""
+
+    wallet: str
+    added: bool
+    manual_wallet_count: int
+    pinned_wallet_count: int
+
+
+class PolymarketRemoveWalletResponse(SQLModel):
+    """Follow-list removal result."""
+
+    wallet: str
+    removed: bool
+    blocked: bool
+    manual_wallet_count: int
+    pinned_wallet_count: int
+    blocked_wallet_count: int
+
+
+class PolymarketRestoreBenchedWalletResponse(SQLModel):
+    """Benched wallet restore result."""
+
+    wallet: str
+    restored: bool
+    manual_wallet_count: int
+    pinned_wallet_count: int
+    benched_wallet_count: int
+
+
+class PolymarketCopyConfigUpdateRequest(SQLModel):
+    """Request to update copy-trading dashboard config."""
+
+    order_usd: float
+
+
+class PolymarketCopyConfigResponse(SQLModel):
+    """Copy-trading dashboard config."""
+
+    order_usd: float
+    source_file: str
+    updated_at: str | None = None

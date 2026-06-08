@@ -91,6 +91,11 @@ class Settings(BaseSettings):
     # OpenClaw gateway runtime compatibility
     gateway_min_version: str = "2026.02.9"
 
+    # Jarvis realtime voice configuration
+    openai_api_key: str = ""
+    jarvis_realtime_model: str = "gpt-realtime"
+    jarvis_realtime_voice: str = "verse"
+
     # Logging
     log_level: str = "INFO"
     log_format: str = "text"

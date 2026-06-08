@@ -193,13 +193,25 @@ class GatewaySessionService(OpenClawDBService):
                 unavailable_reason="No provider usage windows were returned.",
             )
 
+        def provider_has_windows(provider: dict[str, object]) -> bool:
+            return any(
+                isinstance(item, dict)
+                for item in cls.as_object_list(provider.get("windows"))
+            )
+
         preferred_provider: dict[str, object] | None = None
-        for provider in providers:
-            if provider.get("provider") == "openai-codex":
-                preferred_provider = provider
+        for provider_name in ("openai-codex", "openai"):
+            for provider in providers:
+                if provider.get("provider") == provider_name and provider_has_windows(provider):
+                    preferred_provider = provider
+                    break
+            if preferred_provider is not None:
                 break
         if preferred_provider is None:
-            preferred_provider = providers[0]
+            preferred_provider = next(
+                (provider for provider in providers if provider_has_windows(provider)),
+                providers[0],
+            )
 
         windows = [
             item

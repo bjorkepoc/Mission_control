@@ -18,7 +18,7 @@ import {
   listBoardMemoryApiV1BoardsBoardIdMemoryGet,
   streamBoardMemoryApiV1BoardsBoardIdMemoryStreamGet,
 } from "@/api/generated/board-memory/board-memory";
-import { ApiError } from "@/api/mutator";
+import { ApiError, customFetch } from "@/api/mutator";
 import { listBoardsApiV1BoardsGet } from "@/api/generated/boards/boards";
 import type { BoardMemoryRead, BoardRead } from "@/api/generated/model";
 import { Markdown } from "@/components/atoms/Markdown";
@@ -64,6 +64,7 @@ type CallModeStatus =
   | "idle"
   | "unsupported";
 type VoiceRouteId =
+  | "realtime-chatgpt"
   | "browser-live"
   | "local-stack"
   | "cloud-realtime"
@@ -87,6 +88,21 @@ type ExperimentTrackCard = {
   cons: string;
   nextTest: string;
 };
+type RealtimeConnectionState =
+  | "unavailable"
+  | "requesting-session"
+  | "connecting"
+  | "live"
+  | "stopping"
+  | "error";
+type JarvisRealtimeSessionResponse = {
+  available: boolean;
+  model: string;
+  voice: string;
+  client_secret?: string | null;
+  expires_at?: number | string | null;
+  reason?: string | null;
+};
 
 const BOARD_CHAT_PAGE_LIMIT = 200;
 const STREAM_FALLBACK_POLL_MS = 15_000;
@@ -101,12 +117,22 @@ const BARGE_IN_CANCEL_COOLDOWN_MS = 1_500;
 const MIC_LEVEL_UI_UPDATE_MS = 90;
 const VOICE_ROUTE_OPTIONS: VoiceRouteOption[] = [
   {
-    id: "browser-live",
-    label: "Browser live voice",
+    id: "realtime-chatgpt",
+    label: "Realtime voice (ChatGPT-style)",
     state: "live-now",
-    summary: "Current MVP path. Browser STT/TTS + board-memory chat route.",
+    summary:
+      "Primary target route. Realtime WebRTC mic-in + natural assistant voice-out with low latency.",
     architecture:
-      "Mic/STT in browser -> board-memory chat -> browser TTS reply (WebRTC bridge planned).",
+      "Mic/WebRTC -> OpenAI realtime session (ephemeral key) -> remote assistant audio + live subtitles.",
+  },
+  {
+    id: "browser-live",
+    label: "Browser live voice fallback",
+    state: "prototype",
+    summary:
+      "Fallback only. Browser SpeechRecognition + SpeechSynthesis + board-memory chat route.",
+    architecture:
+      "Mic/STT in browser -> board-memory chat -> browser TTS reply.",
   },
   {
     id: "local-stack",
@@ -138,27 +164,27 @@ const VOICE_ROUTE_OPTIONS: VoiceRouteOption[] = [
 const EXPERIMENT_TRACK_CARDS: ExperimentTrackCard[] = [
   {
     id: "browser",
-    title: "Browser live / WebRTC-ready",
-    subtitle: "Recommended path",
-    latency: "Low-medium today, lower with WebRTC bridge",
-    privacy: "Browser mic/audio stays local; transcript sent to API",
-    reliability: "Good fallback: manual text always available",
-    buildEffort: "Low now, medium for realtime bridge hardening",
-    pros: "Fast to iterate with existing frontend controls and fallback paths.",
-    cons: "Latency and browser API behavior vary by device and browser.",
-    nextTest: "Implement realtime WebRTC bridge behind feature flag.",
+    title: "Realtime WebRTC route",
+    subtitle: "Target route",
+    latency: "Low latency speech-to-speech",
+    privacy: "Ephemeral browser session key from backend",
+    reliability: "Best interactive voice path when backend key is configured",
+    buildEffort: "Medium with signaling and state handling",
+    pros: "Natural assistant voice out, low latency, live subtitles, barge-in events.",
+    cons: "Depends on backend realtime session availability and browser WebRTC support.",
+    nextTest: "Harden reconnection and interruption UX.",
   },
   {
     id: "hybrid",
-    title: "Research/local-cloud hybrid",
-    subtitle: "Research-inspired path",
-    latency: "Potentially lowest, depends on local/cloud route quality",
-    privacy: "Flexible: local-first possible, cloud path varies by provider",
-    reliability: "Higher ops complexity; route-specific failure handling needed",
-    buildEffort: "Medium-high due transport + infra branching",
-    pros: "Can optimize for privacy or realtime quality based on route selection.",
-    cons: "Needs additional routing, observability, and failure recovery work.",
-    nextTest: "Prototype simulated route telemetry before real audio wiring.",
+    title: "Browser STT/TTS fallback",
+    subtitle: "Fallback only",
+    latency: "Medium and browser-dependent",
+    privacy: "Browser APIs with text sent through board-memory chat",
+    reliability: "Useful fallback when realtime route is unavailable",
+    buildEffort: "Already available",
+    pros: "No backend realtime key needed; keeps chat flow available.",
+    cons: "Not the final natural voice experience.",
+    nextTest: "Keep fallback stable while realtime route hardens.",
   },
 ];
 
@@ -345,7 +371,17 @@ function JarvisLiveContent() {
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [callModeEnabled, setCallModeEnabled] = useState(false);
   const [activeVoiceRouteId, setActiveVoiceRouteId] =
-    useState<VoiceRouteId>("browser-live");
+    useState<VoiceRouteId>("realtime-chatgpt");
+  const [realtimeConnectionState, setRealtimeConnectionState] =
+    useState<RealtimeConnectionState>("unavailable");
+  const [realtimeStatusReason, setRealtimeStatusReason] = useState<string | null>(
+    "Realtime route not started yet.",
+  );
+  const [realtimeInputTranscript, setRealtimeInputTranscript] = useState("");
+  const [realtimeOutputTranscript, setRealtimeOutputTranscript] = useState("");
+  const [realtimeSessionExpiresAt, setRealtimeSessionExpiresAt] = useState<
+    number | string | null
+  >(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState("");
@@ -359,6 +395,10 @@ function JarvisLiveContent() {
     null,
   );
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const realtimePeerRef = useRef<RTCPeerConnection | null>(null);
+  const realtimeDataChannelRef = useRef<RTCDataChannel | null>(null);
+  const realtimeMicStreamRef = useRef<MediaStream | null>(null);
   const micLevelAnimationFrameRef = useRef<number | null>(null);
   const micLevelStreamRef = useRef<MediaStream | null>(null);
   const micLevelAnalyserRef = useRef<AnalyserNode | null>(null);
@@ -393,6 +433,7 @@ function JarvisLiveContent() {
       VOICE_ROUTE_OPTIONS[0],
     [activeVoiceRouteId],
   );
+  const isRealtimeVoiceRoute = activeVoiceRoute.id === "realtime-chatgpt";
   const isBrowserVoiceRoute = activeVoiceRoute.id === "browser-live";
 
   const assistantMessages = useMemo(
@@ -413,8 +454,13 @@ function JarvisLiveContent() {
   const latestAssistantMessageId = latestAssistantMessage?.id ?? null;
   const latestAssistantContent = latestAssistantMessage?.content ?? "";
   const effectiveTtsEnabled = isBrowserVoiceRoute && (callModeEnabled || ttsEnabled);
+  const wordSurfaceContent = isRealtimeVoiceRoute
+    ? realtimeOutputTranscript
+    : latestAssistantContent;
   const subtitleText =
-    latestAssistantContent.trim() ||
+    (isRealtimeVoiceRoute
+      ? realtimeOutputTranscript.trim()
+      : latestAssistantContent.trim()) ||
     "Waiting for assistant response from board chat.";
   const sendDisabledReason = useMemo(() => {
     if (!isSignedIn) return "Sign in required to send.";
@@ -430,6 +476,25 @@ function JarvisLiveContent() {
     if (streamStatus === "fallback") return "Fallback refresh every 15s";
     return "Waiting for stream";
   }, [streamStatus]);
+
+  const realtimeStatusText = useMemo(() => {
+    if (realtimeConnectionState === "requesting-session") {
+      return "Realtime voice: requesting session…";
+    }
+    if (realtimeConnectionState === "connecting") {
+      return "Realtime voice: connecting…";
+    }
+    if (realtimeConnectionState === "live") {
+      return "Realtime voice: live";
+    }
+    if (realtimeConnectionState === "stopping") {
+      return "Realtime voice: stopping…";
+    }
+    if (realtimeConnectionState === "error") {
+      return "Realtime voice: error";
+    }
+    return "Realtime voice: unavailable";
+  }, [realtimeConnectionState]);
 
   const callModeStatus = useMemo<CallModeStatus>(() => {
     if (!callModeEnabled) return "idle";
@@ -732,6 +797,254 @@ function JarvisLiveContent() {
     setMicLevel(0);
   }, []);
 
+  const cleanupRealtimeResources = useCallback(() => {
+    const dataChannel = realtimeDataChannelRef.current;
+    realtimeDataChannelRef.current = null;
+    if (dataChannel) {
+      dataChannel.onopen = null;
+      dataChannel.onclose = null;
+      dataChannel.onerror = null;
+      dataChannel.onmessage = null;
+      if (dataChannel.readyState !== "closed") {
+        dataChannel.close();
+      }
+    }
+
+    const peer = realtimePeerRef.current;
+    realtimePeerRef.current = null;
+    if (peer) {
+      peer.ontrack = null;
+      peer.onconnectionstatechange = null;
+      try {
+        for (const sender of peer.getSenders()) {
+          sender.track?.stop();
+        }
+      } catch {
+        // ignore cleanup errors
+      }
+      if (peer.connectionState !== "closed") {
+        peer.close();
+      }
+    }
+
+    for (const track of realtimeMicStreamRef.current?.getTracks() ?? []) {
+      track.stop();
+    }
+    realtimeMicStreamRef.current = null;
+
+    const remoteAudio = remoteAudioRef.current;
+    if (remoteAudio) {
+      remoteAudio.pause();
+      remoteAudio.srcObject = null;
+    }
+  }, []);
+
+  const stopRealtimeVoice = useCallback(
+    (reason = "Realtime voice stopped.") => {
+      setRealtimeConnectionState("stopping");
+      cleanupRealtimeResources();
+      setRealtimeConnectionState("unavailable");
+      setRealtimeStatusReason(reason);
+      setNotice((current) =>
+        current?.startsWith("Realtime voice live")
+          ? reason
+          : current ?? reason,
+      );
+    },
+    [cleanupRealtimeResources],
+  );
+
+  const startRealtimeVoice = useCallback(async () => {
+    if (!isSignedIn) {
+      setError("Sign in is required before starting realtime voice.");
+      return;
+    }
+    if (typeof window === "undefined") return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setRealtimeConnectionState("unavailable");
+      setRealtimeStatusReason("Browser microphone access is unavailable.");
+      return;
+    }
+
+    cleanupRealtimeResources();
+    setError(null);
+    setNotice(null);
+    setRealtimeInputTranscript("");
+    setRealtimeOutputTranscript("");
+    setRealtimeSessionExpiresAt(null);
+    setRealtimeConnectionState("requesting-session");
+    setRealtimeStatusReason(null);
+
+    try {
+      const sessionResponse = await customFetch<{
+        data: JarvisRealtimeSessionResponse;
+        status: number;
+      }>("/api/v1/jarvis/realtime/session", {
+        method: "POST",
+      });
+      const session = sessionResponse.data;
+      if (!session.available || !session.client_secret) {
+        setRealtimeConnectionState("unavailable");
+        setRealtimeStatusReason(
+          session.reason ?? "Realtime session is unavailable on backend.",
+        );
+        return;
+      }
+
+      setRealtimeSessionExpiresAt(session.expires_at ?? null);
+      setRealtimeConnectionState("connecting");
+
+      const peer = new RTCPeerConnection();
+      realtimePeerRef.current = peer;
+
+      peer.onconnectionstatechange = () => {
+        if (peer.connectionState === "connected") {
+          setRealtimeConnectionState("live");
+          setRealtimeStatusReason(null);
+          setNotice("Realtime voice live: natural voice conversation is active.");
+          return;
+        }
+        if (
+          peer.connectionState === "failed" ||
+          peer.connectionState === "disconnected"
+        ) {
+          setRealtimeConnectionState("error");
+          setRealtimeStatusReason(
+            `Realtime connection ${peer.connectionState}.`,
+          );
+        }
+      };
+
+      peer.ontrack = (event) => {
+        const [remoteStream] = event.streams;
+        const remoteAudio = remoteAudioRef.current;
+        if (!remoteAudio || !remoteStream) return;
+        remoteAudio.srcObject = remoteStream;
+        void remoteAudio.play().catch(() => undefined);
+      };
+
+      const micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      realtimeMicStreamRef.current = micStream;
+      for (const track of micStream.getAudioTracks()) {
+        peer.addTrack(track, micStream);
+      }
+
+      const dataChannel = peer.createDataChannel("oai-events");
+      realtimeDataChannelRef.current = dataChannel;
+      dataChannel.onmessage = (event: MessageEvent<string>) => {
+        let payload: unknown;
+        try {
+          payload = JSON.parse(event.data) as unknown;
+        } catch {
+          return;
+        }
+        if (!payload || typeof payload !== "object") return;
+        const typed = payload as {
+          type?: string;
+          delta?: string;
+          transcript?: string;
+          error?: { message?: string };
+          response?: { status?: string };
+        };
+        const eventType = (typed.type ?? "").toLowerCase();
+        if (
+          eventType === "response.output_audio_transcript.delta" ||
+          eventType === "response.audio_transcript.delta"
+        ) {
+          if (typeof typed.delta === "string" && typed.delta) {
+            setRealtimeOutputTranscript((current) => `${current}${typed.delta}`);
+          }
+          return;
+        }
+        if (
+          eventType === "response.output_audio_transcript.done" ||
+          eventType === "response.audio_transcript.done"
+        ) {
+          if (typeof typed.transcript === "string" && typed.transcript.trim()) {
+            setRealtimeOutputTranscript(typed.transcript.trim());
+          }
+          return;
+        }
+        if (
+          eventType === "conversation.item.input_audio_transcription.delta" ||
+          eventType === "conversation.item.input_audio_transcription.completed"
+        ) {
+          if (typeof typed.transcript === "string") {
+            setRealtimeInputTranscript(typed.transcript.trim());
+          } else if (typeof typed.delta === "string" && typed.delta) {
+            setRealtimeInputTranscript((current) => `${current}${typed.delta}`);
+          }
+          return;
+        }
+        if (eventType === "input_audio_buffer.speech_started") {
+          setNotice("Realtime barge-in: user speech detected.");
+          return;
+        }
+        if (eventType === "input_audio_buffer.speech_stopped") {
+          setNotice("Realtime listening: speech turn captured.");
+          return;
+        }
+        if (eventType === "response.created") {
+          setNotice("Realtime assistant is responding...");
+          return;
+        }
+        if (eventType === "response.done") {
+          const status = typed.response?.status;
+          if (status === "cancelled") {
+            setNotice("Realtime response interrupted.");
+          }
+          return;
+        }
+        if (eventType === "error") {
+          setRealtimeConnectionState("error");
+          setRealtimeStatusReason(
+            typed.error?.message ?? "Realtime event channel returned an error.",
+          );
+        }
+      };
+
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      if (!offer.sdp) {
+        throw new Error("Realtime WebRTC offer did not produce SDP.");
+      }
+
+      const sdpResponse = await fetch(
+        `https://api.openai.com/v1/realtime?model=${encodeURIComponent(session.model)}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.client_secret}`,
+            "Content-Type": "application/sdp",
+          },
+          body: offer.sdp,
+        },
+      );
+      if (!sdpResponse.ok) {
+        throw new Error(`Realtime SDP exchange failed (HTTP ${sdpResponse.status}).`);
+      }
+      const answerSdp = await sdpResponse.text();
+      await peer.setRemoteDescription({
+        type: "answer",
+        sdp: answerSdp,
+      });
+    } catch (err) {
+      cleanupRealtimeResources();
+      setRealtimeConnectionState("error");
+      setRealtimeStatusReason(
+        err instanceof Error
+          ? err.message
+          : "Realtime voice setup failed unexpectedly.",
+      );
+    }
+  }, [cleanupRealtimeResources, isSignedIn]);
+
   useEffect(() => {
     if (!isBrowserVoiceRoute || !callModeEnabled) {
       stopMicLevelMonitor();
@@ -852,16 +1165,46 @@ function JarvisLiveContent() {
   }, [callModeEnabled, isBrowserVoiceRoute, stopMicLevelMonitor, stopSpeakingNow]);
 
   useEffect(() => {
-    if (isBrowserVoiceRoute) {
+    if (isRealtimeVoiceRoute) {
       setNotice((current) =>
-        current?.startsWith("Simulation route:") ? null : current,
+        current?.startsWith("Simulation route:") ||
+        current?.startsWith("Fallback route:")
+          ? null
+          : current,
+      );
+      return;
+    }
+    if (isBrowserVoiceRoute) {
+      setNotice(
+        "Fallback route: browser STT/TTS mode is available, but realtime voice is the target route.",
       );
       return;
     }
     setNotice(
       `Simulation route: ${activeVoiceRoute.label} is prototype/planned. Text still sends through board-memory chat.`,
     );
-  }, [activeVoiceRoute.label, isBrowserVoiceRoute]);
+  }, [activeVoiceRoute.label, isBrowserVoiceRoute, isRealtimeVoiceRoute]);
+
+  useEffect(() => {
+    if (isRealtimeVoiceRoute) return;
+    if (
+      realtimeConnectionState === "live" ||
+      realtimeConnectionState === "connecting" ||
+      realtimeConnectionState === "requesting-session"
+    ) {
+      stopRealtimeVoice("Realtime voice stopped after route change.");
+      return;
+    }
+    cleanupRealtimeResources();
+    if (realtimeConnectionState !== "unavailable") {
+      setRealtimeConnectionState("unavailable");
+    }
+  }, [
+    cleanupRealtimeResources,
+    isRealtimeVoiceRoute,
+    realtimeConnectionState,
+    stopRealtimeVoice,
+  ]);
 
   useEffect(() => {
     if (isBrowserVoiceRoute) return;
@@ -891,8 +1234,9 @@ function JarvisLiveContent() {
         window.speechSynthesis.cancel();
       }
       stopMicLevelMonitor();
+      cleanupRealtimeResources();
     },
-    [stopMicLevelMonitor],
+    [cleanupRealtimeResources, stopMicLevelMonitor],
   );
 
   useEffect(() => {
@@ -957,9 +1301,13 @@ function JarvisLiveContent() {
         });
         setIsThinking(true);
         schedulePostSendRefreshes();
-        if (!isBrowserVoiceRoute) {
+        if (!isRealtimeVoiceRoute && !isBrowserVoiceRoute) {
           setNotice(
             `Simulation route active: ${activeVoiceRoute.label} sent through board-memory chat.`,
+          );
+        } else if (isRealtimeVoiceRoute) {
+          setNotice(
+            "Message posted through board-memory chat while realtime voice stays conversation-only.",
           );
         }
         return true;
@@ -979,6 +1327,7 @@ function JarvisLiveContent() {
       activeVoiceRoute.id,
       activeVoiceRoute.label,
       isBrowserVoiceRoute,
+      isRealtimeVoiceRoute,
       isSending,
       isSignedIn,
       schedulePostSendRefreshes,
@@ -990,7 +1339,9 @@ function JarvisLiveContent() {
     (autoRestart = false) => {
       if (!isBrowserVoiceRoute) {
         setNotice(
-          `Voice route ${activeVoiceRoute.label} is prototype/planned. Use manual send simulation for now.`,
+          isRealtimeVoiceRoute
+            ? "Browser STT/TTS controls are fallback-only. Use realtime Start for the target route."
+            : `Voice route ${activeVoiceRoute.label} is prototype/planned. Use manual send simulation for now.`,
         );
         return;
       }
@@ -1090,7 +1441,13 @@ function JarvisLiveContent() {
         setError("Speech input could not start in this browser session.");
       }
     },
-    [activeVoiceRoute.label, isBrowserVoiceRoute, isListening, sendBoardChatMessage],
+    [
+      activeVoiceRoute.label,
+      isBrowserVoiceRoute,
+      isListening,
+      isRealtimeVoiceRoute,
+      sendBoardChatMessage,
+    ],
   );
 
   useEffect(() => {
@@ -1112,7 +1469,9 @@ function JarvisLiveContent() {
     if (!isBrowserVoiceRoute) {
       setCallModeEnabled(false);
       setNotice(
-        "Voice room runs only on Browser live voice. Prototype routes stay in simulation mode.",
+        isRealtimeVoiceRoute
+          ? "Browser fallback voice room is disabled while realtime route is active."
+          : "Voice room runs only on Browser live voice fallback. Prototype routes stay in simulation mode.",
       );
       return;
     }
@@ -1128,6 +1487,7 @@ function JarvisLiveContent() {
   }, [
     callModeEnabled,
     isBrowserVoiceRoute,
+    isRealtimeVoiceRoute,
     speechRecognitionSupported,
     speechSynthesisSupported,
   ]);
@@ -1213,6 +1573,11 @@ function JarvisLiveContent() {
     },
     [sendPrompt],
   );
+  const realtimeCanStop =
+    realtimeConnectionState === "live" ||
+    realtimeConnectionState === "connecting" ||
+    realtimeConnectionState === "requesting-session";
+  const realtimeActionDisabled = !isRealtimeVoiceRoute && !realtimeCanStop;
 
   return (
     <main className="mc-page-surface h-[calc(100vh-64px)] min-w-0 overflow-hidden p-3 md:p-5">
@@ -1225,7 +1590,7 @@ function JarvisLiveContent() {
               </span>
               <div>
                 <p className="mc-eyebrow text-[10px] font-semibold uppercase tracking-[0.28em]">
-                  Live Voice Cockpit MVP
+                  Live Voice Cockpit
                 </p>
                 <h1 className="mc-title-text text-xl font-semibold tracking-tight md:text-2xl">
                   Jarvis Voice Room
@@ -1240,15 +1605,17 @@ function JarvisLiveContent() {
                 {activeVoiceRoute.label}
               </span>
               <span className="mc-status-pill rounded-full border px-3 py-1">
-                {callModeStatusText}
+                {isRealtimeVoiceRoute ? realtimeStatusText : callModeStatusText}
               </span>
               <span className="mc-status-pill rounded-full border px-3 py-1">
                 Text fallback always on
               </span>
               <span className="mc-status-pill rounded-full border px-3 py-1">
-                {isBrowserVoiceRoute
-                  ? "Live voice route"
-                  : "Prototype simulation"}
+                {isRealtimeVoiceRoute
+                  ? "Target route"
+                  : isBrowserVoiceRoute
+                    ? "Fallback route"
+                    : "Prototype simulation"}
               </span>
             </div>
           </div>
@@ -1328,7 +1695,13 @@ function JarvisLiveContent() {
                         {route.label}
                       </span>
                       <span className="mc-status-pill rounded-full border px-2 py-0.5 text-[10px]">
-                        {route.state === "live-now" ? "Live now" : "Prototype/planned"}
+                        {route.id === "realtime-chatgpt"
+                          ? "Target"
+                          : route.id === "browser-live"
+                            ? "Fallback"
+                            : route.state === "live-now"
+                              ? "Live now"
+                              : "Prototype/planned"}
                       </span>
                     </div>
                     <p className="mc-muted-text mt-1">{route.summary}</p>
@@ -1343,75 +1716,119 @@ function JarvisLiveContent() {
             <div className="mc-panel-muted-surface mt-4 rounded-2xl border p-3 text-xs leading-5">
               <p className="mc-title-text font-semibold">Voice controls</p>
               <p className="mc-muted-text mt-1">
-                {isBrowserVoiceRoute
-                  ? "Voice room keeps speech input and reply audio active while using board-memory chat as the single route."
-                  : "Prototype route selected. Voice controls stay in planning/simulation mode; manual send remains active."}
+                {isRealtimeVoiceRoute
+                  ? "Target route: realtime mic and assistant voice stream over WebRTC."
+                  : isBrowserVoiceRoute
+                    ? "Fallback route only: browser SpeechRecognition + SpeechSynthesis."
+                    : "Prototype route selected. Voice controls stay in planning/simulation mode; manual send remains active."}
               </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant={callModeEnabled ? "primary" : "outline"}
-                  size="sm"
-                  onClick={() => setCallModeEnabled((current) => !current)}
-                  disabled={!selectedBoardId || !isBrowserVoiceRoute}
-                >
-                  <Mic className="h-4 w-4" />
-                  {callModeEnabled ? "Stop voice room" : "Start voice room"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => startSpeechInput(false)}
-                  disabled={
-                    !isBrowserVoiceRoute ||
-                    !speechRecognitionSupported ||
-                    callModeEnabled
-                  }
-                >
-                  <Mic className="h-4 w-4" />
-                  {isListening ? "Stop listening" : "Start voice input"}
-                </Button>
-                <Button
-                  type="button"
-                  variant={effectiveTtsEnabled ? "primary" : "outline"}
-                  size="sm"
-                  onClick={() => setTtsEnabled((current) => !current)}
-                  disabled={!isBrowserVoiceRoute || !speechSynthesisSupported}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  {effectiveTtsEnabled ? "TTS on" : "TTS off"}
-                </Button>
-                {isSpeaking ? (
+              <div className="mt-3 rounded-xl border px-2.5 py-2 text-[11px] leading-5">
+                <p className="font-semibold">Realtime voice (ChatGPT-style target)</p>
+                <div className="mt-2 flex flex-wrap gap-2">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant={realtimeCanStop ? "primary" : "outline"}
                     size="sm"
-                    onClick={handleManualSpeechInterrupt}
+                    onClick={() => {
+                      if (realtimeCanStop) {
+                        stopRealtimeVoice("Realtime voice stopped.");
+                      } else {
+                        void startRealtimeVoice();
+                      }
+                    }}
+                    disabled={realtimeActionDisabled}
                   >
-                    <VolumeX className="h-4 w-4" />
-                    Stop Elli speaking
+                    <Mic className="h-4 w-4" />
+                    {realtimeCanStop ? "Stop realtime voice" : "Start realtime voice"}
                   </Button>
+                </div>
+                <p className="mc-muted-text mt-2">{realtimeStatusText}</p>
+                {realtimeStatusReason ? (
+                  <p className="mt-1 text-amber-300">{realtimeStatusReason}</p>
                 ) : null}
+                {realtimeSessionExpiresAt !== null ? (
+                  <p className="mc-muted-text mt-1">
+                    Session expires at: {String(realtimeSessionExpiresAt)}
+                  </p>
+                ) : null}
+                <audio ref={remoteAudioRef} autoPlay className="hidden" />
+                <div className="mt-2 rounded-xl border border-dashed px-2.5 py-2 text-[11px] leading-5">
+                  <p className="font-semibold">Realtime subtitles</p>
+                  <p className="mc-muted-text mt-1">
+                    User: {realtimeInputTranscript || "(waiting for speech)"}
+                  </p>
+                  <p className="mc-muted-text mt-1">
+                    Assistant: {realtimeOutputTranscript || "(waiting for reply)"}
+                  </p>
+                </div>
               </div>
-              <p className="mc-muted-text mt-2 text-[11px]">
-                {callModeStatusText}
-              </p>
-              {callModeEnabled ? (
-                <p className="mc-muted-text mt-1 text-[11px]">
-                  Push-to-talk is paused while voice room handles listening.
-                </p>
-              ) : null}
-              <div className="mt-2 rounded-xl border border-dashed px-2.5 py-2 text-[11px] leading-5">
-                <p className="font-semibold">Live transcript</p>
-                <p className="mc-muted-text mt-1">
-                  I hear... {interimTranscript || "(waiting for speech)"}
-                </p>
-                <p className="mc-muted-text mt-1">
-                  Last heard... {lastFinalTranscript || "(nothing final yet)"}
-                </p>
+
+              <div className="mt-3 rounded-xl border px-2.5 py-2 text-[11px] leading-5">
+                <p className="font-semibold">Browser voice fallback (not final target)</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant={callModeEnabled ? "primary" : "outline"}
+                    size="sm"
+                    onClick={() => setCallModeEnabled((current) => !current)}
+                    disabled={!selectedBoardId || !isBrowserVoiceRoute}
+                  >
+                    <Mic className="h-4 w-4" />
+                    {callModeEnabled ? "Stop fallback voice room" : "Start fallback voice room"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => startSpeechInput(false)}
+                    disabled={
+                      !isBrowserVoiceRoute ||
+                      !speechRecognitionSupported ||
+                      callModeEnabled
+                    }
+                  >
+                    <Mic className="h-4 w-4" />
+                    {isListening ? "Stop listening" : "Start voice input"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={effectiveTtsEnabled ? "primary" : "outline"}
+                    size="sm"
+                    onClick={() => setTtsEnabled((current) => !current)}
+                    disabled={!isBrowserVoiceRoute || !speechSynthesisSupported}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {effectiveTtsEnabled ? "TTS on" : "TTS off"}
+                  </Button>
+                  {isSpeaking ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleManualSpeechInterrupt}
+                    >
+                      <VolumeX className="h-4 w-4" />
+                      Stop Elli speaking
+                    </Button>
+                  ) : null}
+                </div>
+                <p className="mc-muted-text mt-2 text-[11px]">{callModeStatusText}</p>
+                {callModeEnabled ? (
+                  <p className="mc-muted-text mt-1 text-[11px]">
+                    Push-to-talk is paused while fallback voice room handles listening.
+                  </p>
+                ) : null}
+                <div className="mt-2 rounded-xl border border-dashed px-2.5 py-2 text-[11px] leading-5">
+                  <p className="font-semibold">Fallback transcript</p>
+                  <p className="mc-muted-text mt-1">
+                    I hear... {interimTranscript || "(waiting for speech)"}
+                  </p>
+                  <p className="mc-muted-text mt-1">
+                    Last heard... {lastFinalTranscript || "(nothing final yet)"}
+                  </p>
+                </div>
               </div>
-              <div className="mt-2 rounded-xl border border-dashed px-2.5 py-2 text-[11px] leading-5">
+              <div className="mt-3 rounded-xl border border-dashed px-2.5 py-2 text-[11px] leading-5">
                 <p className="font-semibold">{bargeInStatusText}</p>
                 <div className="mt-2 h-2 overflow-hidden rounded-full border">
                   <div
@@ -1427,9 +1844,11 @@ function JarvisLiveContent() {
                 ) : null}
               </div>
               <div className="mt-2 rounded-xl border border-dashed px-2.5 py-2 text-[11px] leading-5">
-                {isBrowserVoiceRoute
-                  ? "Safety note: this mode uses browser STT/TTS. Voice text is sent through board-memory chat, and manual text fallback remains available."
-                  : "Safety note: prototype routes are simulated only. Messages still go through board-memory chat, and no autonomous external audio actions are activated."}
+                {isRealtimeVoiceRoute
+                  ? "Safety note: realtime mode is conversation-only. Board-memory chat/text dispatch remains the safe action layer for any operator actions."
+                  : isBrowserVoiceRoute
+                    ? "Safety note: this is fallback browser STT/TTS only. Voice text is still sent through board-memory chat."
+                    : "Safety note: prototype routes are simulated only. Messages still go through board-memory chat, and no autonomous external audio actions are activated."}
               </div>
               {isBrowserVoiceRoute && !speechRecognitionSupported ? (
                 <p className="mt-2 text-[11px] text-amber-300">
@@ -1447,10 +1866,10 @@ function JarvisLiveContent() {
             <div className="mc-panel-muted-surface mt-4 rounded-2xl border p-3 text-xs leading-5">
               <p className="mc-title-text font-semibold">How to use</p>
               <ol className="mc-muted-text mt-2 list-decimal space-y-1 pl-4">
-                <li>Start voice room and allow microphone access.</li>
-                <li>Speak naturally. Elli answers aloud and subtitles stay visible.</li>
-                <li>Interrupt by speaking (barge-in) or pressing Stop Elli speaking.</li>
-                <li>Use text input + Send anytime if STT or TTS is unavailable.</li>
+                <li>Select Realtime voice (ChatGPT-style) route and start realtime voice.</li>
+                <li>Allow microphone access and speak naturally for low-latency voice turns.</li>
+                <li>Watch live user/assistant subtitles and interrupt naturally by speaking.</li>
+                <li>Use browser fallback controls or text composer if realtime is unavailable.</li>
               </ol>
             </div>
 
@@ -1477,7 +1896,14 @@ function JarvisLiveContent() {
               <p className="mc-title-text font-semibold">Active route</p>
               <p className="mt-1">{selectedBoard?.name ?? "No board selected"}</p>
               <p className="mt-1">Voice route: {activeVoiceRoute.label}</p>
-              <p className="mt-1">Route mode: {isBrowserVoiceRoute ? "Live" : "Prototype/planned"}</p>
+              <p className="mt-1">
+                Route mode:{" "}
+                {isRealtimeVoiceRoute
+                  ? "Target realtime"
+                  : isBrowserVoiceRoute
+                    ? "Fallback browser STT/TTS"
+                    : "Prototype/planned"}
+              </p>
               <p className="mt-1">Source tag: {JARVIS_SOURCE}</p>
             </div>
           </aside>
@@ -1489,8 +1915,8 @@ function JarvisLiveContent() {
                   Assistant subtitle
                 </p>
                 <p className="mc-muted-text text-xs">
-                  Stable readable subtitle + animated word surface from the
-                  latest assistant reply.
+                  Stable readable subtitle + animated word surface from realtime
+                  output (or latest board assistant reply in fallback mode).
                 </p>
               </div>
               <Button
@@ -1504,7 +1930,7 @@ function JarvisLiveContent() {
             </div>
 
             <div className="grid gap-4 border-b p-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-              <JarvisWordSurface latestAssistantContent={latestAssistantContent} />
+              <JarvisWordSurface latestAssistantContent={wordSurfaceContent} />
               <div className="mc-chat-surface rounded-2xl border p-4">
                 <p className="mc-eyebrow text-[10px] font-semibold uppercase tracking-[0.24em]">
                   Latest subtitle
@@ -1533,7 +1959,9 @@ function JarvisLiveContent() {
               ) : null}
               {!isLoadingMessages && assistantMessages.length === 0 ? (
                 <div className="mc-empty-state rounded-2xl border border-dashed px-4 py-8 text-center text-sm">
-                  No assistant replies yet. Send a message to start voice room.
+                  {isRealtimeVoiceRoute
+                    ? "No board-memory assistant replies yet. Realtime subtitles appear above while voice is live."
+                    : "No assistant replies yet. Send a message to start voice room."}
                 </div>
               ) : null}
               <div className="space-y-3">

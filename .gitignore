@@ -3,6 +3,7 @@ http.log
 data/calendar-sync.log
 data/.tasks-snapshot.json
 data/.webhook-debug.log
+tmp/
 
 # Generated Graphify cache; keep graph outputs tracked without status noise.
 graphify-out/cache/

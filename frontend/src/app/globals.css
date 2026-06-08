@@ -421,7 +421,7 @@ body::before {
 
 [data-theme="light"] .bg-slate-900,
 [data-theme="light"] .bg-slate-950 {
-  background-color: var(--surface-strong) !important;
+  background-color: #0f172a !important;
 }
 
 .text-slate-950,
@@ -451,6 +451,80 @@ body::before {
 .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
 .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
   border-color: var(--border) !important;
+}
+
+/* ── Semantic Tailwind color overrides for app themes ───── */
+.bg-emerald-50 {
+  background-color: var(--surface) !important;
+}
+
+.bg-emerald-100,
+.bg-emerald-100\/70 {
+  background-color: var(--surface-muted) !important;
+}
+
+.border-emerald-200,
+.border-emerald-300,
+.border-emerald-700 {
+  border-color: color-mix(in srgb, var(--success) 42%, var(--border)) !important;
+}
+
+.text-emerald-600,
+.text-emerald-700,
+.text-emerald-800 {
+  color: var(--success) !important;
+}
+
+.bg-amber-50 {
+  background-color: var(--surface) !important;
+}
+
+.bg-amber-100,
+.bg-amber-100\/70 {
+  background-color: var(--surface-muted) !important;
+}
+
+.border-amber-200,
+.border-amber-300 {
+  border-color: color-mix(in srgb, var(--warning) 42%, var(--border)) !important;
+}
+
+.text-amber-600,
+.text-amber-700,
+.text-amber-800,
+.text-amber-900,
+.text-amber-950 {
+  color: var(--warning) !important;
+}
+
+.bg-rose-50,
+.bg-rose-50\/70 {
+  background-color: var(--surface) !important;
+}
+
+.bg-rose-100,
+.bg-red-50 {
+  background-color: var(--surface-muted) !important;
+}
+
+.border-rose-200,
+.border-rose-300,
+.border-red-200 {
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border)) !important;
+}
+
+.text-rose-600,
+.text-rose-700,
+.text-rose-800,
+.text-red-600,
+.text-red-700,
+.text-red-800 {
+  color: var(--danger) !important;
+}
+
+.text-indigo-600,
+.text-sky-600 {
+  color: var(--accent-strong) !important;
 }
 
 .ring-slate-200,

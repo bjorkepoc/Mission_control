@@ -387,6 +387,39 @@ async def test_gateway_status_returns_sessions_when_version_compatible(
     assert response.usage.weekly.remaining_pct == 28
 
 
+def test_gateway_usage_summary_prefers_openai_windows_over_provider_error() -> None:
+    usage = GatewaySessionService._summarize_usage(
+        {
+            "updatedAt": 1_780_855_314_612,
+            "providers": [
+                {
+                    "provider": "anthropic",
+                    "displayName": "Claude",
+                    "windows": [],
+                    "error": "HTTP 403: OAuth token does not meet scope requirement user:profile",
+                },
+                {
+                    "provider": "openai",
+                    "displayName": "OpenAI",
+                    "windows": [
+                        {"label": "5h", "usedPercent": 59, "resetAt": 1_780_860_312_000},
+                        {"label": "Week", "usedPercent": 73, "resetAt": 1_781_274_470_000},
+                    ],
+                    "plan": "prolite ($0.00)",
+                },
+            ],
+        },
+    )
+
+    assert usage.provider == "openai"
+    assert usage.provider_display_name == "OpenAI"
+    assert usage.five_hour is not None
+    assert usage.weekly is not None
+    assert usage.five_hour.remaining_pct == 41
+    assert usage.weekly.remaining_pct == 27
+    assert usage.unavailable_reason is None
+
+
 @pytest.mark.asyncio
 async def test_gateway_status_marks_usage_unavailable_when_usage_status_fails(
     monkeypatch: pytest.MonkeyPatch,
