@@ -10,6 +10,7 @@ import time
 import urllib.parse
 import urllib.request
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -27,7 +28,10 @@ _MAX_PLAN_ITEMS = 12
 _MAX_JOURNAL_EVENTS = 20
 _MAX_LEARNER_EVENTS = 12
 _MAX_RESEARCH_EVENTS = 10
-_MAX_OPS_FEED_EVENTS = 60
+_MAX_OPS_FEED_EVENTS = 120
+_MAX_ALL_ACTIVITY_FEED_EVENTS = 80
+_MAX_ALL_ACTIVITY_PER_WALLET = 12
+_MAX_ALL_ACTIVITY_WORKERS = 8
 _MAX_OPS_TIMESERIES = 80
 _MAX_WALLET_POSITIONS = 80
 _OPS_FEED_LOOKBACK_HOURS = 72
@@ -40,6 +44,7 @@ _MAX_LIST_ITEMS = 20
 _MAX_STRING_LENGTH = 220
 _LIVE_REQUEST_TIMEOUT_SECONDS = 6
 _CLOB_CASH_CACHE_TTL_SECONDS = 45
+_ALL_ACTIVITY_CACHE_TTL_SECONDS = 60
 
 _SENSITIVE_KEY_RE = re.compile(
     r"(private|secret|token|password|passphrase|api[_-]?key|env|signature|funder)",
@@ -64,6 +69,7 @@ _STATUS_REPORT_FILES = (
 )
 
 _CLOB_CASH_CACHE: dict[str, tuple[float, dict[str, Any] | None]] = {}
+_ALL_ACTIVITY_CACHE: dict[str, tuple[float, list[dict[str, Any]]]] = {}
 _DEFAULT_COPY_ORDER_USD = 1.50
 _MIN_COPY_ORDER_USD = 0.01
 _MAX_COPY_ORDER_USD = 100.0
@@ -661,12 +667,21 @@ def build_v2_ops_payload() -> dict[str, Any]:
         copy_stats_by_wallet,
         account_total_value=account_total_value,
     )
-    mirror_feed = _build_mirror_feed(
+    copy_mirror_feed = _build_mirror_feed(
         agents_root=agents_root,
         watcher_root=watcher_root,
         hook_latest=hook_latest,
         wallet_order=wallet_order,
         warnings=warnings,
+    )
+    all_activity_feed = _build_all_activity_feed(
+        followed_wallets=followed_wallets,
+        wallet_order=wallet_order,
+        warnings=warnings,
+    )
+    mirror_feed = _merge_copy_and_observed_activity(
+        copy_rows=copy_mirror_feed,
+        observed_rows=all_activity_feed,
     )
     performance = _build_ops_performance(
         watcher_root=watcher_root,
@@ -674,7 +689,7 @@ def build_v2_ops_payload() -> dict[str, Any]:
         warnings=warnings,
     )
     service = _build_ops_service_snapshot(hook_latest=hook_latest)
-    risk_flags = _build_risk_flags(followed_wallets=followed_wallets, hook_latest=hook_latest, mirror_feed=mirror_feed)
+    risk_flags = _build_risk_flags(followed_wallets=followed_wallets, hook_latest=hook_latest, mirror_feed=copy_mirror_feed)
     copy_config = _read_copy_config(agents_root=agents_root, hook_latest=hook_latest, warnings=warnings)
 
     source_files = [
@@ -730,6 +745,7 @@ def build_v2_ops_payload() -> dict[str, Any]:
         "benched_wallets": _sanitize(benched_wallets),
         "positions": _sanitize(positions, key="positions"),
         "mirror_feed": _sanitize(mirror_feed, key="mirror_feed"),
+        "all_activity_feed": _sanitize(all_activity_feed, key="all_activity_feed"),
         "risk_flags": _sanitize(risk_flags),
         "performance": _sanitize(performance),
         "copy_config": _sanitize(copy_config),
@@ -1386,7 +1402,7 @@ def _attach_recent_stats_to_benched_wallets(
                 "week_realized_pnl": week_stats.get("realized_pnl"),
                 "week_window_days": _BENCH_LOOKBACK_DAYS,
                 "week_winrate_status": "low"
-                if _coerce_float(week_winrate) is not None and (_coerce_float(week_winrate) or 0) < _BENCH_MIN_30D_WINRATE
+                if _coerce_float(week_winrate) is not None and (_coerce_float(week_winrate) or 0) <= _BENCH_MIN_30D_WINRATE
                 else "ok",
                 "week_stats_source": week_stats.get("source"),
                 "recent_winrate": recent_winrate,
@@ -1396,7 +1412,7 @@ def _attach_recent_stats_to_benched_wallets(
                 "recent_realized_pnl": recent_stats.get("realized_pnl"),
                 "recent_window_days": _FOLLOWED_WALLET_STATS_DAYS,
                 "recent_winrate_status": "low"
-                if _coerce_float(recent_winrate) is not None and (_coerce_float(recent_winrate) or 0) < _BENCH_MIN_30D_WINRATE
+                if _coerce_float(recent_winrate) is not None and (_coerce_float(recent_winrate) or 0) <= _BENCH_MIN_30D_WINRATE
                 else "ok",
                 "recent_stats_source": recent_stats.get("source"),
                 "lifetime_winrate": lifetime_stats.get("winrate"),
@@ -1500,12 +1516,12 @@ def _bench_decision(wallet: dict[str, Any]) -> str | None:
             f"30d realized PnL {realized_pnl:.2f} < {_BENCH_LOW_30D_PNL_USD:.2f} "
             f"requires 30d winrate >= {_BENCH_LOW_30D_PNL_MIN_WINRATE:.1%} ({winrate:.1%})."
         )
-    if winrate is not None and winrate < _BENCH_MIN_30D_WINRATE:
-        return f"30d winrate {winrate:.1%} < {_BENCH_MIN_30D_WINRATE:.1%}."
+    if winrate is not None and winrate <= _BENCH_MIN_30D_WINRATE:
+        return f"30d winrate {winrate:.1%} <= {_BENCH_MIN_30D_WINRATE:.1%}."
     if lifetime_closed_count is not None and lifetime_closed_count < _BENCH_MIN_LIFETIME_CLOSED_BETS:
         return f"lifetime closed bets {lifetime_closed_count:.0f} < {_BENCH_MIN_LIFETIME_CLOSED_BETS}."
-    if lifetime_winrate is not None and lifetime_winrate < _BENCH_MIN_LIFETIME_WINRATE:
-        return f"lifetime winrate {lifetime_winrate:.1%} < {_BENCH_MIN_LIFETIME_WINRATE:.1%}."
+    if lifetime_winrate is not None and lifetime_winrate <= _BENCH_MIN_LIFETIME_WINRATE:
+        return f"lifetime winrate {lifetime_winrate:.1%} <= {_BENCH_MIN_LIFETIME_WINRATE:.1%}."
     if lifetime_realized_pnl is not None and lifetime_realized_pnl <= 0:
         return f"lifetime realized PnL {lifetime_realized_pnl:.2f} <= 0.00."
     return None
@@ -1611,7 +1627,7 @@ def _build_followed_wallets(
                 "recent_losses": recent_stats.get("losses"),
                 "recent_realized_pnl": recent_realized_pnl,
                 "recent_window_days": _FOLLOWED_WALLET_STATS_DAYS,
-                "recent_winrate_status": "low" if _coerce_float(recent_winrate) is not None and (_coerce_float(recent_winrate) or 0) < _BENCH_MIN_30D_WINRATE else "ok",
+                "recent_winrate_status": "low" if _coerce_float(recent_winrate) is not None and (_coerce_float(recent_winrate) or 0) <= _BENCH_MIN_30D_WINRATE else "ok",
                 "recent_stats_source": recent_stats.get("source"),
                 "week_winrate": week_winrate,
                 "week_closed_count": week_stats.get("closed_count"),
@@ -1619,7 +1635,7 @@ def _build_followed_wallets(
                 "week_losses": week_stats.get("losses"),
                 "week_realized_pnl": week_realized_pnl,
                 "week_window_days": _BENCH_LOOKBACK_DAYS,
-                "week_winrate_status": "low" if _coerce_float(week_winrate) is not None and (_coerce_float(week_winrate) or 0) < _BENCH_MIN_30D_WINRATE else "ok",
+                "week_winrate_status": "low" if _coerce_float(week_winrate) is not None and (_coerce_float(week_winrate) or 0) <= _BENCH_MIN_30D_WINRATE else "ok",
                 "week_stats_source": week_stats.get("source"),
                 "realized_pnl": recent_realized_pnl,
                 "lifetime_winrate": lifetime_winrate,
@@ -2131,6 +2147,135 @@ def _build_mirror_feed(
     return sorted(visible_rows, key=lambda row: _activity_timestamp(row) or 0)[-_MAX_OPS_FEED_EVENTS:]
 
 
+def _build_all_activity_feed(
+    *,
+    followed_wallets: list[dict[str, Any]],
+    wallet_order: dict[str, int],
+    warnings: list[str],
+) -> list[dict[str, Any]]:
+    wallets: list[str] = []
+    seen: set[str] = set()
+    for wallet in followed_wallets:
+        address_key = str(wallet.get("address_key") or "").strip().lower()
+        normalized = f"0x{address_key}" if re.fullmatch(r"[a-f0-9]{40}", address_key) else None
+        if normalized is None:
+            normalized = _normalize_wallet_optional(wallet.get("wallet")) or _normalize_wallet_optional(wallet.get("address"))
+        if normalized is None or normalized in seen:
+            continue
+        seen.add(normalized)
+        wallets.append(normalized)
+
+    cutoff_ts = datetime.now(tz=UTC).timestamp() - (_OPS_FEED_LOOKBACK_HOURS * 60 * 60)
+    rows: list[dict[str, Any]] = []
+    def activities_for(wallet: str) -> tuple[str, list[dict[str, Any]]]:
+        return wallet, _fetch_wallet_activity_cached(wallet=wallet, warnings=warnings)
+
+    workers = min(_MAX_ALL_ACTIVITY_WORKERS, max(1, len(wallets)))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [executor.submit(activities_for, wallet) for wallet in wallets]
+        activity_batches = [future.result() for future in as_completed(futures)]
+
+    for wallet, activities in activity_batches:
+        for activity in activities:
+            event_ts = _activity_timestamp(activity)
+            if event_ts is not None and event_ts < cutoff_ts:
+                continue
+            rows.append(_normalize_wallet_activity(activity, wallet=wallet, wallet_order=wallet_order))
+
+    visible_rows = [
+        row
+        for row in rows
+        if row.get("market") or row.get("wallet") or row.get("status")
+    ]
+    return sorted(visible_rows, key=lambda row: _activity_timestamp(row) or 0)[-_MAX_ALL_ACTIVITY_FEED_EVENTS:]
+
+
+def _merge_copy_and_observed_activity(
+    *,
+    copy_rows: list[dict[str, Any]],
+    observed_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    seen_observed_keys: set[tuple[Any, ...]] = set()
+    for row in copy_rows:
+        rows.append(row)
+        key = _activity_match_key(row)
+        if key is not None:
+            seen_observed_keys.add(key)
+
+    for row in observed_rows:
+        key = _activity_match_key(row)
+        if key is not None and key in seen_observed_keys:
+            continue
+        rows.append(row)
+
+    return sorted(rows, key=lambda row: _activity_timestamp(row) or 0)[-_MAX_OPS_FEED_EVENTS:]
+
+
+def _activity_match_key(row: dict[str, Any]) -> tuple[Any, ...] | None:
+    wallet = _normalize_wallet_optional(row.get("wallet"))
+    title = _normalize_title(row.get("market") or row.get("title") or row.get("question"))
+    outcome = _normalize_outcome(row.get("outcome"))
+    timestamp = _coerce_float(row.get("source_timestamp"))
+    if wallet is None or title is None:
+        return None
+    time_bucket = int(timestamp // 60) if timestamp is not None else None
+    return (wallet, title, outcome, time_bucket)
+
+
+def _fetch_wallet_activity_cached(*, wallet: str, warnings: list[str]) -> list[dict[str, Any]]:
+    cached = _ALL_ACTIVITY_CACHE.get(wallet)
+    now = time.monotonic()
+    if cached is not None and now - cached[0] < _ALL_ACTIVITY_CACHE_TTL_SECONDS:
+        return cached[1]
+
+    try:
+        rows = _fetch_data_api_list(
+            "/activity",
+            {
+                "user": wallet,
+                "limit": _MAX_ALL_ACTIVITY_PER_WALLET,
+            },
+        )
+    except (OSError, TimeoutError, ValueError) as exc:
+        warnings.append(f"all_activity:{_short_wallet(wallet)} unable to fetch ({exc.__class__.__name__}).")
+        rows = []
+    _ALL_ACTIVITY_CACHE[wallet] = (now, rows)
+    return rows
+
+
+def _normalize_wallet_activity(
+    activity: dict[str, Any],
+    *,
+    wallet: str,
+    wallet_order: dict[str, int],
+) -> dict[str, Any]:
+    event_ts = _activity_timestamp(activity)
+    side = activity.get("side") or activity.get("type") or "activity"
+    public_name = activity.get("name") or activity.get("pseudonym")
+    return {
+        "time": _iso_from_epoch(event_ts) if event_ts is not None else None,
+        "type": side,
+        "market": activity.get("title") or activity.get("market") or activity.get("question"),
+        "outcome": activity.get("outcome"),
+        "wallet": wallet,
+        **_wallet_display_fields(wallet, wallet_order=wallet_order),
+        "public_name": public_name,
+        "amount": activity.get("usdcSize") or activity.get("usdc_size") or activity.get("amount_usd") or activity.get("notional_usd"),
+        "status": "observed",
+        "reason": None,
+        "shares": activity.get("size") or activity.get("shares"),
+        "entry_price": activity.get("price") or activity.get("entry_price"),
+        "order_price": activity.get("price") or activity.get("order_price"),
+        "source_notional_usd": activity.get("usdcSize") or activity.get("usdc_size"),
+        "source_timestamp": activity.get("timestamp"),
+        "source_time": _iso_from_epoch(event_ts) if event_ts is not None else None,
+        "condition_id": activity.get("conditionId") or activity.get("condition_id"),
+        "slug": activity.get("slug"),
+        "source": "data_api_activity_72h",
+    }
+
+
 def _wallet_display_fields(wallet: Any, *, wallet_order: dict[str, int]) -> dict[str, Any]:
     normalized = _normalize_wallet_optional(wallet)
     if normalized is None:
@@ -2139,6 +2284,7 @@ def _wallet_display_fields(wallet: Any, *, wallet_order: dict[str, int]) -> dict
             "wallet_short": wallet,
             "follow_order": None,
             "follow_order_label": None,
+            "followed": False,
         }
     follow_order = wallet_order.get(normalized)
     return {
@@ -2146,6 +2292,7 @@ def _wallet_display_fields(wallet: Any, *, wallet_order: dict[str, int]) -> dict
         "wallet_short": _short_wallet(normalized),
         "follow_order": follow_order,
         "follow_order_label": f"#{follow_order:02d}" if follow_order is not None else None,
+        "followed": follow_order is not None,
     }
 
 
@@ -2300,13 +2447,13 @@ def _build_risk_flags(
             )
         winrate = _coerce_float(wallet.get("recent_winrate") or wallet.get("week_winrate"))
         window_days = _coerce_int(wallet.get("recent_window_days") or wallet.get("week_window_days")) or _FOLLOWED_WALLET_STATS_DAYS
-        if winrate is not None and winrate < _BENCH_MIN_30D_WINRATE:
+        if winrate is not None and winrate <= _BENCH_MIN_30D_WINRATE:
             flags.append(
                 {
                     "severity": "warning",
                     "wallet": wallet.get("address"),
                     "label": wallet.get("label"),
-                    "reason": f"{window_days}-day winrate below {_BENCH_MIN_30D_WINRATE:.0%} ({winrate:.2%}).",
+                    "reason": f"{window_days}-day winrate at/below {_BENCH_MIN_30D_WINRATE:.0%} ({winrate:.2%}).",
                     "recommendation": "review before further copying",
                 }
             )
@@ -2987,6 +3134,8 @@ def _sanitize(value: Any, *, key: str | None = None, depth: int = 0) -> Any:
         list_limit = (
             _MAX_OPS_FEED_EVENTS
             if key == "mirror_feed"
+            else _MAX_ALL_ACTIVITY_FEED_EVENTS
+            if key == "all_activity_feed"
             else _MAX_PORTFOLIO_POSITIONS
             if key in {"latest_positions", "positions"}
             else _MAX_LIST_ITEMS

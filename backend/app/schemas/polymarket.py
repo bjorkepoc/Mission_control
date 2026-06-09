@@ -113,6 +113,7 @@ class PolymarketV2OpsResponse(SQLModel):
     benched_wallets: list[Any] = Field(default_factory=list)
     positions: list[Any] = Field(default_factory=list)
     mirror_feed: list[Any] = Field(default_factory=list)
+    all_activity_feed: list[Any] = Field(default_factory=list)
     risk_flags: list[Any] = Field(default_factory=list)
     performance: dict[str, Any] = Field(default_factory=dict)
     source_files: list[PolymarketReportFileStatus] = Field(default_factory=list)

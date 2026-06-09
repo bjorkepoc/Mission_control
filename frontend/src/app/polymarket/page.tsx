@@ -50,8 +50,14 @@ const PNL_LOOKBACK_OPTIONS = [
   { label: "90D", days: 90 },
   { label: "All", days: null },
 ] as const;
+const ACTIVITY_FILTER_OPTIONS = [
+  { label: "All", value: "all" },
+  { label: "Followed", value: "followed" },
+  { label: "Not followed", value: "not_followed" },
+] as const;
 
 type SortDirection = "asc" | "desc";
+type ActivityFilter = (typeof ACTIVITY_FILTER_OPTIONS)[number]["value"];
 type SortState<Key extends string> = {
   key: Key;
   direction: SortDirection;
@@ -93,6 +99,7 @@ type OpsPayload = {
   benched_wallets: Array<Record<string, unknown>>;
   positions: Array<Record<string, unknown>>;
   mirror_feed: Array<Record<string, unknown>>;
+  all_activity_feed?: Array<Record<string, unknown>>;
   risk_flags: Array<Record<string, unknown>>;
   performance: Record<string, unknown>;
   copy_config?: Record<string, unknown>;
@@ -304,7 +311,7 @@ const statusClass = (value: unknown): string => {
   ) {
     return "border-emerald-300 bg-emerald-100 text-emerald-800";
   }
-  if (status.includes("selected") || status.includes("queued") || status.includes("pending")) {
+  if (status.includes("selected") || status.includes("queued") || status.includes("pending") || status.includes("observed")) {
     return "border-sky-200 bg-sky-50 text-sky-700";
   }
   if (
@@ -362,28 +369,23 @@ const isFailedCopyEvent = (event: Record<string, unknown>): boolean => {
   );
 };
 
+const isFollowedActivityEvent = (event: Record<string, unknown>): boolean => {
+  if (typeof event.followed === "boolean") return event.followed;
+  return textValue(event.follow_order_label) !== DASH || numberValue(event.follow_order) !== null;
+};
+
 const copyEventClass = (event: Record<string, unknown>): string => {
-  const status = textValue(event.status).toLowerCase();
-  const reason = textValue(event.reason).toLowerCase();
   if (isFailedCopyEvent(event)) {
     return "border-l-4 border-rose-500 bg-rose-100 ring-1 ring-inset ring-rose-200";
   }
-  if (status.includes("executed") || status.includes("matched") || status.includes("filled")) {
+  if (isFollowedActivityEvent(event)) {
     return "border-l-4 border-emerald-500 bg-emerald-100/70";
   }
-  if (status.includes("selected") || status.includes("queued") || status.includes("pending")) {
-    return "border-l-4 border-sky-400 bg-sky-50/45";
-  }
-  if (
-    status.includes("missing") ||
-    status.includes("stale") ||
-    status.includes("skipped") ||
-    reason.includes("no fresh")
-  ) {
-    return "border-l-4 border-amber-400 bg-amber-50/50";
-  }
-  return "border-l-4 border-slate-200 bg-white";
+  return "border-l-4 border-slate-300 bg-slate-50";
 };
+
+const activityFollowClass = (event: Record<string, unknown>): string =>
+  isFollowedActivityEvent(event) ? "border-emerald-300 bg-emerald-100 text-emerald-800" : "border-slate-300 bg-slate-100 text-slate-700";
 
 const actionClass = (value: unknown): string => {
   const action = textValue(value).toLowerCase();
@@ -993,6 +995,7 @@ export default function PolymarketPage() {
   const [orderSizeError, setOrderSizeError] = useState<string | null>(null);
   const [orderSizeDirty, setOrderSizeDirty] = useState(false);
   const [pnlLookbackDays, setPnlLookbackDays] = useState<number | null>(30);
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const [walletToRemove, setWalletToRemove] = useState<Record<string, unknown> | null>(null);
   const [selectedWallet, setSelectedWallet] = useState<Record<string, unknown> | null>(null);
   const [benchWalletError, setBenchWalletError] = useState<string | null>(null);
@@ -1089,6 +1092,11 @@ export default function PolymarketPage() {
   const mirrorFeed = payload?.mirror_feed ?? EMPTY_ROWS;
   const riskFlags = payload?.risk_flags ?? EMPTY_ROWS;
   const warnings = payload?.warnings ?? [];
+  const filteredMirrorFeed = mirrorFeed.filter((event) => {
+    if (activityFilter === "all") return true;
+    const followed = isFollowedActivityEvent(event);
+    return activityFilter === "followed" ? followed : !followed;
+  });
 
   const currentOrderUsd = numberValue(copyConfig.order_usd ?? overview.order_usd);
   const displayedOrderSizeInput =
@@ -1704,20 +1712,46 @@ export default function PolymarketPage() {
               />
             </section>
 
-            <section className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <article className="rounded-lg border border-slate-200 bg-white">
-                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+            <section className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+              <article className="rounded-lg border border-slate-200 bg-white xl:col-span-2">
+                <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-950">
                     <Activity className="h-4 w-4 text-sky-600" />
                     Copy Activity
                   </h2>
-                  <span className="text-xs text-slate-500">{formatNumber(mirrorFeed.length)} rows · 72h</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
+                      {ACTIVITY_FILTER_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setActivityFilter(option.value)}
+                          className={`min-h-8 px-2.5 text-xs font-medium transition ${
+                            activityFilter === option.value
+                              ? "rounded bg-slate-900 text-white"
+                              : "text-slate-600 hover:text-slate-950"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-xs text-slate-500">
+                      {formatNumber(filteredMirrorFeed.length)} / {formatNumber(mirrorFeed.length)} rows · 72h
+                    </span>
+                  </div>
                 </div>
                 <div className="max-h-[520px] divide-y divide-slate-100 overflow-auto">
-                  {mirrorFeed.length > 0 ? (
-                    mirrorFeed.slice().reverse().map((event, index) => {
+                  {filteredMirrorFeed.length > 0 ? (
+                    filteredMirrorFeed.slice().reverse().map((event, index) => {
                       const accountLabel = [event.follow_order_label, event.wallet_label].map(textValue).filter((value) => value !== DASH).join(" ");
-                      const walletLine = accountLabel || textValue(event.wallet_short ?? event.wallet);
+                      const publicName = textValue(event.public_name);
+                      const walletLine = [
+                        accountLabel || textValue(event.wallet_short ?? event.wallet),
+                        publicName !== DASH ? publicName : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ");
                       const eventType = textValue(event.type);
                       const eventOutcome = textValue(event.outcome);
                       const eventAmount = formatUsd(event.amount);
@@ -1729,6 +1763,7 @@ export default function PolymarketPage() {
                       const secondaryTextClass = failedEvent ? "text-rose-800" : "text-slate-600";
                       const mutedTextClass = failedEvent ? "text-rose-700" : "text-slate-400";
                       const failedChipClass = "border-rose-300 bg-rose-100 text-rose-800";
+                      const followLabel = isFollowedActivityEvent(event) ? "Followed" : "Not followed";
                       return (
                         <div key={`${textValue(event.time)}-${index}`} className={`px-4 py-3 ${copyEventClass(event)}`}>
                           <div className="flex items-start justify-between gap-3">
@@ -1736,6 +1771,9 @@ export default function PolymarketPage() {
                               <p className={`truncate text-sm font-medium ${primaryTextClass}`}>{textValue(event.market)}</p>
                               <p className={`mt-0.5 truncate text-xs font-medium ${secondaryTextClass}`}>{walletLine}</p>
                               <div className="mt-2 flex flex-wrap gap-1.5">
+                                <span className={`rounded-full border px-2 py-0.5 text-xs ${failedEvent ? failedChipClass : activityFollowClass(event)}`}>
+                                  {followLabel}
+                                </span>
                                 {eventType !== DASH ? (
                                   <span className={`rounded-full border px-2 py-0.5 text-xs ${failedEvent ? failedChipClass : actionClass(eventType)}`}>
                                     {eventType}
@@ -1777,7 +1815,7 @@ export default function PolymarketPage() {
                       );
                     })
                   ) : (
-                    <EmptyState label="No copied, selected, or attempted wallet trades in the current log window." />
+                    <EmptyState label="No activity matches this filter in the current 72h window." />
                   )}
                 </div>
               </article>

@@ -425,20 +425,34 @@ def test_v2_ops_payload_builds_followed_wallets_and_mirror_feed(
         "0x1111111111111111111111111111111111111111",
         encoding="utf-8",
     )
-    monkeypatch.setattr(
-        polymarket_reader,
-        "_fetch_data_api_list",
-        lambda path, _params: [
-            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 2596.0},
-            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
-            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
-            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
-            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
-            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
-        ]
-        if path == "/closed-positions"
-        else [],
-    )
+    def fake_fetch_data_api(path: str, _params: dict[str, object]) -> list[dict[str, object]]:
+        if path == "/closed-positions":
+            return [
+                {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 2596.0},
+                {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
+                {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
+                {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
+                {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
+                {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
+            ]
+        if path == "/activity":
+            return [
+                {
+                    "timestamp": 4102444920,
+                    "side": "BUY",
+                    "title": "Observed market",
+                    "outcome": "Yes",
+                    "size": 12.0,
+                    "usdcSize": 4.2,
+                    "price": 0.35,
+                    "name": "Observed Trader",
+                    "conditionId": "condition-observed",
+                }
+            ]
+        return []
+
+    polymarket_reader._ALL_ACTIVITY_CACHE.clear()
+    monkeypatch.setattr(polymarket_reader, "_fetch_data_api_list", fake_fetch_data_api)
     monkeypatch.setenv(polymarket_reader.WATCHER_ROOT_ENV, str(watcher_root))
     monkeypatch.setenv(polymarket_reader.AGENTS_ROOT_ENV, str(agents_root))
 
@@ -472,6 +486,17 @@ def test_v2_ops_payload_builds_followed_wallets_and_mirror_feed(
     assert payload["mirror_feed"][0]["wallet_label"] == "0x1111...1111"
     assert payload["mirror_feed"][0]["wallet_short"] == "0x1111...1111"
     assert payload["mirror_feed"][0]["follow_order_label"] == "#01"
+    assert payload["mirror_feed"][0]["followed"] is True
+    observed_mirror_row = next(row for row in payload["mirror_feed"] if row["market"] == "Observed market")
+    assert observed_mirror_row["source"] == "data_api_activity_72h"
+    assert observed_mirror_row["status"] == "observed"
+    assert observed_mirror_row["followed"] is True
+    assert payload["all_activity_feed"][0]["market"] == "Observed market"
+    assert payload["all_activity_feed"][0]["wallet"] == "0x1111...1111"
+    assert payload["all_activity_feed"][0]["wallet_label"] == "0x1111...1111"
+    assert payload["all_activity_feed"][0]["follow_order_label"] == "#01"
+    assert payload["all_activity_feed"][0]["public_name"] == "Observed Trader"
+    assert payload["all_activity_feed"][0]["status"] == "observed"
     assert payload["risk_flags"][0]["reason"] == "No fresh trade in latest hook window."
     assert payload["risk_flags"][1]["reason"] == "Latest fetched bets for this account."
     assert payload["risk_flags"][1]["recent_bets"][0]["market"] == "Market A"
@@ -991,11 +1016,48 @@ def test_v2_ops_auto_benches_wallet_with_30d_winrate_below_minimum(
 
     assert payload["overview"]["followed_wallet_count"] == 0
     assert payload["overview"]["benched_wallet_count"] == 1
-    assert payload["benched_wallets"][0]["reason"] == "30d winrate 50.0% < 75.0%."
+    assert payload["benched_wallets"][0]["reason"] == "30d winrate 50.0% <= 75.0%."
     assert payload["benched_wallets"][0]["recent_winrate"] == 0.5
     assert payload["benched_wallets"][0]["recent_realized_pnl"] == 4999.0
     assert "0x1111111111111111111111111111111111111111" not in manual_path.read_text(encoding="utf-8")
     assert "0x1111111111111111111111111111111111111111" not in pinned_path.read_text(encoding="utf-8")
+
+
+def test_v2_ops_auto_benches_wallet_at_75_percent_winrate_with_small_sample(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    watcher_root = tmp_path / "watcher"
+    agents_root = tmp_path / "agents"
+    manual_path = agents_root / "elite-whales/manual_wallets.txt"
+    pinned_path = watcher_root / "state/whale_roster/pinned_wallets.txt"
+    manual_path.parent.mkdir(parents=True, exist_ok=True)
+    pinned_path.parent.mkdir(parents=True, exist_ok=True)
+    manual_path.write_text("0x1111111111111111111111111111111111111111\n", encoding="utf-8")
+    pinned_path.write_text("0x1111111111111111111111111111111111111111\n", encoding="utf-8")
+    _write_json(agents_root / "elite-whales/hook-latest.json", {"execution": {}})
+    monkeypatch.setenv(polymarket_reader.WATCHER_ROOT_ENV, str(watcher_root))
+    monkeypatch.setenv(polymarket_reader.AGENTS_ROOT_ENV, str(agents_root))
+    monkeypatch.setattr(
+        polymarket_reader,
+        "_fetch_data_api_list",
+        lambda path, _params: [
+            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1500.0},
+            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
+            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": 1.0},
+            {"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": -1.0},
+        ]
+        if path == "/closed-positions"
+        else [],
+    )
+
+    payload = polymarket_reader.build_v2_ops_payload()
+
+    assert payload["overview"]["followed_wallet_count"] == 0
+    assert payload["overview"]["benched_wallet_count"] == 1
+    assert payload["benched_wallets"][0]["recent_closed_count"] == 4
+    assert payload["benched_wallets"][0]["recent_winrate"] == 0.75
+    assert payload["benched_wallets"][0]["reason"] == "30d winrate 75.0% <= 75.0%."
 
 
 def test_v2_ops_benches_wallet_below_500_pnl_without_strong_winrate(
@@ -1223,7 +1285,7 @@ def test_v2_ops_benches_wallet_below_lifetime_winrate_floor(
     assert payload["overview"]["benched_wallet_count"] == 1
     assert payload["benched_wallets"][0]["recent_winrate"] == 1.0
     assert payload["benched_wallets"][0]["lifetime_winrate"] == 5 / 7
-    assert payload["benched_wallets"][0]["reason"] == "lifetime winrate 71.4% < 75.0%."
+    assert payload["benched_wallets"][0]["reason"] == "lifetime winrate 71.4% <= 75.0%."
 
 
 def test_v2_ops_benches_wallet_with_negative_lifetime_pnl(
