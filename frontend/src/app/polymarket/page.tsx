@@ -1121,6 +1121,21 @@ export default function PolymarketPage() {
     if (opsQuery.error instanceof Error) return [opsQuery.error.message];
     return [];
   }, [opsQuery.error]);
+  const serviceModeText = textValue(service.mode).toLowerCase();
+  const serviceLooksOnline =
+    serviceModeText !== DASH &&
+    ["active", "live", "running", "enabled"].some((value) => serviceModeText.includes(value));
+  const liveCopyEnabled =
+    service.execute_live_enabled === true ||
+    textValue(service.execute_live_enabled).toLowerCase() === "true";
+  const opsIssueDetails = [
+    ...queryErrors,
+    ...(opsQuery.isSuccess && !payload ? ["Polymarket ops payload is missing."] : []),
+    ...(opsQuery.isSuccess && payload && !serviceLooksOnline ? [`Service mode: ${textValue(service.mode)}`] : []),
+    ...(opsQuery.isSuccess && payload && !liveCopyEnabled ? ["Live copy execution is disabled."] : []),
+    ...warnings,
+  ];
+  const showOpsStatusPanel = opsQuery.isError || opsIssueDetails.length > 0;
 
   const handleFollowedWalletSort = (key: FollowedWalletSortKey) => {
     setFollowedWalletSort((current) => ({
@@ -1239,57 +1254,46 @@ export default function PolymarketPage() {
         <DashboardSidebar />
         <main className="polymarket-page flex-1 overflow-y-auto bg-slate-50">
           <div className="mx-auto max-w-[1800px] p-4 md:p-6">
-            <header className="border-b border-slate-200 pb-4">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h1 className="flex items-center gap-2 text-2xl font-semibold text-slate-950">
-                    <LineChart className="h-6 w-6 text-emerald-600" />
-                    Polymarket Ops
-                  </h1>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Operations view for portfolio exposure, live positions, wallet following, and copy activity.
-                  </p>
+            {showOpsStatusPanel ? (
+              <section className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 font-semibold">
+                      <AlertTriangle className="h-4 w-4" />
+                      Polymarket Ops issue
+                    </div>
+                    <ul className="mt-2 grid gap-1 md:grid-cols-2">
+                      {opsIssueDetails.slice(0, 8).map((detail) => (
+                        <li key={detail} className="truncate">{detail}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 ${statusClass(service.mode)}`}>
+                      <Radio className="h-3.5 w-3.5" />
+                      {textValue(service.mode)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-white px-3 py-1 text-rose-700">
+                      <Clock className="h-3.5 w-3.5" />
+                      {formatDate(payload?.generated_at)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-white px-3 py-1 text-rose-700">
+                      <Shield className="h-3.5 w-3.5" />
+                      {liveCopyEnabled ? "Trading protected" : "Trading disabled"}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 ${statusClass(service.mode)}`}>
-                    <Radio className="h-3.5 w-3.5" />
-                    {textValue(service.mode)}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-700">
-                    <Clock className="h-3.5 w-3.5" />
-                    {formatDate(payload?.generated_at)}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-700">
-                    <Shield className="h-3.5 w-3.5" />
-                    Trading protected
-                  </span>
-                </div>
-              </div>
-            </header>
-
-            {queryErrors.length > 0 ? (
-              <section className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                <div className="flex items-center gap-2 font-semibold">
-                  <AlertTriangle className="h-4 w-4" />
-                  API load issue
-                </div>
-                {queryErrors.map((error) => (
-                  <p key={error} className="mt-1">{error}</p>
-                ))}
-              </section>
-            ) : null}
-
-            {warnings.length > 0 ? (
-              <section className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                <div className="flex items-center gap-2 font-semibold">
-                  <AlertTriangle className="h-4 w-4" />
-                  Watcher warnings
-                </div>
-                <ul className="mt-1 grid gap-1 md:grid-cols-2">
-                  {warnings.slice(0, 6).map((warning) => (
-                    <li key={warning} className="truncate">• {warning}</li>
-                  ))}
-                </ul>
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-xs font-semibold text-rose-700">Service details</summary>
+                  <dl className="mt-2 grid grid-cols-1 gap-2 text-xs md:grid-cols-2 xl:grid-cols-3">
+                    {serviceRows.map(({ label, value }) => (
+                      <div key={label} className="flex items-start justify-between gap-3 rounded-md bg-white px-3 py-2">
+                        <dt className="text-rose-500">{label}</dt>
+                        <dd className="text-right font-medium text-rose-800">{textValue(value)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </details>
               </section>
             ) : null}
 
@@ -1538,22 +1542,24 @@ export default function PolymarketPage() {
               </article>
             </section>
 
-            <section className="mt-4 rounded-lg border border-slate-200 bg-white">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-                <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                  <Eye className="h-4 w-4 text-slate-600" />
-                  Service Snapshot
-                </h2>
-              </div>
-              <dl className="grid grid-cols-1 gap-2 p-4 text-sm md:grid-cols-2 xl:grid-cols-3">
-                {serviceRows.map(({ label, value }) => (
-                  <div key={label} className="flex items-start justify-between gap-3 rounded-md bg-slate-50 px-3 py-2">
-                    <dt className="text-slate-500">{label}</dt>
-                    <dd className="text-right font-medium text-slate-800">{textValue(value)}</dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
+            {showOpsStatusPanel ? (
+              <section className="mt-4 rounded-lg border border-slate-200 bg-white">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                    <Eye className="h-4 w-4 text-slate-600" />
+                    Service Snapshot
+                  </h2>
+                </div>
+                <dl className="grid grid-cols-1 gap-2 p-4 text-sm md:grid-cols-2 xl:grid-cols-3">
+                  {serviceRows.map(({ label, value }) => (
+                    <div key={label} className="flex items-start justify-between gap-3 rounded-md bg-slate-50 px-3 py-2">
+                      <dt className="text-slate-500">{label}</dt>
+                      <dd className="text-right font-medium text-slate-800">{textValue(value)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ) : null}
 
             <section className="mt-4 rounded-lg border border-slate-200 bg-white">
               <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 xl:flex-row xl:items-start xl:justify-between">
