@@ -673,7 +673,7 @@ def test_v2_ops_payload_uses_readable_followed_wallet_labels(
     payload = polymarket_reader.build_v2_ops_payload()
 
     labels = {wallet["address_key"]: wallet["label"] for wallet in payload["followed_wallets"]}
-    assert labels["204f72f35326db932158cba6adff0b9a1da95e14"] == "Fast Tony"
+    assert labels["204f72f35326db932158cba6adff0b9a1da95e14"] == "swisstony Possible"
     assert labels["e6caba8578c6c2d53cf31f283601888adc92b27a"] == "Pog Mirror"
 
 
@@ -788,6 +788,12 @@ def test_benched_wallet_short_address_label_uses_readable_alias(tmp_path: Path) 
                     "reason": "test",
                 },
                 {
+                    "wallet": "0x0c3c6cedfc55e5977fd9ad1221b75d25c62a5eea",
+                    "label": "Research Alpha 4",
+                    "benched_at": "2026-06-08T00:00:00Z",
+                    "reason": "test",
+                },
+                {
                     "wallet": "0x1111111111111111111111111111111111111111",
                     "label": "Custom Name",
                     "benched_at": "2026-06-08T00:00:00Z",
@@ -801,6 +807,7 @@ def test_benched_wallet_short_address_label_uses_readable_alias(tmp_path: Path) 
 
     labels = {wallet["wallet"]: wallet["label"] for wallet in records}
     assert labels["0xbea2145ea711825e4f26759355e08f527ea4eb63"] == "Benched Alpha"
+    assert labels["0x0c3c6cedfc55e5977fd9ad1221b75d25c62a5eea"] == "SakuraDevil Speed"
     assert labels["0x1111111111111111111111111111111111111111"] == "Custom Name"
 
 
@@ -913,6 +920,45 @@ def test_v2_ops_auto_benches_wallet_with_30d_pnl_below_minimum(
     assert payload["benched_wallets"][0]["week_realized_pnl"] == -30.0
     assert "0x1111111111111111111111111111111111111111" not in manual_path.read_text(encoding="utf-8")
     assert "0x1111111111111111111111111111111111111111" not in pinned_path.read_text(encoding="utf-8")
+
+
+def test_v2_ops_does_not_auto_bench_exempt_wallet(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    watcher_root = tmp_path / "watcher"
+    agents_root = tmp_path / "agents"
+    wallet = "0x1111111111111111111111111111111111111111"
+    manual_path = agents_root / "elite-whales/manual_wallets.txt"
+    pinned_path = watcher_root / "state/whale_roster/pinned_wallets.txt"
+    manual_path.parent.mkdir(parents=True, exist_ok=True)
+    pinned_path.parent.mkdir(parents=True, exist_ok=True)
+    manual_path.write_text(f"{wallet}\n", encoding="utf-8")
+    pinned_path.write_text(f"{wallet}\n", encoding="utf-8")
+    _write_json(agents_root / "elite-whales/hook-latest.json", {"execution": {}})
+    _write_json(
+        agents_root / "elite-whales/benched_wallets.json",
+        {"wallets": [{"wallet": wallet, "reason": "old bench row"}]},
+    )
+    monkeypatch.setenv(polymarket_reader.WATCHER_ROOT_ENV, str(watcher_root))
+    monkeypatch.setenv(polymarket_reader.AGENTS_ROOT_ENV, str(agents_root))
+    monkeypatch.setenv("BENCH_EXEMPT_WALLETS", wallet)
+    monkeypatch.setattr(
+        polymarket_reader,
+        "_fetch_data_api_list",
+        lambda path, _params: [{"closedAt": "2100-01-01T00:00:00Z", "realizedPnl": -30.0}]
+        if path == "/closed-positions"
+        else [],
+    )
+
+    payload = polymarket_reader.build_v2_ops_payload()
+
+    assert payload["overview"]["followed_wallet_count"] == 1
+    assert payload["overview"]["benched_wallet_count"] == 0
+    assert payload["followed_wallets"][0]["address_key"] == wallet.removeprefix("0x")
+    assert wallet in manual_path.read_text(encoding="utf-8")
+    assert wallet in pinned_path.read_text(encoding="utf-8")
+    assert json.loads((agents_root / "elite-whales/benched_wallets.json").read_text(encoding="utf-8"))["wallets"] == []
 
 
 def test_v2_ops_auto_benches_wallet_with_30d_winrate_below_minimum(

@@ -328,17 +328,23 @@ const walletStatusLabel = (value: unknown): string => {
 
 const walletStatusClass = (value: unknown): string => {
   const status = textValue(value).toLowerCase();
-  if (status.includes("failed") || status.includes("error") || status.includes("blocked") || status.includes("removed")) {
-    return "border-rose-300 bg-rose-100 text-rose-800";
+  if (
+    status.includes("failed") ||
+    status.includes("error") ||
+    status.includes("blocked") ||
+    status.includes("removed") ||
+    status.includes("missing_recent_trade")
+  ) {
+    return "pm-wallet-status--danger";
   }
-  if (status.includes("missing_recent_trade") || status.includes("missing") || status.includes("stale") || status.includes("no fresh")) {
-    return "border-amber-300 bg-amber-100 text-amber-900";
+  if (status.includes("missing") || status.includes("stale") || status.includes("no fresh")) {
+    return "pm-wallet-status--warning";
   }
   if (status === "active" || status.includes("live") || status.includes("keep")) {
-    return "border-emerald-300 bg-emerald-100 text-emerald-800";
+    return "pm-wallet-status--success";
   }
   if (status.includes("watch") || status.includes("pending") || status.includes("queued")) {
-    return "border-sky-200 bg-sky-50 text-sky-700";
+    return "pm-wallet-status--info";
   }
   return "border-slate-200 bg-slate-50 text-slate-700";
 };
@@ -461,14 +467,14 @@ const walletWeekPnl = (wallet: Record<string, unknown>): unknown =>
 
 const winrateToneClass = (value: unknown): string => {
   const winrate = numberValue(value);
-  if (winrate === null) return "border-slate-200 bg-slate-50 text-slate-600";
+  if (winrate === null) return "pm-winrate--neutral";
   if (winrate >= FOLLOWED_WINRATE_GREEN_MIN) {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    return "pm-winrate--success";
   }
   if (winrate >= FOLLOWED_WINRATE_ORANGE_MIN) {
-    return "border-orange-200 bg-orange-50 text-orange-800";
+    return "pm-winrate--warning";
   }
-  return "border-rose-200 bg-rose-50 text-rose-700";
+  return "pm-winrate--danger";
 };
 
 const walletCopyStats = (wallet: Record<string, unknown>): Record<string, unknown> =>
@@ -485,8 +491,11 @@ const walletWinrateLow = (wallet: Record<string, unknown>): boolean => {
   return winrate !== null && winrate < FOLLOWED_WINRATE_ORANGE_MIN;
 };
 
+const winrateBadgeClass = (value: unknown): string =>
+  `inline-flex min-w-16 justify-center rounded-md border px-2 py-1 text-xs font-semibold ${winrateToneClass(value)}`;
+
 const walletWinrateClass = (wallet: Record<string, unknown>): string =>
-  `inline-flex min-w-16 justify-center rounded-md border px-2 py-1 text-xs font-semibold ${winrateToneClass(walletRecentWinrate(wallet))}`;
+  winrateBadgeClass(walletRecentWinrate(wallet));
 
 function KpiCard({
   label,
@@ -1088,12 +1097,6 @@ export default function PolymarketPage() {
   const totalValue = walletTotal.total_value;
   const positionsValue = walletTotal.positions_value;
   const cashValue = walletTotal.cash_value;
-  const bankrollValue = numberValue(overview.bankroll);
-  const positionsValueNumber = numberValue(positionsValue);
-  const showBankrollCard =
-    bankrollValue === null ||
-    positionsValueNumber === null ||
-    Math.abs(bankrollValue - positionsValueNumber) >= 0.01;
   const latestPoint = asRecord(performance.latest);
   const previousPoint = asRecord(performance.previous);
   const latestPnl = numberValue(latestPoint.total_pnl);
@@ -1297,13 +1300,10 @@ export default function PolymarketPage() {
               </section>
             ) : null}
 
-            <section className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <section className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
               <KpiCard label="Wallet" value={formatUsd(totalValue)} helper={textValue(walletTotal.source)} tone="good" />
               <KpiCard label="Cash" value={formatUsd(cashValue)} helper={walletTotal.cash_available ? textValue(walletTotal.cash_source) : "not captured"} />
               <KpiCard label="Positions" value={formatUsd(positionsValue)} helper={`${formatNumber(overview.open_position_count)} open`} />
-              {showBankrollCard ? (
-                <KpiCard label="Bankroll" value={formatUsd(overview.bankroll)} helper={textValue(overview.bankroll_source)} />
-              ) : null}
               <KpiCard label="Followed" value={formatNumber(overview.followed_wallet_count)} helper={`${formatNumber(overview.manual_wallet_count)} manual`} />
               <KpiCard label="Benched" value={formatNumber(overview.benched_wallet_count)} helper="auto-paused whales" tone={numberValue(overview.benched_wallet_count) ? "warn" : "neutral"} />
               <div className="min-w-0">
@@ -1391,7 +1391,7 @@ export default function PolymarketPage() {
                             {formatUsd(walletWeekPnl(wallet))}
                           </td>
                           <td className="px-3 py-2 text-amber-900">
-                            <div>{formatPercent(walletWeekWinrate(wallet))}</div>
+                            <div className={winrateBadgeClass(walletWeekWinrate(wallet))}>{formatPercent(walletWeekWinrate(wallet))}</div>
                             <div className="text-xs text-amber-800">
                               {formatNumber(walletWeekWins(wallet))}-{formatNumber(walletWeekLosses(wallet))}
                             </div>
@@ -1400,7 +1400,7 @@ export default function PolymarketPage() {
                             {formatUsd(walletRecentPnl(wallet))}
                           </td>
                           <td className="px-3 py-2 text-amber-900">
-                            <div>{formatPercent(walletRecentWinrate(wallet))}</div>
+                            <div className={winrateBadgeClass(walletRecentWinrate(wallet))}>{formatPercent(walletRecentWinrate(wallet))}</div>
                             <div className="text-xs text-amber-800">
                               {formatNumber(walletRecentWins(wallet))}-{formatNumber(walletRecentLosses(wallet))}
                             </div>
@@ -1541,25 +1541,6 @@ export default function PolymarketPage() {
                 </div>
               </article>
             </section>
-
-            {showOpsStatusPanel ? (
-              <section className="mt-4 rounded-lg border border-slate-200 bg-white">
-                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-                  <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                    <Eye className="h-4 w-4 text-slate-600" />
-                    Service Snapshot
-                  </h2>
-                </div>
-                <dl className="grid grid-cols-1 gap-2 p-4 text-sm md:grid-cols-2 xl:grid-cols-3">
-                  {serviceRows.map(({ label, value }) => (
-                    <div key={label} className="flex items-start justify-between gap-3 rounded-md bg-slate-50 px-3 py-2">
-                      <dt className="text-slate-500">{label}</dt>
-                      <dd className="text-right font-medium text-slate-800">{textValue(value)}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-            ) : null}
 
             <section className="mt-4 rounded-lg border border-slate-200 bg-white">
               <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 xl:flex-row xl:items-start xl:justify-between">
@@ -1847,6 +1828,25 @@ export default function PolymarketPage() {
                 </div>
               </article>
             </section>
+
+            {showOpsStatusPanel ? (
+              <section className="mt-4 rounded-lg border border-slate-200 bg-white">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                    <Eye className="h-4 w-4 text-slate-600" />
+                    Service Snapshot
+                  </h2>
+                </div>
+                <dl className="grid grid-cols-1 gap-2 p-4 text-sm md:grid-cols-2 xl:grid-cols-3">
+                  {serviceRows.map(({ label, value }) => (
+                    <div key={label} className="flex items-start justify-between gap-3 rounded-md bg-slate-50 px-3 py-2">
+                      <dt className="text-slate-500">{label}</dt>
+                      <dd className="text-right font-medium text-slate-800">{textValue(value)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ) : null}
           </div>
         </main>
       </SignedIn>

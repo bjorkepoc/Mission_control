@@ -76,6 +76,9 @@ _BENCH_LOW_30D_PNL_MIN_WINRATE = 0.83
 _BENCH_MIN_LIFETIME_CLOSED_BETS = 6
 _BENCH_MIN_LIFETIME_WINRATE = _BENCH_MIN_30D_WINRATE
 _MAX_WALLET_CLOSED_POSITION_ROWS = 1000
+_DEFAULT_BENCH_EXEMPT_WALLETS = {
+    "0x0c3c6cedfc55e5977fd9ad1221b75d25c62a5eea",
+}
 
 
 def resolve_watcher_root() -> Path:
@@ -88,6 +91,15 @@ def resolve_agents_root() -> Path:
     """Resolve Polymarket scheduled-agent artifact root from env override."""
     override = os.getenv(AGENTS_ROOT_ENV, "").strip()
     return Path(override).expanduser() if override else DEFAULT_AGENTS_ROOT
+
+
+def _bench_exempt_wallets() -> set[str]:
+    wallets = set(_DEFAULT_BENCH_EXEMPT_WALLETS)
+    for raw in os.getenv("BENCH_EXEMPT_WALLETS", "").replace("\n", ",").split(","):
+        wallet = raw.strip().lower()
+        if _ADDRESS_RE.fullmatch(wallet):
+            wallets.add(wallet)
+    return wallets
 
 
 def build_status_payload() -> dict[str, Any]:
@@ -1307,7 +1319,7 @@ def _read_benched_wallets_for_update(path: Path) -> dict[str, dict[str, Any]]:
             continue
         known_label = _known_wallet_label(wallet)
         raw_label = str(item.get("label") or "").strip()
-        label = known_label if not raw_label or _is_short_wallet_label(raw_label) else raw_label
+        label = known_label if not raw_label or _is_generated_wallet_label(raw_label) else raw_label
         records[wallet] = {
             **item,
             "wallet": wallet,
@@ -1406,11 +1418,15 @@ def _bench_losing_wallets(
 ) -> list[str]:
     benched_path = _benched_wallets_path(agents_root)
     records = _read_benched_wallets_for_update(benched_path)
+    bench_exempt = _bench_exempt_wallets()
+    removed_exempt = [wallet for wallet in records if wallet in bench_exempt]
+    for wallet in removed_exempt:
+        records.pop(wallet, None)
     newly_benched: list[str] = []
 
     for wallet in followed_wallets:
         normalized = str(wallet.get("address") or "").lower()
-        if not _ADDRESS_RE.fullmatch(normalized) or normalized in records:
+        if not _ADDRESS_RE.fullmatch(normalized) or normalized in records or normalized in bench_exempt:
             continue
         decision = _bench_decision(wallet)
         if decision is None:
@@ -1448,7 +1464,9 @@ def _bench_losing_wallets(
         newly_benched.append(normalized)
 
     if not newly_benched:
-        return []
+        if removed_exempt:
+            _write_benched_wallets(benched_path, records)
+        return removed_exempt
 
     manual_path = agents_root / "elite-whales" / "manual_wallets.txt"
     pinned_path = watcher_root / STATE_DIRNAME / "whale_roster" / "pinned_wallets.txt"
@@ -1458,7 +1476,7 @@ def _bench_losing_wallets(
     _write_wallets_for_update(manual_path, manual_wallets, separator="\n")
     _write_wallets_for_update(pinned_path, pinned_wallets, separator=",")
     _write_benched_wallets(benched_path, records)
-    return newly_benched
+    return [*newly_benched, *removed_exempt]
 
 
 def _bench_decision(wallet: dict[str, Any]) -> str | None:
@@ -1497,6 +1515,15 @@ def _is_short_wallet_label(value: str) -> bool:
     return bool(re.fullmatch(r"0x[0-9a-fA-F]{4}\.\.\.[0-9a-fA-F]{4}", value.strip()))
 
 
+def _is_generated_wallet_label(value: str) -> bool:
+    stripped = value.strip()
+    if _is_short_wallet_label(stripped):
+        return True
+    if stripped in {"Fast Tony", "Liquidity Alpha", "Benched Alpha"}:
+        return True
+    return bool(re.fullmatch(r"(?:Core|Research|Backfill) Alpha(?: \d+)?", stripped))
+
+
 def _build_followed_wallets(
     *,
     manual_wallets: list[str],
@@ -1510,7 +1537,12 @@ def _build_followed_wallets(
     warnings: list[str],
 ) -> list[dict[str, Any]]:
     blocked_set = {wallet.lower() for wallet in blocked_wallets}
-    benched_set = {str(wallet.get("wallet") or wallet.get("address") or "").lower() for wallet in benched_wallets}
+    bench_exempt = _bench_exempt_wallets()
+    benched_set = {
+        wallet
+        for wallet in (str(row.get("wallet") or row.get("address") or "").lower() for row in benched_wallets)
+        if wallet not in bench_exempt
+    }
     ordered: list[str] = []
     seen: set[str] = set()
     for source in (manual_wallets, pinned_wallets, hook_whales):
@@ -1742,18 +1774,28 @@ def _known_wallet_label(address: str) -> str:
         "0xe6caba8578c6c2d53cf31f283601888adc92b27a": "Pog Mirror",
         "0x0dba1031b49144fc304ceb51b1b4ffbf955371e9": "Dzibra Dental",
         "0xb2a3623364c33561d8312e1edb79eb941c798510": "aekghas Debtor",
-        "0x048215305cbcf7cc790735bf00119551d75c6b0a": "Liquidity Alpha",
         "0x9d84ce0306f8551e02efef1680475fc0f1dc1344": "ImJustKen Edge",
         "0xd1c769317bd15de7768a70d0214cf0bbcc531d2b": "033 Oracle",
-        "0x204f72f35326db932158cba6adff0b9a1da95e14": "Fast Tony",
+        "0x204f72f35326db932158cba6adff0b9a1da95e14": "swisstony Possible",
         "0xcbab47f889ffffbb603f600a5feeb0eca0cc9a8a": "ameame Toolsmith",
         "0x97d37d16d1774785197bfa23ffed625a8e493f3c": "Glucky Motion",
-        "0x0c3c6cedfc55e5977fd9ad1221b75d25c62a5eea": "Research Alpha 4",
+        "0x0c3c6cedfc55e5977fd9ad1221b75d25c62a5eea": "SakuraDevil Speed",
         "0xff928ebc0d161b965f2ff00ee07ad2c18dccd07c": "strawberrypig Diam",
         "0x7750f616763150cd5388abdd2ce3700b8d7e5226": "Paltry Escalator",
-        "0xbd920bf7859cd3ceb4f55d223a56d4cee8783482": "Research Alpha 7",
-        "0x88aa565554ca0d3f2d5c9be4f8e0b9d8b8c6ea6f": "Research Alpha 8",
+        "0xbd920bf7859cd3ceb4f55d223a56d4cee8783482": "GrupoM4 Puzzle",
+        "0x88aa565554ca0d3f2d5c9be4f8e0b9d8b8c6ea6f": "SpicyBrwny Hello",
         "0xbea2145ea711825e4f26759355e08f527ea4eb63": "Benched Alpha",
+        "0xd1a63a243042d864520512fbdbd2fd20e0ab1507": "DkOYL Maestro",
+        "0x95f58811d24b5094cbc720a810a63abbeaa50c45": "lolitamarquis4161 Architect",
+        "0x04283f2fef49d70d8c55ab240450d17a65bf85b1": "Gruesome Longboat",
+        "0xbbea56528e414e3a494c5bc23d93770cc91ae2b0": "WindTakeMeNorth Testing",
+        "0xa524d75e93b77003e69a9bd7ea02004cf3d070aa": "Ullamiure300 Tick",
+        "0xf1c53b44ea76078036d8df62b4780c691b8c8e63": "ContextualMeme Parent",
+        "0xe8dd7741ccb12350957ec71e9ee332e0d1e6ec86": "influenz.eth Veteran",
+        "0xbc58a52efe302468867bdbf58d8d28f097929ee1": "Good Spirit",
+        "0x4df332e27f9ee3224f52ce30e3ce15c1075e788f": "SunlineTicker Rain",
+        "0x5b989f6afa0779c7c38edf339a42af3dbcd83dcc": "Utilized Wingtip",
+        "0x048215305cbcf7cc790735bf00119551d75c6b0a": "Liquidity Provider",
     }
     return labels.get(address.lower(), f"{address[:6]}...{address[-4:]}")
 

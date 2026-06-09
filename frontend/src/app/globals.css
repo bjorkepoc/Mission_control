@@ -354,6 +354,54 @@ body::before {
     color: color-mix(in srgb, var(--text) 58%, var(--text-muted)) !important;
   }
 
+  .pm-wallet-status--success {
+    background: color-mix(in srgb, var(--success) 18%, var(--surface-muted)) !important;
+    border-color: color-mix(in srgb, var(--success) 58%, var(--border)) !important;
+    color: var(--success) !important;
+  }
+
+  .pm-wallet-status--warning {
+    background: color-mix(in srgb, var(--warning) 18%, var(--surface-muted)) !important;
+    border-color: color-mix(in srgb, var(--warning) 58%, var(--border)) !important;
+    color: var(--warning) !important;
+  }
+
+  .pm-wallet-status--danger {
+    background: color-mix(in srgb, var(--danger) 20%, var(--surface-muted)) !important;
+    border-color: color-mix(in srgb, var(--danger) 62%, var(--border)) !important;
+    color: color-mix(in srgb, var(--danger) 88%, white) !important;
+  }
+
+  .pm-wallet-status--info {
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface-muted)) !important;
+    border-color: color-mix(in srgb, var(--accent) 50%, var(--border)) !important;
+    color: var(--accent-strong) !important;
+  }
+
+  .pm-winrate--success {
+    background: color-mix(in srgb, var(--success) 16%, var(--surface-muted)) !important;
+    border-color: color-mix(in srgb, var(--success) 54%, var(--border)) !important;
+    color: var(--success) !important;
+  }
+
+  .pm-winrate--warning {
+    background: color-mix(in srgb, var(--warning) 16%, var(--surface-muted)) !important;
+    border-color: color-mix(in srgb, var(--warning) 56%, var(--border)) !important;
+    color: var(--warning) !important;
+  }
+
+  .pm-winrate--danger {
+    background: color-mix(in srgb, var(--danger) 18%, var(--surface-muted)) !important;
+    border-color: color-mix(in srgb, var(--danger) 58%, var(--border)) !important;
+    color: color-mix(in srgb, var(--danger) 90%, white) !important;
+  }
+
+  .pm-winrate--neutral {
+    background: color-mix(in srgb, var(--text-muted) 10%, var(--surface-muted)) !important;
+    border-color: color-mix(in srgb, var(--text-muted) 28%, var(--border)) !important;
+    color: var(--text-muted) !important;
+  }
+
   .mc-markdown {
     color: var(--text);
   }
