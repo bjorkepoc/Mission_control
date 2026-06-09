@@ -41,7 +41,7 @@ const DASH = "-";
 const REFRESH_INTERVAL_MS = 15_000;
 const MAX_ROWS = 12;
 const NORWEGIAN_TIME_ZONE = "Europe/Oslo";
-const FOLLOWED_WINRATE_GREEN_MIN = 0.82;
+const FOLLOWED_WINRATE_GREEN_MIN = 0.83;
 const FOLLOWED_WINRATE_ORANGE_MIN = 0.77;
 const EMPTY_ROWS: Array<Record<string, unknown>> = [];
 const PNL_LOOKBACK_OPTIONS = [
@@ -291,16 +291,118 @@ const formatAge = (value: unknown): string => {
 
 const statusClass = (value: unknown): string => {
   const status = textValue(value).toLowerCase();
-  if (status.includes("active") || status.includes("live") || status.includes("keep")) {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status.includes("failed") || status.includes("error") || status.includes("remove") || status.includes("rejected")) {
+    return "border-rose-300 bg-rose-100 text-rose-800";
   }
-  if (status.includes("watch") || status.includes("missing")) {
+  if (
+    status.includes("active") ||
+    status.includes("live") ||
+    status.includes("keep") ||
+    status.includes("executed") ||
+    status.includes("matched") ||
+    status.includes("filled")
+  ) {
+    return "border-emerald-300 bg-emerald-100 text-emerald-800";
+  }
+  if (status.includes("selected") || status.includes("queued") || status.includes("pending")) {
+    return "border-sky-200 bg-sky-50 text-sky-700";
+  }
+  if (
+    status.includes("watch") ||
+    status.includes("missing") ||
+    status.includes("stale") ||
+    status.includes("no fresh") ||
+    status.includes("skipped")
+  ) {
     return "border-amber-200 bg-amber-50 text-amber-800";
   }
-  if (status.includes("failed") || status.includes("remove")) {
-    return "border-rose-200 bg-rose-50 text-rose-700";
+  return "border-slate-200 bg-slate-50 text-slate-700";
+};
+
+const walletStatusLabel = (value: unknown): string => {
+  const status = textValue(value).toLowerCase();
+  if (status === DASH) return DASH;
+  if (status.includes("missing_recent_trade")) return "mrt";
+  return status.replaceAll("_", " ");
+};
+
+const walletStatusClass = (value: unknown): string => {
+  const status = textValue(value).toLowerCase();
+  if (status.includes("failed") || status.includes("error") || status.includes("blocked") || status.includes("removed")) {
+    return "border-rose-300 bg-rose-100 text-rose-800";
+  }
+  if (status.includes("missing_recent_trade") || status.includes("missing") || status.includes("stale") || status.includes("no fresh")) {
+    return "border-amber-300 bg-amber-100 text-amber-900";
+  }
+  if (status === "active" || status.includes("live") || status.includes("keep")) {
+    return "border-emerald-300 bg-emerald-100 text-emerald-800";
+  }
+  if (status.includes("watch") || status.includes("pending") || status.includes("queued")) {
+    return "border-sky-200 bg-sky-50 text-sky-700";
   }
   return "border-slate-200 bg-slate-50 text-slate-700";
+};
+
+const isFailedCopyEvent = (event: Record<string, unknown>): boolean => {
+  const status = textValue(event.status).toLowerCase();
+  const reason = textValue(event.reason).toLowerCase();
+  return (
+    status.includes("failed") ||
+    status.includes("error") ||
+    status.includes("rejected") ||
+    reason.includes("exception") ||
+    reason.includes("failed") ||
+    reason.includes("error")
+  );
+};
+
+const copyEventClass = (event: Record<string, unknown>): string => {
+  const status = textValue(event.status).toLowerCase();
+  const reason = textValue(event.reason).toLowerCase();
+  if (isFailedCopyEvent(event)) {
+    return "border-l-4 border-rose-500 bg-rose-100 ring-1 ring-inset ring-rose-200";
+  }
+  if (status.includes("executed") || status.includes("matched") || status.includes("filled")) {
+    return "border-l-4 border-emerald-500 bg-emerald-100/70";
+  }
+  if (status.includes("selected") || status.includes("queued") || status.includes("pending")) {
+    return "border-l-4 border-sky-400 bg-sky-50/45";
+  }
+  if (
+    status.includes("missing") ||
+    status.includes("stale") ||
+    status.includes("skipped") ||
+    reason.includes("no fresh")
+  ) {
+    return "border-l-4 border-amber-400 bg-amber-50/50";
+  }
+  return "border-l-4 border-slate-200 bg-white";
+};
+
+const actionClass = (value: unknown): string => {
+  const action = textValue(value).toLowerCase();
+  if (action.includes("buy") || action.includes("bought")) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+  if (action.includes("sell") || action.includes("sold")) {
+    return "border-rose-200 bg-rose-50 text-rose-700";
+  }
+  if (action.includes("selected") || action.includes("copy")) {
+    return "border-sky-200 bg-sky-50 text-sky-700";
+  }
+  return "border-slate-200 bg-slate-50 text-slate-700";
+};
+
+const reasonClass = (value: unknown): string => {
+  const reason = textValue(value).toLowerCase();
+  if (reason === DASH) return "";
+  if (reason.includes("exception") || reason.includes("failed") || reason.includes("error")) {
+    return "border-rose-300 bg-rose-100 text-rose-800";
+  }
+  if (reason.includes("no fresh") || reason.includes("missing") || reason.includes("stale") || reason.includes("skip")) {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+  return "border-slate-200 bg-slate-50 text-slate-600";
 };
 
 const severityClass = (value: unknown): string => {
@@ -1498,8 +1600,8 @@ export default function PolymarketPage() {
                       <th className="px-3 py-2">
                         <SortHeader label="Our PnL" sortKey="ourPnl" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
                       </th>
-                      <th className="px-3 py-2">
-                        <SortHeader label="Status" sortKey="status" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
+                      <th className="px-2 py-2">
+                        <SortHeader label="St" sortKey="status" sort={followedWalletSort} onSort={handleFollowedWalletSort} />
                       </th>
                       <th className="px-3 py-2 text-right">Action</th>
                     </tr>
@@ -1560,9 +1662,9 @@ export default function PolymarketPage() {
                               {formatUsd(copyStats.realized_pnl_usd)} realized / {formatUsd(copyStats.open_unrealized_pnl_usd)} open
                             </div>
                           </td>
-                          <td className="px-3 py-2">
-                            <span className={`rounded-full border px-2 py-1 text-xs ${statusClass(wallet.status)}`}>
-                              {textValue(wallet.status)}
+                          <td className="px-2 py-2">
+                            <span className={`whitespace-nowrap rounded-full border px-2 py-1 text-xs font-semibold ${walletStatusClass(wallet.status)}`}>
+                              {walletStatusLabel(wallet.status)}
                             </span>
                           </td>
                           <td className="px-3 py-2 text-right">
@@ -1629,21 +1731,51 @@ export default function PolymarketPage() {
                     mirrorFeed.slice().reverse().map((event, index) => {
                       const accountLabel = [event.follow_order_label, event.wallet_label].map(textValue).filter((value) => value !== DASH).join(" ");
                       const walletLine = accountLabel || textValue(event.wallet_short ?? event.wallet);
-                      const tradeMeta = [
-                        textValue(event.type),
-                        textValue(event.outcome),
-                        formatUsd(event.amount),
-                        textValue(event.shares) !== DASH ? `${formatNumber(event.shares)} sh` : DASH,
-                        textValue(event.entry_price) !== DASH ? `entry ${formatNumber(event.entry_price)}` : DASH,
-                      ].filter((value) => value !== DASH);
+                      const eventType = textValue(event.type);
+                      const eventOutcome = textValue(event.outcome);
+                      const eventAmount = formatUsd(event.amount);
+                      const eventShares = textValue(event.shares) !== DASH ? `${formatNumber(event.shares)} sh` : DASH;
+                      const eventEntry = textValue(event.entry_price) !== DASH ? `entry ${formatNumber(event.entry_price)}` : DASH;
+                      const reason = textValue(event.reason);
+                      const failedEvent = isFailedCopyEvent(event);
+                      const primaryTextClass = failedEvent ? "text-rose-950" : "text-slate-900";
+                      const secondaryTextClass = failedEvent ? "text-rose-800" : "text-slate-600";
+                      const mutedTextClass = failedEvent ? "text-rose-700" : "text-slate-400";
+                      const failedChipClass = "border-rose-300 bg-rose-100 text-rose-800";
                       return (
-                        <div key={`${textValue(event.time)}-${index}`} className="px-4 py-3">
+                        <div key={`${textValue(event.time)}-${index}`} className={`px-4 py-3 ${copyEventClass(event)}`}>
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-slate-900">{textValue(event.market)}</p>
-                              <p className="mt-0.5 truncate text-xs font-medium text-slate-600">{walletLine}</p>
-                              <p className="mt-0.5 truncate text-xs text-slate-500">{tradeMeta.join(" · ")}</p>
-                              <p className="mt-0.5 truncate text-xs text-slate-400">
+                              <p className={`truncate text-sm font-medium ${primaryTextClass}`}>{textValue(event.market)}</p>
+                              <p className={`mt-0.5 truncate text-xs font-medium ${secondaryTextClass}`}>{walletLine}</p>
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {eventType !== DASH ? (
+                                  <span className={`rounded-full border px-2 py-0.5 text-xs ${failedEvent ? failedChipClass : actionClass(eventType)}`}>
+                                    {eventType}
+                                  </span>
+                                ) : null}
+                                {eventOutcome !== DASH ? (
+                                  <span className={`rounded-full border px-2 py-0.5 text-xs ${failedEvent ? failedChipClass : outcomeClass(eventOutcome)}`}>
+                                    {eventOutcome}
+                                  </span>
+                                ) : null}
+                                {eventAmount !== DASH ? (
+                                  <span className={`rounded-full border px-2 py-0.5 text-xs ${failedEvent ? failedChipClass : pnlBadgeClass(event.amount)}`}>
+                                    {eventAmount}
+                                  </span>
+                                ) : null}
+                                {eventShares !== DASH ? (
+                                  <span className={`rounded-full border px-2 py-0.5 text-xs ${failedEvent ? failedChipClass : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+                                    {eventShares}
+                                  </span>
+                                ) : null}
+                                {eventEntry !== DASH ? (
+                                  <span className={`rounded-full border px-2 py-0.5 text-xs ${failedEvent ? failedChipClass : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+                                    {eventEntry}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className={`mt-0.5 truncate text-xs ${mutedTextClass}`}>
                                 {formatDate(event.time)} · {textValue(event.wallet_short ?? event.wallet)}
                               </p>
                             </div>
@@ -1651,8 +1783,8 @@ export default function PolymarketPage() {
                               {textValue(event.status)}
                             </span>
                           </div>
-                          {textValue(event.reason) !== DASH ? (
-                            <p className="mt-1 text-xs text-slate-500">{textValue(event.reason)}</p>
+                          {reason !== DASH ? (
+                            <p className={`mt-2 rounded-md border px-2 py-1 text-xs ${reasonClass(reason)}`}>{reason}</p>
                           ) : null}
                         </div>
                       );

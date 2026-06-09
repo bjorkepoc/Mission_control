@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.openclaw import gateway_dispatch
+import app.services.openclaw.gateway_dispatch as gateway_dispatch
 from app.services.openclaw.gateway_dispatch import GatewayDispatchService
 from app.services.openclaw.gateway_rpc import OpenClawGatewayError
 
