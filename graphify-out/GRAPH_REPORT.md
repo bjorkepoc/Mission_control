@@ -1,7 +1,7 @@
 # Graph Report - /home/clawd/.openclaw/workspace/mission-control  (2026-06-09)
 
 ## Corpus Check
-- 740 files · ~455,857 words
+- 740 files · ~455,867 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -4715,11 +4715,11 @@ Nodes (1): Build account total view: positions + cash when cash is present in st
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `get()` connect `Community 4` to `Community 1`, `Community 2`, `Community 3`, `Community 5`, `Community 6`, `Community 7`, `Community 8`, `Community 9`, `Community 10`, `Community 11`, `Community 14`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 19`, `Community 22`, `Community 26`, `Community 30`?**
-  _High betweenness centrality (0.267) - this node is a cross-community bridge._
+  _High betweenness centrality (0.263) - this node is a cross-community bridge._
 - **Why does `customFetch()` connect `Community 2` to `Community 9`, `Community 4`, `Community 13`, `Community 6`?**
-  _High betweenness centrality (0.184) - this node is a cross-community bridge._
-- **Why does `Board` connect `Community 0` to `Community 33`, `Community 1`, `Community 3`, `Community 4`, `Community 5`, `Community 7`, `Community 8`, `Community 10`, `Community 12`, `Community 18`, `Community 21`, `Community 22`, `Community 23`, `Community 24`, `Community 25`?**
-  _High betweenness centrality (0.034) - this node is a cross-community bridge._
+  _High betweenness centrality (0.188) - this node is a cross-community bridge._
+- **Why does `connect()` connect `Community 6` to `Community 0`, `Community 1`, `Community 2`, `Community 3`, `Community 4`, `Community 5`, `Community 10`, `Community 16`, `Community 23`, `Community 25`?**
+  _High betweenness centrality (0.036) - this node is a cross-community bridge._
 - **Are the 361 inferred relationships involving `Board` (e.g. with `Seed a minimal local demo dataset for manual development flows.` and `Populate the local database with a demo gateway, board, user, and agent.`) actually correct?**
   _`Board` has 361 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 319 inferred relationships involving `Agent` (e.g. with `Seed a minimal local demo dataset for manual development flows.` and `Populate the local database with a demo gateway, board, user, and agent.`) actually correct?**
